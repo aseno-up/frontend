@@ -1,0 +1,130 @@
+{
+  "meta": {
+    "title": "Reduce No-Shows at Your Clinic | Appointment Scheduling",
+    "description": "Appointment scheduling system with automatic WhatsApp confirmations. Reduce no-shows and automate your schedule."
+  },
+  "hero": {
+    "headline": "Reduce no-shows at your clinic with automatic WhatsApp confirmations",
+    "subheadline": "Simple scheduling, bulk recurring sessions, and automatic confirmations that update appointment status on their own.",
+    "cta": "Try free for 14 days"
+  },
+  "benefits": {
+    "title": "Why use it?",
+    "items": [
+      {
+        "title": "Reduce no-shows",
+        "description": "Automatic WhatsApp confirmations remind patients of their appointments"
+      },
+      {
+        "title": "Recurring sessions",
+        "description": "Schedule recurring sessions in just a few clicks"
+      },
+      {
+        "title": "Less manual work",
+        "description": "Less manual work for the reception"
+      },
+      {
+        "title": "Automatic status",
+        "description": "Appointment status updated automatically"
+      },
+      {
+        "title": "Organized schedule",
+        "description": "Organized and easy to view schedule"
+      },
+      {
+        "title": "More appointments",
+        "description": "More appointments completed, fewer empty slots"
+      }
+    ]
+  },
+  "howItWorks": {
+    "title": "How it works",
+    "steps": [
+      {
+        "step": "1",
+        "title": "Schedule appointments or recurring sessions",
+        "description": "Create single appointments or plans with multiple sessions easily."
+      },
+      {
+        "step": "2",
+        "title": "The system confirms automatically via WhatsApp",
+        "description": "The patient receives the message and responds with a few clicks."
+      },
+      {
+        "step": "3",
+        "title": "The status is updated automatically",
+        "description": "Appointment confirmed, cancelled, or rescheduled without manual work."
+      }
+    ]
+  },
+  "comparison": {
+    "title": "Simple and focused on essentials",
+    "description": "Traditional systems are complex, full of features that clinics don't use daily. This system focuses on the essentials: organized scheduling, automatic confirmations, and fewer no-shows, all integrated with WhatsApp."
+  },
+  "googleCalendar": {
+    "title": "Google Calendar Integration",
+    "description": "Connect your schedule to Google Calendar and keep appointments synchronized. Professionals and patients receive automatic reminders, reducing forgotten appointments and delays."
+  },
+  "pricing": {
+    "title": "Plans",
+    "trial": "14 days free",
+    "month": "/month",
+    "plans": {
+      "basic": {
+        "name": "Basic",
+        "price": "99",
+        "features": [
+          "Up to 2 professionals",
+          "Unlimited scheduling",
+          "WhatsApp confirmations",
+          "Recurring sessions"
+        ]
+      },
+      "professional": {
+        "name": "Professional",
+        "price": "199",
+        "recommended": true,
+        "features": [
+          "Up to 10 professionals",
+          "Everything in Basic",
+          "Google Calendar",
+          "Reports"
+        ]
+      },
+      "advanced": {
+        "name": "Advanced",
+        "price": "349",
+        "features": [
+          "Unlimited professionals",
+          "Everything in Professional",
+          "Integration API",
+          "Priority support"
+        ]
+      }
+    }
+  },
+  "cta": {
+    "title": "Ready to reduce no-shows at your clinic?",
+    "button": "Try free for 14 days",
+    "note": "No credit card required. Instant activation."
+  },
+  "form": {
+    "title": "Start your free trial",
+    "subtitle": "Fill in your details and get instant access to the system",
+    "clinicName": "Clinic name",
+    "clinic": "Clinic name",
+    "name": "Your name",
+    "email": "Email",
+    "phone": "Phone/WhatsApp",
+    "password": "Password",
+    "submit": "Create free account",
+    "security": "We don't send spam. Your data is used only for system access.",
+    "afterRegister": "You will receive immediate access to the system to test the schedule and automatic confirmations.",
+    "noCard": "Quick signup. No credit card required."
+  },
+  "footer": {
+    "copyright": "All rights reserved",
+    "terms": "Terms of use",
+    "privacy": "Privacy policy"
+  }
+}

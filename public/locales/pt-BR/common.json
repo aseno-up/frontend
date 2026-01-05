@@ -1,0 +1,24 @@
+{
+  "actions": {
+    "save": "Salvar",
+    "cancel": "Cancelar",
+    "edit": "Editar",
+    "delete": "Excluir",
+    "create": "Criar",
+    "close": "Fechar",
+    "confirm": "Confirmar",
+    "submit": "Enviar",
+    "back": "Voltar",
+    "next": "Avançar"
+  },
+  "status": {
+    "loading": "Carregando...",
+    "error": "Ocorreu um erro",
+    "success": "Sucesso"
+  },
+  "validation": {
+    "required": "Campo obrigatório",
+    "invalidEmail": "E-mail inválido",
+    "invalidPhone": "Telefone inválido"
+  }
+}

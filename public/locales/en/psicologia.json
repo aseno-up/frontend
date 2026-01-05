@@ -1,0 +1,42 @@
+{
+  "meta": {
+    "title": "Appointment Scheduling for Psychologists and Therapists",
+    "description": "Organize your therapy schedule with recurring sessions and automatic WhatsApp confirmations."
+  },
+  "hero": {
+    "headline": "Organize your therapy schedule with automatic confirmations",
+    "subheadline": "System for psychologists and therapists: recurring weekly sessions and automatic WhatsApp confirmations."
+  },
+  "benefits": {
+    "items": [
+      {
+        "title": "Fixed weekly sessions",
+        "description": "Set up recurring time slots for each patient"
+      },
+      {
+        "title": "Fewer no-shows",
+        "description": "Automatic confirmations reduce forgotten appointments and cancellations"
+      },
+      {
+        "title": "Privacy",
+        "description": "Discreet messages without exposing appointment details"
+      },
+      {
+        "title": "Visual schedule",
+        "description": "View your week clearly and organized"
+      },
+      {
+        "title": "Payment tracking",
+        "description": "Track completed sessions for billing"
+      },
+      {
+        "title": "Familiar WhatsApp",
+        "description": "Patients confirm using the app they already know"
+      }
+    ]
+  },
+  "niche": {
+    "title": "Made for psychologists and therapists",
+    "description": "We understand psychotherapy routines: weekly sessions at the same time, long-term patients, need for communication privacy. The system respects this workflow."
+  }
+}

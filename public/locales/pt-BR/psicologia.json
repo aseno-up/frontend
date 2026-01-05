@@ -1,0 +1,42 @@
+{
+  "meta": {
+    "title": "Sistema de Agendamento para Psicólogos e Terapeutas",
+    "description": "Organize sua agenda de terapia com sessões recorrentes e confirmações automáticas via WhatsApp."
+  },
+  "hero": {
+    "headline": "Organize sua agenda de terapia com confirmações automáticas",
+    "subheadline": "Sistema para psicólogos e terapeutas: sessões semanais recorrentes e confirmações automáticas via WhatsApp."
+  },
+  "benefits": {
+    "items": [
+      {
+        "title": "Sessões semanais fixas",
+        "description": "Configure horários recorrentes para cada paciente"
+      },
+      {
+        "title": "Menos faltas",
+        "description": "Confirmações automáticas reduzem esquecimentos e cancelamentos"
+      },
+      {
+        "title": "Privacidade",
+        "description": "Mensagens discretas, sem expor detalhes do atendimento"
+      },
+      {
+        "title": "Agenda visual",
+        "description": "Visualize sua semana de forma clara e organizada"
+      },
+      {
+        "title": "Controle de pagamentos",
+        "description": "Acompanhe sessões realizadas para cobrança"
+      },
+      {
+        "title": "WhatsApp familiar",
+        "description": "Pacientes confirmam pelo app que já conhecem"
+      }
+    ]
+  },
+  "niche": {
+    "title": "Feito para psicólogos e terapeutas",
+    "description": "Entendemos a rotina da psicoterapia: sessões semanais no mesmo horário, pacientes de longo prazo, necessidade de privacidade nas comunicações. O sistema respeita esse fluxo."
+  }
+}

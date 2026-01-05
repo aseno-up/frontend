@@ -1,0 +1,42 @@
+{
+  "meta": {
+    "title": "Appointment Scheduling for Dental Offices",
+    "description": "Reduce no-shows in dental offices with automatic WhatsApp confirmations."
+  },
+  "hero": {
+    "headline": "Reduce no-shows in your dental office with automatic confirmations",
+    "subheadline": "Specialized system for dentists: treatment scheduling, recurring sessions, and automatic WhatsApp confirmations."
+  },
+  "benefits": {
+    "items": [
+      {
+        "title": "Treatment management",
+        "description": "Manage multi-session dental treatments in an organized way"
+      },
+      {
+        "title": "Fewer no-shows",
+        "description": "Automatic WhatsApp confirmations reduce missed appointments"
+      },
+      {
+        "title": "Chair scheduling",
+        "description": "Organize appointments by professional and chair"
+      },
+      {
+        "title": "Orthodontic sessions",
+        "description": "Schedule monthly braces adjustments in a few clicks"
+      },
+      {
+        "title": "Automatic follow-ups",
+        "description": "Set up reminders for cleanings and check-ups"
+      },
+      {
+        "title": "WhatsApp integration",
+        "description": "Patients confirm using the same WhatsApp they already use"
+      }
+    ]
+  },
+  "niche": {
+    "title": "Made for dental offices",
+    "description": "We understand dental practice routines: long treatments like root canals and implants, braces maintenance, semi-annual cleanings. The system adapts to your office flow."
+  }
+}

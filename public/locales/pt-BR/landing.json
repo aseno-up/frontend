@@ -1,0 +1,130 @@
+{
+  "meta": {
+    "title": "Reduza faltas na sua clínica | Sistema de Agendamento",
+    "description": "Sistema de agendamento com confirmações automáticas via WhatsApp. Reduza faltas e automatize sua agenda."
+  },
+  "hero": {
+    "headline": "Reduza faltas na sua clínica com confirmações automáticas no WhatsApp",
+    "subheadline": "Agenda simples, sessões recorrentes em massa e confirmações automáticas que atualizam o status do atendimento sozinhas.",
+    "cta": "Testar grátis por 14 dias"
+  },
+  "benefits": {
+    "title": "Por que usar?",
+    "items": [
+      {
+        "title": "Reduza faltas",
+        "description": "Confirmações automáticas pelo WhatsApp lembram o paciente do compromisso"
+      },
+      {
+        "title": "Sessões recorrentes",
+        "description": "Agende sessões recorrentes em poucos cliques"
+      },
+      {
+        "title": "Menos trabalho manual",
+        "description": "Menos trabalho manual para a recepção"
+      },
+      {
+        "title": "Status automático",
+        "description": "Status da consulta atualizado automaticamente"
+      },
+      {
+        "title": "Agenda organizada",
+        "description": "Agenda organizada e fácil de visualizar"
+      },
+      {
+        "title": "Mais consultas",
+        "description": "Mais consultas realizadas, menos horários vazios"
+      }
+    ]
+  },
+  "howItWorks": {
+    "title": "Como funciona",
+    "steps": [
+      {
+        "step": "1",
+        "title": "Agende consultas ou sessões recorrentes",
+        "description": "Crie atendimentos únicos ou planos com várias sessões de forma simples."
+      },
+      {
+        "step": "2",
+        "title": "O sistema confirma automaticamente via WhatsApp",
+        "description": "O paciente recebe a mensagem e responde com poucos cliques."
+      },
+      {
+        "step": "3",
+        "title": "O status é atualizado automaticamente",
+        "description": "Consulta confirmada, cancelada ou reagendada sem trabalho manual."
+      }
+    ]
+  },
+  "comparison": {
+    "title": "Simples e focado no essencial",
+    "description": "Sistemas tradicionais são complexos, cheios de funções que a clínica não usa no dia a dia. Este sistema foca no essencial: agenda organizada, confirmações automáticas e menos faltas, tudo integrado ao WhatsApp."
+  },
+  "googleCalendar": {
+    "title": "Integração com Google Calendar",
+    "description": "Conecte sua agenda ao Google Calendar e mantenha os compromissos sincronizados. Profissionais e pacientes recebem lembretes automáticos, reduzindo esquecimentos e atrasos."
+  },
+  "pricing": {
+    "title": "Planos",
+    "trial": "14 dias grátis",
+    "month": "/mês",
+    "plans": {
+      "basic": {
+        "name": "Básico",
+        "price": "99",
+        "features": [
+          "Até 2 profissionais",
+          "Agenda ilimitada",
+          "Confirmações WhatsApp",
+          "Sessões recorrentes"
+        ]
+      },
+      "professional": {
+        "name": "Profissional",
+        "price": "199",
+        "recommended": true,
+        "features": [
+          "Até 10 profissionais",
+          "Tudo do Básico",
+          "Google Calendar",
+          "Relatórios"
+        ]
+      },
+      "advanced": {
+        "name": "Avançado",
+        "price": "349",
+        "features": [
+          "Profissionais ilimitados",
+          "Tudo do Profissional",
+          "API de integração",
+          "Suporte prioritário"
+        ]
+      }
+    }
+  },
+  "cta": {
+    "title": "Pronto para reduzir faltas na sua clínica?",
+    "button": "Testar grátis por 14 dias",
+    "note": "Sem cartão de crédito. Ativação imediata."
+  },
+  "form": {
+    "title": "Comece seu teste grátis",
+    "subtitle": "Preencha seus dados e tenha acesso imediato ao sistema",
+    "clinicName": "Nome da clínica",
+    "clinic": "Nome da clínica",
+    "name": "Seu nome",
+    "email": "E-mail",
+    "phone": "Telefone/WhatsApp",
+    "password": "Senha",
+    "submit": "Criar conta grátis",
+    "security": "Não enviamos spam. Seus dados são usados apenas para o acesso ao sistema.",
+    "afterRegister": "Você receberá acesso imediato ao sistema para testar a agenda e as confirmações automáticas.",
+    "noCard": "Cadastro rápido. Não precisa cartão de crédito."
+  },
+  "footer": {
+    "copyright": "Todos os direitos reservados",
+    "terms": "Termos de uso",
+    "privacy": "Política de privacidade"
+  }
+}

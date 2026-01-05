@@ -1,0 +1,42 @@
+{
+  "meta": {
+    "title": "Appointment Scheduling for Physical Therapy Clinics",
+    "description": "Manage physical therapy sessions with recurring scheduling and automatic WhatsApp confirmations."
+  },
+  "hero": {
+    "headline": "Manage physical therapy sessions with smart scheduling",
+    "subheadline": "Specialized system for physical therapists: treatment plans with recurring sessions and automatic WhatsApp confirmations."
+  },
+  "benefits": {
+    "items": [
+      {
+        "title": "Treatment plans",
+        "description": "Create plans with 10, 20, or more sessions in a few clicks"
+      },
+      {
+        "title": "2x or 3x per week sessions",
+        "description": "Configure session frequency according to treatment needs"
+      },
+      {
+        "title": "Fewer no-shows",
+        "description": "Automatic confirmations remind patients of their appointments"
+      },
+      {
+        "title": "Per-professional schedule",
+        "description": "Organize appointments by physical therapist"
+      },
+      {
+        "title": "Progress tracking",
+        "description": "Track how many sessions each patient has completed"
+      },
+      {
+        "title": "Integrated WhatsApp",
+        "description": "Patients confirm without installing any app"
+      }
+    ]
+  },
+  "niche": {
+    "title": "Made for physical therapy clinics",
+    "description": "We understand physical therapy routines: treatments with 10, 20, or 30 sessions, 2-3 times per week frequency, progress tracking. The system was designed for this workflow."
+  }
+}

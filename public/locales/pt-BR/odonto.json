@@ -1,0 +1,42 @@
+{
+  "meta": {
+    "title": "Sistema de Agendamento para Consultórios Odontológicos",
+    "description": "Reduza faltas em consultórios de odontologia com confirmações automáticas via WhatsApp."
+  },
+  "hero": {
+    "headline": "Reduza faltas no seu consultório odontológico com confirmações automáticas",
+    "subheadline": "Sistema especializado para dentistas: agenda de tratamentos, sessões recorrentes e confirmações automáticas via WhatsApp."
+  },
+  "benefits": {
+    "items": [
+      {
+        "title": "Controle de tratamentos",
+        "description": "Gerencie tratamentos odontológicos com múltiplas sessões de forma organizada"
+      },
+      {
+        "title": "Menos faltas",
+        "description": "Confirmações automáticas pelo WhatsApp reduzem no-shows"
+      },
+      {
+        "title": "Agenda por cadeira",
+        "description": "Organize atendimentos por profissional e cadeira"
+      },
+      {
+        "title": "Sessões de ortodontia",
+        "description": "Agende manutenções mensais de aparelhos em poucos cliques"
+      },
+      {
+        "title": "Retornos automáticos",
+        "description": "Configure lembretes de retorno para profilaxia e check-ups"
+      },
+      {
+        "title": "Integração WhatsApp",
+        "description": "Pacientes confirmam pelo mesmo WhatsApp que já usam"
+      }
+    ]
+  },
+  "niche": {
+    "title": "Feito para consultórios odontológicos",
+    "description": "Entendemos a rotina de um consultório: tratamentos longos como canais e implantes, manutenções de aparelhos, limpezas semestrais. O sistema se adapta ao fluxo do seu consultório."
+  }
+}

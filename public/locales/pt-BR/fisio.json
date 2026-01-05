@@ -1,0 +1,42 @@
+{
+  "meta": {
+    "title": "Sistema de Agendamento para Clínicas de Fisioterapia",
+    "description": "Gerencie sessões de fisioterapia com agendamento recorrente e confirmações automáticas via WhatsApp."
+  },
+  "hero": {
+    "headline": "Gerencie sessões de fisioterapia com agendamento inteligente",
+    "subheadline": "Sistema especializado para fisioterapeutas: planos de tratamento com sessões recorrentes e confirmações automáticas via WhatsApp."
+  },
+  "benefits": {
+    "items": [
+      {
+        "title": "Planos de tratamento",
+        "description": "Crie planos com 10, 20 ou mais sessões em poucos cliques"
+      },
+      {
+        "title": "Sessões 2x ou 3x por semana",
+        "description": "Configure frequência de sessões conforme o tratamento"
+      },
+      {
+        "title": "Menos faltas",
+        "description": "Confirmações automáticas lembram o paciente do compromisso"
+      },
+      {
+        "title": "Agenda por profissional",
+        "description": "Organize atendimentos por fisioterapeuta"
+      },
+      {
+        "title": "Controle de evolução",
+        "description": "Acompanhe quantas sessões o paciente já realizou"
+      },
+      {
+        "title": "WhatsApp integrado",
+        "description": "Pacientes confirmam sem instalar nenhum app"
+      }
+    ]
+  },
+  "niche": {
+    "title": "Feito para clínicas de fisioterapia",
+    "description": "Entendemos a rotina de fisioterapia: tratamentos com 10, 20 ou 30 sessões, frequência de 2 a 3 vezes por semana, acompanhamento de evolução. O sistema foi pensado para esse fluxo."
+  }
+}
