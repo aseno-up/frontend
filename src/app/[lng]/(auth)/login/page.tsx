@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import Image from "next/image"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -91,12 +92,23 @@ export default function LoginPage({ params }: LoginPageProps) {
   return (
     <Card className="w-full max-w-md">
       <CardHeader className="space-y-1">
-        <CardTitle className="text-2xl font-bold">Entrar</CardTitle>
-        <CardDescription>
-          Digite seu email e senha para acessar sua conta
-        </CardDescription>
-      </CardHeader>
-      <form onSubmit={handleSubmit(onSubmit)}>
+          <div className="flex justify-center mb-4">
+            <div className="relative h-12 w-48">
+              <Image 
+                src="/logo.png" 
+                alt="Aseno" 
+                fill 
+                className="object-contain" 
+                priority
+              />
+            </div>
+          </div>
+          <CardTitle className="text-2xl font-bold text-center">Entrar</CardTitle>
+          <CardDescription className="text-center">
+            Digite seu email e senha para acessar sua conta
+          </CardDescription>
+        </CardHeader>
+        <form onSubmit={handleSubmit(onSubmit)}>
         <CardContent className="space-y-4">
           {error && (
             <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">

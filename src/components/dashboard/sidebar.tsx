@@ -1,9 +1,11 @@
 "use client"
 
 import Link from "next/link"
+import Image from "next/image"
 import { usePathname } from "next/navigation"
 import {
   Calendar,
+  LayoutDashboard,
   Users,
   UserCog,
   Settings,
@@ -32,6 +34,7 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
+  { href: "/dashboard", label: "Visão Geral", icon: LayoutDashboard },
   { href: "/agenda", label: "Agenda", icon: Calendar, permission: "agenda:view" },
   { href: "/pacientes", label: "Pacientes", icon: Users, permission: "patients:view" },
   { href: "/profissionais", label: "Profissionais", icon: UserCog, permission: "professionals:view" },
@@ -118,12 +121,16 @@ export function Sidebar({ lng }: SidebarProps) {
         <SheetContent side="left" className="w-64 p-0">
           <div className="flex h-full flex-col">
             {/* Logo */}
-            <div className="flex h-16 items-center border-b px-4">
-              <Link href={`/${lng}/agenda`} className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-                  <Calendar className="h-5 w-5 text-primary-foreground" />
+            <div className="flex h-16 items-center border-b px-4 justify-center">
+              <Link href={`/${lng}/agenda`} className="flex items-center justify-center">
+                <div className="relative h-10 w-32 overflow-hidden">
+                  <Image
+                    src="/logo-horizontal.png"
+                    alt="Aseno"
+                    fill
+                    className="object-contain"
+                  />
                 </div>
-                <span className="font-semibold">{clinic?.name || "Clinica"}</span>
               </Link>
             </div>
 
@@ -152,19 +159,37 @@ export function Sidebar({ lng }: SidebarProps) {
         )}
       >
         {/* Logo */}
-        <div className="flex h-16 items-center justify-between border-b px-4">
-          <Link href={`/${lng}/agenda`} className="flex items-center gap-2 overflow-hidden">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary">
-              <Calendar className="h-5 w-5 text-primary-foreground" />
-            </div>
-            {!collapsed && (
-              <span className="font-semibold truncate">{clinic?.name || "Clinica"}</span>
+        <div className={cn(
+          "flex h-16 items-center border-b px-4 relative group",
+          collapsed ? "justify-center" : "justify-center"
+        )}>
+          <Link 
+            href={`/${lng}/agenda`} 
+            className={cn(
+              "flex items-center justify-center overflow-hidden transition-all",
+              collapsed && "group-hover:hidden"
             )}
+          >
+            <div className={cn(
+              "relative transition-all duration-300",
+              collapsed ? "h-8 w-8" : "h-10 w-32"
+            )}>
+              <Image
+                src={collapsed ? "/logo-icon.png" : "/logo-horizontal.png"}
+                alt="Aseno"
+                fill
+                className="object-contain"
+              />
+            </div>
           </Link>
+          
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 shrink-0"
+            className={cn(
+              "h-8 w-8 shrink-0 transition-all",
+              collapsed ? "hidden group-hover:flex" : "absolute right-4"
+            )}
             onClick={() => handleCollapse(!collapsed)}
           >
             <ChevronLeft

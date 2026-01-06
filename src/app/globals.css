@@ -11,43 +11,43 @@
     --card-foreground: 222.2 84% 4.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
-    --primary: 258 90% 66%; /* Purple/Violet */
+    --primary: 202 100% 61%; /* Blue #38b6ff */
     --primary-foreground: 0 0% 100%;
     --secondary: 220 14% 96%;
     --secondary-foreground: 222.2 47.4% 11.2%;
     --muted: 220 14% 96%;
     --muted-foreground: 220 9% 46%;
-    --accent: 258 90% 66%;
+    --accent: 157 44% 48%; /* Turquoise #44af86 */
     --accent-foreground: 0 0% 100%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 100%;
     --border: 220 13% 91%;
     --input: 220 13% 91%;
-    --ring: 258 90% 66%;
+    --ring: 202 100% 61%; /* Blue #38b6ff */
     --radius: 0.75rem;
   }
 
   .dark {
-    /* Dark theme - Modern SaaS look */
+    /* Dark theme - Modern Aseno look */
     --background: 224 71% 4%; /* Very dark blue */
     --foreground: 213 31% 91%;
     --card: 224 71% 6%;
     --card-foreground: 213 31% 91%;
     --popover: 224 71% 6%;
     --popover-foreground: 213 31% 91%;
-    --primary: 258 90% 66%; /* Purple/Violet */
+    --primary: 202 100% 61%; /* Blue #38b6ff */
     --primary-foreground: 0 0% 100%;
     --secondary: 223 47% 11%;
     --secondary-foreground: 213 31% 91%;
     --muted: 223 47% 11%;
     --muted-foreground: 215 20% 65%;
-    --accent: 258 90% 66%;
+    --accent: 157 44% 48%; /* Turquoise #44af86 */
     --accent-foreground: 0 0% 100%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 100%;
     --border: 223 47% 15%;
     --input: 223 47% 15%;
-    --ring: 258 90% 66%;
+    --ring: 202 100% 61%; /* Blue #38b6ff */
   }
 }
 
@@ -139,6 +139,10 @@
 
 .fc .fc-event-main {
   @apply p-1;
+}
+
+.fc .fc-timegrid-slot {
+  height: 3.5rem !important;
 }
 
 .fc .fc-timegrid-now-indicator-line {

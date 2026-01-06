@@ -29,7 +29,7 @@ const professionalSchema = z.object({
   email: z.string().email("Email invalido").optional().or(z.literal("")),
   phone: z.string().optional(),
   specialty: z.string().optional(),
-  registration_num: z.string().optional(),
+  registration_number: z.string().optional(),
   color: z.string().optional(),
   is_active: z.boolean().optional(),
 })
@@ -73,7 +73,7 @@ export default function ProfissionaisPage({ params }: ProfissionaisPageProps) {
       email: "",
       phone: "",
       specialty: "",
-      registration_num: "",
+      registration_number: "",
       color: defaultColors[0],
       is_active: true,
     },
@@ -109,7 +109,7 @@ export default function ProfissionaisPage({ params }: ProfissionaisPageProps) {
         email: professional.email || "",
         phone: professional.phone || "",
         specialty: professional.specialty || "",
-        registration_num: professional.registration_num || "",
+        registration_number: professional.registration_number || "",
         color: color,
         is_active: professional.is_active,
       })
@@ -123,7 +123,7 @@ export default function ProfissionaisPage({ params }: ProfissionaisPageProps) {
         email: "",
         phone: "",
         specialty: "",
-        registration_num: "",
+        registration_number: "",
         color: color,
         is_active: true,
       })
@@ -311,10 +311,10 @@ export default function ProfissionaisPage({ params }: ProfissionaisPageProps) {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="registration_num">Registro</Label>
+                  <Label htmlFor="registration_number">Registro</Label>
                   <Input
-                    id="registration_num"
-                    {...register("registration_num")}
+                    id="registration_number"
+                    {...register("registration_number")}
                     placeholder="Ex: CREFITO-00000"
                   />
                 </div>

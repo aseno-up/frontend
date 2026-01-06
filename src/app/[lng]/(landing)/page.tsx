@@ -1,6 +1,7 @@
 'use client'
 
 import { use, useState } from 'react'
+import Image from 'next/image'
 import { useTranslation } from '@/lib/i18n/client'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -105,11 +106,13 @@ export default function LandingPage(props: PageProps) {
       {/* Header */}
       <header className="fixed top-0 left-0 right-0 z-50 border-b border-white/10 bg-background/80 backdrop-blur-lg">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
-              <Calendar className="h-5 w-5 text-primary-foreground" />
-            </div>
-            <span className="font-poppins font-bold text-xl">AgendaClinic</span>
+          <div className="relative h-10 w-10">
+            <Image 
+              src="/logo-icon.png" 
+              alt="Aseno" 
+              fill 
+              className="object-contain" 
+            />
           </div>
           <nav className="hidden md:flex items-center gap-8">
             <a href="#features" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
@@ -572,11 +575,13 @@ export default function LandingPage(props: PageProps) {
         <div className="container mx-auto px-4">
           <div className="grid md:grid-cols-4 gap-8 mb-8">
             <div>
-              <div className="flex items-center gap-2 mb-4">
-                <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
-                  <Calendar className="h-5 w-5 text-primary-foreground" />
-                </div>
-                <span className="font-poppins font-bold text-xl">AgendaClinic</span>
+              <div className="relative h-10 w-10 mb-4">
+                <Image 
+                  src="/logo-icon.png" 
+                  alt="Aseno" 
+                  fill 
+                  className="object-contain" 
+                />
               </div>
               <p className="text-sm text-muted-foreground">
                 Sistema de agendamento inteligente para clínicas e consultórios.
