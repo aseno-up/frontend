@@ -416,7 +416,7 @@ export interface SessionPlan {
   id: string
   clinic_id: string
   patient_id: string
-  professional_id: string
+  professional_id?: string
   title: string
   description: string
   status: PlanStatus
@@ -442,7 +442,7 @@ export interface SessionPlan {
 
 export interface CreateSessionPlanRequest {
   patient_id: string
-  professional_id: string
+  professional_id?: string
   title: string
   description?: string
   frequency: Frequency
@@ -453,6 +453,7 @@ export interface CreateSessionPlanRequest {
   start_date: string
   session_price?: number
   notes?: string
+  generate_all?: boolean
 }
 
 export interface UpdateSessionPlanRequest {
