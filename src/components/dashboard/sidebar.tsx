@@ -1,0 +1,198 @@
+"use client"
+
+import Link from "next/link"
+import { usePathname } from "next/navigation"
+import {
+  Calendar,
+  Users,
+  UserCog,
+  Settings,
+  LogOut,
+  ChevronLeft,
+  Menu,
+  MessageCircle,
+  CreditCard,
+  CalendarRange,
+  UserPlus,
+} from "lucide-react"
+import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+import { useAuthStore } from "@/stores/auth-store"
+import { usePermissions, Permission } from "@/hooks/use-permissions"
+import { useState, useEffect, useMemo } from "react"
+
+const SIDEBAR_COLLAPSED_KEY = "sidebar-collapsed"
+
+interface NavItem {
+  href: string
+  label: string
+  icon: React.ElementType
+  permission?: Permission
+}
+
+const navItems: NavItem[] = [
+  { href: "/agenda", label: "Agenda", icon: Calendar, permission: "agenda:view" },
+  { href: "/pacientes", label: "Pacientes", icon: Users, permission: "patients:view" },
+  { href: "/profissionais", label: "Profissionais", icon: UserCog, permission: "professionals:view" },
+  { href: "/planos-sessao", label: "Planos de Sessao", icon: CalendarRange, permission: "session-plans:view" },
+  { href: "/whatsapp", label: "WhatsApp", icon: MessageCircle, permission: "whatsapp:access" },
+  { href: "/faturamento", label: "Faturamento", icon: CreditCard, permission: "billing:access" },
+  { href: "/usuarios", label: "Usuarios", icon: UserPlus, permission: "users:manage" },
+  { href: "/configuracoes", label: "Configuracoes", icon: Settings, permission: "settings:access" },
+]
+
+interface SidebarProps {
+  lng: string
+}
+
+export function Sidebar({ lng }: SidebarProps) {
+  const pathname = usePathname()
+  const { clinic, logout } = useAuthStore()
+  const { hasPermission } = usePermissions()
+  const [collapsed, setCollapsed] = useState(false)
+  const [isHydrated, setIsHydrated] = useState(false)
+
+  // Filter nav items based on permissions
+  const filteredNavItems = useMemo(() => {
+    return navItems.filter((item) => {
+      if (!item.permission) return true
+      return hasPermission(item.permission)
+    })
+  }, [hasPermission])
+
+  // Load collapsed state from localStorage on mount
+  useEffect(() => {
+    const stored = localStorage.getItem(SIDEBAR_COLLAPSED_KEY)
+    if (stored !== null) {
+      setCollapsed(stored === "true")
+    }
+    setIsHydrated(true)
+  }, [])
+
+  // Save collapsed state to localStorage when it changes
+  const handleCollapse = (value: boolean) => {
+    setCollapsed(value)
+    localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(value))
+  }
+
+  const handleLogout = async () => {
+    await logout()
+    window.location.href = `/${lng}/login`
+  }
+
+  const NavLinks = ({ onItemClick }: { onItemClick?: () => void }) => (
+    <nav className="flex-1 space-y-1 px-2 py-4">
+      {filteredNavItems.map((item) => {
+        const isActive = pathname.includes(item.href)
+        const Icon = item.icon
+        return (
+          <Link
+            key={item.href}
+            href={`/${lng}${item.href}`}
+            onClick={onItemClick}
+            className={cn(
+              "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+              isActive
+                ? "bg-primary/10 text-primary"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+            )}
+          >
+            <Icon className="h-5 w-5 shrink-0" />
+            {!collapsed && <span>{item.label}</span>}
+          </Link>
+        )
+      })}
+    </nav>
+  )
+
+  return (
+    <>
+      {/* Mobile Sidebar */}
+      <Sheet>
+        <SheetTrigger asChild>
+          <Button variant="ghost" size="icon" className="md:hidden fixed top-4 left-4 z-40">
+            <Menu className="h-6 w-6" />
+          </Button>
+        </SheetTrigger>
+        <SheetContent side="left" className="w-64 p-0">
+          <div className="flex h-full flex-col">
+            {/* Logo */}
+            <div className="flex h-16 items-center border-b px-4">
+              <Link href={`/${lng}/agenda`} className="flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
+                  <Calendar className="h-5 w-5 text-primary-foreground" />
+                </div>
+                <span className="font-semibold">{clinic?.name || "Clinica"}</span>
+              </Link>
+            </div>
+
+            <NavLinks onItemClick={() => {}} />
+
+            {/* Logout */}
+            <div className="border-t p-4">
+              <Button
+                variant="ghost"
+                className="w-full justify-start gap-3 text-muted-foreground hover:text-foreground"
+                onClick={handleLogout}
+              >
+                <LogOut className="h-5 w-5" />
+                <span>Sair</span>
+              </Button>
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* Desktop Sidebar */}
+      <aside
+        className={cn(
+          "hidden md:flex h-screen flex-col border-r bg-card transition-all duration-300",
+          collapsed ? "w-16" : "w-64"
+        )}
+      >
+        {/* Logo */}
+        <div className="flex h-16 items-center justify-between border-b px-4">
+          <Link href={`/${lng}/agenda`} className="flex items-center gap-2 overflow-hidden">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary">
+              <Calendar className="h-5 w-5 text-primary-foreground" />
+            </div>
+            {!collapsed && (
+              <span className="font-semibold truncate">{clinic?.name || "Clinica"}</span>
+            )}
+          </Link>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 shrink-0"
+            onClick={() => handleCollapse(!collapsed)}
+          >
+            <ChevronLeft
+              className={cn(
+                "h-4 w-4 transition-transform",
+                collapsed && "rotate-180"
+              )}
+            />
+          </Button>
+        </div>
+
+        <NavLinks />
+
+        {/* Logout */}
+        <div className="border-t p-4">
+          <Button
+            variant="ghost"
+            className={cn(
+              "w-full gap-3 text-muted-foreground hover:text-foreground",
+              collapsed ? "justify-center px-0" : "justify-start"
+            )}
+            onClick={handleLogout}
+          >
+            <LogOut className="h-5 w-5 shrink-0" />
+            {!collapsed && <span>Sair</span>}
+          </Button>
+        </div>
+      </aside>
+    </>
+  )
+}

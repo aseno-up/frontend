@@ -86,3 +86,65 @@
     @apply relative before:absolute before:inset-0 before:rounded-2xl before:p-[1px] before:bg-gradient-to-r before:from-primary before:to-purple-400 before:-z-10;
   }
 }
+
+/* FullCalendar custom styles */
+.fc {
+  --fc-border-color: hsl(var(--border));
+  --fc-button-bg-color: hsl(var(--primary));
+  --fc-button-border-color: hsl(var(--primary));
+  --fc-button-hover-bg-color: hsl(var(--primary) / 0.9);
+  --fc-button-hover-border-color: hsl(var(--primary) / 0.9);
+  --fc-button-active-bg-color: hsl(var(--primary) / 0.8);
+  --fc-button-active-border-color: hsl(var(--primary) / 0.8);
+  --fc-event-border-color: transparent;
+  --fc-today-bg-color: hsl(var(--primary) / 0.05);
+  --fc-now-indicator-color: hsl(var(--primary));
+  --fc-page-bg-color: transparent;
+  --fc-neutral-bg-color: hsl(var(--muted) / 0.3);
+  --fc-list-event-hover-bg-color: hsl(var(--muted));
+}
+
+.fc .fc-toolbar-title {
+  @apply text-lg font-semibold;
+}
+
+.fc .fc-button {
+  @apply text-sm font-medium rounded-md px-3 py-1.5;
+}
+
+.fc .fc-button:focus {
+  @apply ring-2 ring-primary ring-offset-2;
+  box-shadow: none;
+}
+
+.fc .fc-col-header-cell-cushion {
+  @apply py-2 text-xs font-medium uppercase text-muted-foreground;
+}
+
+.fc .fc-timegrid-slot-label-cushion {
+  @apply text-xs text-muted-foreground;
+}
+
+.fc .fc-event {
+  @apply rounded-md px-2 py-1 text-xs font-medium border-l-4;
+}
+
+.fc .fc-daygrid-event {
+  @apply rounded-md px-2 py-0.5;
+}
+
+.fc .fc-timegrid-event {
+  @apply rounded-md;
+}
+
+.fc .fc-event-main {
+  @apply p-1;
+}
+
+.fc .fc-timegrid-now-indicator-line {
+  @apply border-2;
+}
+
+.fc .fc-timegrid-now-indicator-arrow {
+  @apply border-l-primary;
+}

@@ -1,5 +1,6 @@
 import { Inter, Poppins } from "next/font/google"
 import { languages } from "@/lib/i18n/settings"
+import { Providers } from "@/components/providers"
 
 const inter = Inter({
   subsets: ["latin"],
@@ -25,9 +26,9 @@ export default async function LngLayout({ children, params }: LayoutProps) {
   const { lng } = await params
 
   return (
-    <html lang={lng} className="dark" suppressHydrationWarning>
+    <html lang={lng} suppressHydrationWarning>
       <body className={`${inter.variable} ${poppins.variable} font-sans antialiased`}>
-        {children}
+        <Providers>{children}</Providers>
       </body>
     </html>
   )

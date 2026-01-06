@@ -123,7 +123,7 @@ export default function LandingPage(props: PageProps) {
             </a>
           </nav>
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm">
+            <Button variant="outline" size="sm" className="border-foreground/20 text-foreground hover:bg-foreground/10">
               Login
             </Button>
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -159,11 +159,11 @@ export default function LandingPage(props: PageProps) {
               <span>Automatize seu consultório</span>
             </div>
 
-            <h1 className="font-poppins text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight leading-tight">
+            <h1 className="font-poppins text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight leading-tight text-foreground">
               {t('hero.headline')}
             </h1>
 
-            <p className="mt-6 text-xl text-muted-foreground max-w-2xl mx-auto">
+            <p className="mt-6 text-xl text-foreground/80 max-w-2xl mx-auto">
               {t('hero.subheadline')}
             </p>
 
@@ -190,7 +190,7 @@ export default function LandingPage(props: PageProps) {
               </Button>
             </div>
 
-            <p className="mt-4 text-sm text-muted-foreground">
+            <p className="mt-4 text-sm text-foreground/60">
               {t('form.noCard')}
             </p>
           </div>
@@ -277,10 +277,10 @@ export default function LandingPage(props: PageProps) {
       <section id="features" className="py-20 md:py-32">
         <div className="container mx-auto px-4">
           <div className="text-center max-w-2xl mx-auto mb-16">
-            <h2 className="font-poppins text-3xl md:text-4xl font-bold mb-4">
+            <h2 className="font-poppins text-3xl md:text-4xl font-bold mb-4 text-foreground">
               {t('benefits.title')}
             </h2>
-            <p className="text-muted-foreground text-lg">
+            <p className="text-foreground/70 text-lg">
               Todas as ferramentas que você precisa para gerenciar sua clínica de forma eficiente
             </p>
           </div>
@@ -297,7 +297,7 @@ export default function LandingPage(props: PageProps) {
                     <CardTitle className="text-lg font-poppins">{feature.title}</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-muted-foreground">{feature.description}</p>
+                    <p className="text-foreground/70">{feature.description}</p>
                   </CardContent>
                 </Card>
               )
@@ -311,10 +311,10 @@ export default function LandingPage(props: PageProps) {
         <div className="container mx-auto px-4">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div>
-              <h2 className="font-poppins text-3xl md:text-4xl font-bold mb-6">
+              <h2 className="font-poppins text-3xl md:text-4xl font-bold mb-6 text-foreground">
                 Software que sua equipe vai adorar usar
               </h2>
-              <p className="text-muted-foreground text-lg mb-8">
+              <p className="text-foreground/70 text-lg mb-8">
                 Interface intuitiva, fácil de aprender e usar. Sua equipe estará produtiva em minutos, não em semanas.
               </p>
               <ul className="space-y-4">
@@ -372,10 +372,10 @@ export default function LandingPage(props: PageProps) {
       <section id="how-it-works" className="py-20 md:py-32">
         <div className="container mx-auto px-4">
           <div className="text-center max-w-2xl mx-auto mb-16">
-            <h2 className="font-poppins text-3xl md:text-4xl font-bold mb-4">
+            <h2 className="font-poppins text-3xl md:text-4xl font-bold mb-4 text-foreground">
               {t('howItWorks.title')}
             </h2>
-            <p className="text-muted-foreground text-lg">
+            <p className="text-foreground/70 text-lg">
               Comece a usar em menos de 5 minutos
             </p>
           </div>
@@ -389,8 +389,8 @@ export default function LandingPage(props: PageProps) {
                 <div className="h-16 w-16 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center text-2xl font-bold mx-auto mb-4 font-poppins">
                   {step.step}
                 </div>
-                <h3 className="font-poppins font-semibold text-lg mb-2">{step.title}</h3>
-                <p className="text-muted-foreground">{step.description}</p>
+                <h3 className="font-poppins font-semibold text-lg mb-2 text-foreground">{step.title}</h3>
+                <p className="text-foreground/70">{step.description}</p>
               </div>
             ))}
           </div>
@@ -401,10 +401,10 @@ export default function LandingPage(props: PageProps) {
       <section id="pricing" className="py-20 md:py-32 bg-gradient-to-b from-background to-primary/5">
         <div className="container mx-auto px-4">
           <div className="text-center max-w-2xl mx-auto mb-16">
-            <h2 className="font-poppins text-3xl md:text-4xl font-bold mb-4">
+            <h2 className="font-poppins text-3xl md:text-4xl font-bold mb-4 text-foreground">
               {t('pricing.title')}
             </h2>
-            <p className="text-muted-foreground text-lg">
+            <p className="text-foreground/70 text-lg">
               {t('pricing.trial')}
             </p>
           </div>
@@ -537,10 +537,10 @@ export default function LandingPage(props: PageProps) {
               <Zap className="h-4 w-4" />
               <span>Comece hoje mesmo</span>
             </div>
-            <h2 className="font-poppins text-3xl md:text-4xl font-bold mb-6">
+            <h2 className="font-poppins text-3xl md:text-4xl font-bold mb-6 text-foreground">
               {t('cta.title')}
             </h2>
-            <p className="text-muted-foreground text-lg mb-8 max-w-2xl mx-auto">
+            <p className="text-foreground/70 text-lg mb-8 max-w-2xl mx-auto">
               Junte-se a centenas de profissionais que já transformaram a gestão de suas clínicas
             </p>
             <Dialog>
@@ -560,7 +560,7 @@ export default function LandingPage(props: PageProps) {
                 <SignupForm />
               </DialogContent>
             </Dialog>
-            <p className="mt-4 text-sm text-muted-foreground">
+            <p className="mt-4 text-sm text-foreground/60">
               {t('cta.note')}
             </p>
           </div>
