@@ -213,9 +213,9 @@ export interface WhatsAppConnectionStatus {
 }
 
 export interface WhatsAppQRCode {
-  code: string
+  qr_code: string
   base64: string
-  count: number
+  instance: string
 }
 
 export type MessageDirection = 'inbound' | 'outbound'

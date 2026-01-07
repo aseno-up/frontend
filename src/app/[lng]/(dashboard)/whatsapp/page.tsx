@@ -51,6 +51,8 @@ export default function WhatsAppPage({ params }: WhatsAppPageProps) {
   const [isDisconnecting, setIsDisconnecting] = useState(false)
   const [error, setError] = useState<string>()
   const [isSending, setIsSending] = useState(false)
+  const [pollingStartTime, setPollingStartTime] = useState<number | null>(null)
+  const MAX_POLLING_TIME_MS = 5 * 60 * 1000 // 5 minutes max polling
 
   // Test message form with validation
   const {
@@ -68,18 +70,24 @@ export default function WhatsAppPage({ params }: WhatsAppPageProps) {
 
   const isConnected = status?.state === 'open'
 
-  const fetchStatus = useCallback(async () => {
+  const fetchStatus = useCallback(async (silent = false) => {
     try {
-      setIsLoadingStatus(true)
+      if (!silent) setIsLoadingStatus(true)
       setError(undefined)
       const data = await api.getWhatsAppStatus()
       setStatus(data)
+
+      // Clear QR code when connection is established
+      if (data?.state === 'open') {
+        setQRCode(null)
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro ao carregar status'
-      setError(message)
+      // Only show error if not silent (polling errors shouldn't break UI)
+      if (!silent) setError(message)
       setStatus(null)
     } finally {
-      setIsLoadingStatus(false)
+      if (!silent) setIsLoadingStatus(false)
     }
   }, [])
 
@@ -89,8 +97,9 @@ export default function WhatsAppPage({ params }: WhatsAppPageProps) {
       setError(undefined)
       const data = await api.connectWhatsApp()
       setQRCode(data)
+      setPollingStartTime(Date.now())
       // Start polling for status
-      fetchStatus()
+      fetchStatus(false)
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro ao conectar WhatsApp'
       setError(message)
@@ -106,7 +115,8 @@ export default function WhatsAppPage({ params }: WhatsAppPageProps) {
       await api.disconnectWhatsApp()
       setStatus(null)
       setQRCode(null)
-      fetchStatus()
+      setPollingStartTime(null)
+      fetchStatus(false)
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro ao desconectar WhatsApp'
       setError(message)
@@ -118,8 +128,11 @@ export default function WhatsAppPage({ params }: WhatsAppPageProps) {
   const handleRefreshQR = async () => {
     try {
       setIsConnecting(true)
+      setError(undefined)
       const data = await api.getWhatsAppQRCode()
       setQRCode(data)
+      // Reset polling time on manual refresh
+      setPollingStartTime(Date.now())
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro ao atualizar QR Code'
       setError(message)
@@ -134,14 +147,35 @@ export default function WhatsAppPage({ params }: WhatsAppPageProps) {
 
   // Poll status when waiting for connection
   useEffect(() => {
-    if (!qrCode || isConnected) return
+    if (!qrCode || isConnected) {
+      // Clear polling start time when not polling
+      if (isConnected && pollingStartTime) {
+        setPollingStartTime(null)
+      }
+      return
+    }
+
+    // Check for polling timeout
+    if (pollingStartTime && Date.now() - pollingStartTime > MAX_POLLING_TIME_MS) {
+      setError('Tempo limite excedido. Por favor, tente conectar novamente.')
+      setQRCode(null)
+      setPollingStartTime(null)
+      return
+    }
 
     const interval = setInterval(() => {
-      fetchStatus()
+      // Check timeout inside interval as well
+      if (pollingStartTime && Date.now() - pollingStartTime > MAX_POLLING_TIME_MS) {
+        setError('Tempo limite excedido. Por favor, tente conectar novamente.')
+        setQRCode(null)
+        setPollingStartTime(null)
+        return
+      }
+      fetchStatus(true)
     }, 3000)
 
     return () => clearInterval(interval)
-  }, [qrCode, isConnected, fetchStatus])
+  }, [qrCode, isConnected, fetchStatus, pollingStartTime, MAX_POLLING_TIME_MS])
 
   const onSubmitTestMessage = async (data: TestMessageFormData) => {
     try {

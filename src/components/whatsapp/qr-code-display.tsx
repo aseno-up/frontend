@@ -90,7 +90,7 @@ export function QRCodeDisplay({ qrCode, isLoading, error, onRefresh }: QRCodeDis
       <CardHeader>
         <CardTitle>QR Code</CardTitle>
         <CardDescription>
-          Escaneie com o WhatsApp para conectar. Expira em {countdown}s (tentativa {qrCode.count}/5)
+          Escaneie com o WhatsApp para conectar. Expira em {countdown}s
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col items-center gap-4">
