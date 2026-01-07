@@ -14,12 +14,13 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { useAuthStore } from "@/stores/auth-store"
+import { showToast, handleApiError } from "@/lib/toast"
 
 const registerSchema = z.object({
   clinic_name: z.string().min(2, "Nome da clinica deve ter no minimo 2 caracteres"),
   name: z.string().min(2, "Nome deve ter no minimo 2 caracteres"),
   email: z.string().email("Email invalido"),
-  password: z.string().min(6, "Senha deve ter no minimo 6 caracteres"),
+  password: z.string().min(8, "Senha deve ter no minimo 8 caracteres"),
   confirmPassword: z.string(),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "As senhas nao conferem",
@@ -35,7 +36,6 @@ interface RegisterPageProps {
 export default function RegisterPage({ params }: RegisterPageProps) {
   const router = useRouter()
   const { register: registerUser, googleLogin } = useAuthStore()
-  const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
 
@@ -49,7 +49,6 @@ export default function RegisterPage({ params }: RegisterPageProps) {
 
   const onSubmit = async (data: RegisterFormData) => {
     setIsLoading(true)
-    setError(null)
 
     try {
       await registerUser({
@@ -59,13 +58,10 @@ export default function RegisterPage({ params }: RegisterPageProps) {
         password: data.password,
       })
       const { lng } = await params
+      showToast.success("Conta criada com sucesso!")
       router.push(`/${lng}/agenda`)
     } catch (err) {
-      if (err instanceof Error) {
-        setError(err.message)
-      } else {
-        setError("Erro ao criar conta. Tente novamente.")
-      }
+      handleApiError(err, "Erro ao criar conta")
     } finally {
       setIsLoading(false)
     }
@@ -73,30 +69,26 @@ export default function RegisterPage({ params }: RegisterPageProps) {
 
   const handleGoogleSuccess = async (credentialResponse: CredentialResponse) => {
     if (!credentialResponse.credential) {
-      setError("Erro ao cadastrar com Google")
+      showToast.error("Erro ao obter credenciais do Google")
       return
     }
 
     setIsGoogleLoading(true)
-    setError(null)
 
     try {
       await googleLogin(credentialResponse.credential)
       const { lng } = await params
+      showToast.success("Login com Google realizado com sucesso!")
       router.push(`/${lng}/agenda`)
     } catch (err) {
-      if (err instanceof Error) {
-        setError(err.message)
-      } else {
-        setError("Erro ao cadastrar com Google")
-      }
+      handleApiError(err, "Erro ao cadastrar com Google")
     } finally {
       setIsGoogleLoading(false)
     }
   }
 
   const handleGoogleError = () => {
-    setError("Erro ao cadastrar com Google")
+    showToast.error("Erro ao conectar com Google")
   }
 
   return (
@@ -109,12 +101,6 @@ export default function RegisterPage({ params }: RegisterPageProps) {
       </CardHeader>
       <form onSubmit={handleSubmit(onSubmit)}>
         <CardContent className="space-y-4">
-          {error && (
-            <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-              {error}
-            </div>
-          )}
-
           <div className="space-y-2">
             <Label htmlFor="clinic_name">Nome da Clinica</Label>
             <Input

@@ -9,7 +9,14 @@ import { z } from "zod"
 import { Header } from "@/components/dashboard/header"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Card, CardContent } from "@/components/ui/card"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import {
   Dialog,
@@ -203,74 +210,93 @@ export default function ProfissionaisPage({ params }: ProfissionaisPageProps) {
             </p>
           </div>
         ) : (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {professionals.map((professional) => (
-              <Card key={professional.id} className="overflow-hidden">
-                <div
-                  className="h-2"
-                  style={{ backgroundColor: professional.color }}
-                />
-                <CardContent className="p-4">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-start gap-3">
+          <div className="rounded-md border bg-card shadow-sm">
+            <Table className="text-base">
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[50px]"></TableHead>
+                  <TableHead>Profissional</TableHead>
+                  <TableHead>Especialidade</TableHead>
+                  <TableHead>Contato</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {professionals.map((professional) => (
+                  <TableRow key={professional.id}>
+                    <TableCell>
                       <div
-                        className="flex h-10 w-10 items-center justify-center rounded-full text-white"
+                        className="h-4 w-4 rounded-full"
                         style={{ backgroundColor: professional.color }}
-                      >
-                        <User className="h-5 w-5" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-medium truncate">
-                            {professional.name}
-                          </h3>
-                          {!professional.is_active && (
-                            <Badge variant="secondary" className="text-xs">
-                              Inativo
-                            </Badge>
-                          )}
+                      />
+                    </TableCell>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="flex h-8 w-8 items-center justify-center rounded-full text-[10px] text-white"
+                          style={{ backgroundColor: professional.color }}
+                        >
+                          <User className="h-4 w-4" />
                         </div>
-                        {professional.specialty && (
-                          <p className="text-sm text-muted-foreground">
-                            {professional.specialty}
-                          </p>
-                        )}
+                        <div>
+                          <div>{professional.name}</div>
+                          <div className="text-sm text-muted-foreground">
+                            {professional.registration_number || "Sem registro"}
+                          </div>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>{professional.specialty || "-"}</TableCell>
+                    <TableCell>
+                      <div className="space-y-1">
                         {professional.email && (
-                          <div className="flex items-center gap-1 text-sm text-muted-foreground mt-1">
+                          <div className="flex items-center gap-1 text-sm text-muted-foreground">
                             <Mail className="h-3 w-3" />
-                            <span className="truncate">{professional.email}</span>
+                            {professional.email}
                           </div>
                         )}
                         {professional.phone && (
-                          <div className="flex items-center gap-1 text-sm text-muted-foreground mt-1">
+                          <div className="flex items-center gap-1 text-sm text-muted-foreground">
                             <Phone className="h-3 w-3" />
-                            <span>{professional.phone}</span>
+                            {professional.phone}
                           </div>
                         )}
                       </div>
-                    </div>
-                    <div className="flex gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => handleOpenDialog(professional)}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-destructive"
-                        onClick={() => handleDelete(professional)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                    </TableCell>
+                    <TableCell>
+                      {professional.is_active ? (
+                        <Badge variant="default" className="bg-green-500 hover:bg-green-600">
+                          Ativo
+                        </Badge>
+                      ) : (
+                        <Badge variant="secondary">Inativo</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => handleOpenDialog(professional)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive"
+                          onClick={() => handleDelete(professional)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </div>
         )}
       </div>

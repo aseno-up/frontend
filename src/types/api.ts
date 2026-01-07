@@ -630,3 +630,28 @@ export interface SessionNoteListResponse {
   per_page: number
   total_pages: number
 }
+
+// Dashboard Types
+export interface DashboardMetrics {
+  estimated_revenue: number
+  completed_consultations: number
+  confirmed_consultations: number
+  no_shows: number
+  attendance_rate: number
+  previous_attendance_rate: number
+  estimated_lost_revenue: number
+  agenda_occupancy: number
+  open_slots: number
+  future_sessions: number
+  potential_revenue: number
+  avoided_no_shows: number
+  auto_confirmed: number
+  preserved_revenue: number
+  top_absentees: PatientAbsentee[]
+  insights: string[]
+}
+
+export interface PatientAbsentee {
+  name: string
+  absent_count: number
+}

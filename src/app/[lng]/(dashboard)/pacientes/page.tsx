@@ -10,7 +10,14 @@ import { z } from "zod"
 import { Header } from "@/components/dashboard/header"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Card, CardContent } from "@/components/ui/card"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
 import {
   Dialog,
   DialogContent,
@@ -224,59 +231,76 @@ export default function PacientesPage({ params }: PacientesPageProps) {
           </div>
         ) : (
           <>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {patients.map((patient) => (
-                <Card key={patient.id} className="overflow-hidden">
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-medium truncate">{patient.name}</h3>
-                        {patient.email && (
-                          <div className="flex items-center gap-1 text-sm text-muted-foreground mt-1">
-                            <Mail className="h-3 w-3" />
-                            <span className="truncate">{patient.email}</span>
-                          </div>
-                        )}
+            <div className="rounded-md border bg-card shadow-sm">
+              <Table className="text-base">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nome</TableHead>
+                    <TableHead>Contato</TableHead>
+                    <TableHead>Documento</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {patients.map((patient) => (
+                    <TableRow key={patient.id}>
+                      <TableCell className="font-medium">
+                        <div>
+                          <div>{patient.name}</div>
+                          {patient.email && (
+                            <div className="text-sm text-muted-foreground flex items-center gap-1">
+                              <Mail className="h-3 w-3" />
+                              {patient.email}
+                            </div>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
                         {(patient.phone || patient.whatsapp) && (
-                          <div className="flex items-center gap-1 text-sm text-muted-foreground mt-1">
+                          <div className="flex items-center gap-1 text-muted-foreground">
                             <Phone className="h-3 w-3" />
                             <span>{patient.whatsapp || patient.phone}</span>
                           </div>
                         )}
-                      </div>
-                      <div className="flex gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          title="Ver Ficha"
-                          onClick={() => router.push(`/${lng}/pacientes/${patient.id}`)}
-                        >
-                          <FileText className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          title="Editar"
-                          onClick={() => handleOpenDialog(patient)}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-destructive"
-                          title="Excluir"
-                          onClick={() => handleDelete(patient)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {patient.document || "-"}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            title="Ver Ficha"
+                            onClick={() => router.push(`/${lng}/pacientes/${patient.id}`)}
+                          >
+                            <FileText className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            title="Editar"
+                            onClick={() => handleOpenDialog(patient)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-destructive"
+                            title="Excluir"
+                            onClick={() => handleDelete(patient)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </div>
 
             {/* Pagination */}

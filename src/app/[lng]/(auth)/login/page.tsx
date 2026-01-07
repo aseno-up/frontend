@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
@@ -15,10 +15,12 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { useAuthStore } from "@/stores/auth-store"
+import { api } from "@/lib/api/client"
+import { showToast, handleApiError } from "@/lib/toast"
 
 const loginSchema = z.object({
   email: z.string().email("Email invalido"),
-  password: z.string().min(6, "Senha deve ter no minimo 6 caracteres"),
+  password: z.string().min(8, "Senha deve ter no minimo 8 caracteres"),
 })
 
 type LoginFormData = z.infer<typeof loginSchema>
@@ -33,6 +35,19 @@ export default function LoginPage({ params }: LoginPageProps) {
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        await api.getCurrentUser()
+        const { lng } = await params
+        router.push(`/${lng}/agenda`)
+      } catch {
+        // Not authenticated, stay on login page
+      }
+    }
+    checkAuth()
+  }, [params, router])
 
   const {
     register,
@@ -51,11 +66,7 @@ export default function LoginPage({ params }: LoginPageProps) {
       const { lng } = await params
       router.push(`/${lng}/agenda`)
     } catch (err) {
-      if (err instanceof Error) {
-        setError(err.message)
-      } else {
-        setError("Erro ao fazer login. Verifique suas credenciais.")
-      }
+      handleApiError(err, "Erro ao fazer login")
     } finally {
       setIsLoading(false)
     }
@@ -75,18 +86,14 @@ export default function LoginPage({ params }: LoginPageProps) {
       const { lng } = await params
       router.push(`/${lng}/agenda`)
     } catch (err) {
-      if (err instanceof Error) {
-        setError(err.message)
-      } else {
-        setError("Erro ao fazer login com Google")
-      }
+      handleApiError(err, "Erro ao fazer login com Google")
     } finally {
       setIsGoogleLoading(false)
     }
   }
 
   const handleGoogleError = () => {
-    setError("Erro ao fazer login com Google")
+    showToast.error("Erro ao conectar com Google")
   }
 
   return (

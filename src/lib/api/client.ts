@@ -10,11 +10,15 @@ class ApiClient {
   constructor() {
     this.client = axios.create({
       baseURL: API_URL,
+      withCredentials: true, // Enable cookies for cross-origin requests
       headers: {
         'Content-Type': 'application/json',
       },
     })
 
+    // Request interceptor: Authorization header is no longer needed with cookies,
+    // but we leave this structure in case we want to support non-browser clients later.
+    // For now, accessToken will likely be null.
     this.client.interceptors.request.use(
       (config: InternalAxiosRequestConfig) => {
         if (this.accessToken) {
@@ -30,21 +34,27 @@ class ApiClient {
       async (error: AxiosError<ApiError>) => {
         const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean }
 
+        // Prevent infinite loop: if the failed request was already to the refresh endpoint, don't retry.
+        if (originalRequest.url?.includes('/auth/refresh')) {
+          return Promise.reject(error)
+        }
+
         if (error.response?.status === 401 && !originalRequest._retry) {
           originalRequest._retry = true
 
           try {
-            const refreshToken = this.getRefreshToken()
-            if (refreshToken) {
-              const response = await this.refreshAccessToken(refreshToken)
-              this.setTokens(response.access_token, response.refresh_token)
-              originalRequest.headers.Authorization = `Bearer ${response.access_token}`
-              return this.client(originalRequest)
-            }
+            // Attempt to refresh token using the HttpOnly cookie
+            await this.refreshAccessToken()
+            // If successful, the backend has set new cookies.
+            // Retry the original request.
+            return this.client(originalRequest)
           } catch {
-            this.clearTokens()
+            // Refresh failed (cookie invalid or expired)
             if (typeof window !== 'undefined') {
-              window.location.href = '/login'
+              // Only redirect if we are not already on the login page to avoid page reload loops
+              if (!window.location.pathname.includes('/login')) {
+                 window.location.href = '/login'
+              }
             }
           }
         }
@@ -55,41 +65,28 @@ class ApiClient {
   }
 
   setTokens(accessToken: string, refreshToken: string) {
-    this.accessToken = accessToken
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('access_token', accessToken)
-      localStorage.setItem('refresh_token', refreshToken)
-    }
+    // No-op: Tokens are handled via HttpOnly cookies by the browser.
+    // We keep this method signature to avoid breaking existing calls.
+    this.accessToken = null 
   }
 
   clearTokens() {
+    // No-op: Cookies are cleared by the /auth/logout endpoint.
     this.accessToken = null
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('access_token')
-      localStorage.removeItem('refresh_token')
-    }
   }
 
   getRefreshToken(): string | null {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('refresh_token')
-    }
+    // Refresh token is in HttpOnly cookie, cannot be accessed by JS.
     return null
   }
 
   loadTokenFromStorage() {
-    if (typeof window !== 'undefined') {
-      const token = localStorage.getItem('access_token')
-      if (token) {
-        this.accessToken = token
-      }
-    }
+    // No-op: No tokens in localStorage.
   }
 
-  private async refreshAccessToken(refreshToken: string) {
-    const response = await axios.post(`${API_URL}/auth/refresh`, {
-      refresh_token: refreshToken,
-    })
+  private async refreshAccessToken(refreshToken?: string) {
+    // We send an empty body; backend uses the refresh_token cookie.
+    const response = await this.client.post('/auth/refresh', {})
     return response.data
   }
 
@@ -497,6 +494,19 @@ class ApiClient {
     return response.data
   }
 
+  async forgotPassword(email: string) {
+    const response = await this.client.post('/auth/forgot-password', { email })
+    return response.data
+  }
+
+  async resetPassword(token: string, newPassword: string) {
+    const response = await this.client.post('/auth/reset-password', {
+      token,
+      new_password: newPassword,
+    })
+    return response.data
+  }
+
   // User Management endpoints
   async getUsers(page = 1, perPage = 20) {
     const response = await this.client.get('/users', {
@@ -604,6 +614,14 @@ class ApiClient {
 
   async deleteSessionNote(patientId: string, noteId: string) {
     const response = await this.client.delete(`/patients/${patientId}/notes/${noteId}`)
+    return response.data
+  }
+
+  // Dashboard endpoints
+  async getDashboardMetrics(startDate?: string, endDate?: string) {
+    const response = await this.client.get('/dashboard/metrics', {
+      params: { start_date: startDate, end_date: endDate },
+    })
     return response.data
   }
 }

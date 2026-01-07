@@ -12,6 +12,14 @@ import { Header } from "@/components/dashboard/header"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
@@ -699,7 +707,7 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
       <Header lng={lng} title="Planos de Sessão" />
 
       <div className="flex-1 overflow-auto p-4 md:p-6">
-        <div className="mx-auto max-w-6xl space-y-6">
+        <div className="space-y-6">
           {/* Actions bar */}
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-2">
@@ -739,101 +747,119 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {plans.map((plan) => (
-                <Card key={plan.id}>
-                  <CardHeader className="pb-2">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <CardTitle className="text-lg">{plan.title}</CardTitle>
-                        <CardDescription>{plan.description}</CardDescription>
-                      </div>
-                      <Badge variant={statusVariants[plan.status]}>
-                        {statusLabels[plan.status]}
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-2 text-sm">
-                      <div className="flex items-center gap-2">
-                        <User className="h-4 w-4 text-muted-foreground" />
-                        <span>{plan.patient_name}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Briefcase className="h-4 w-4 text-muted-foreground" />
-                        <span>{plan.professional_name || "Qualquer (Flexível)"}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Clock className="h-4 w-4 text-muted-foreground" />
-                        <span>
-                          {frequencyLabels[plan.frequency]} - {plan.preferred_time}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-sm">
-                        <span>Progresso</span>
-                        <span>
-                          {plan.sessions_done}/{plan.total_sessions === -1 ? "∞" : plan.total_sessions} sessões
-                        </span>
-                      </div>
-                      <Progress value={plan.progress} className="h-2" />
-                    </div>
-
-                    {plan.status === "active" && (
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="flex-1"
-                          onClick={() => handlePause(plan.id)}
-                        >
-                          <Pause className="mr-1 h-3 w-3" />
-                          Pausar
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleGenerate(plan.id)}
-                          disabled={!plan.professional_id} // Disable if no professional (flexible)
-                          title={!plan.professional_id ? "Requer agendamento manual" : "Gerar próximas sessões"}
-                        >
-                          <RefreshCw className="h-3 w-3" />
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => handleCancel(plan.id)}
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    )}
-
-                    {plan.status === "paused" && (
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="flex-1"
-                          onClick={() => handleResume(plan.id)}
-                        >
-                          <Play className="mr-1 h-3 w-3" />
-                          Retomar
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => handleCancel(plan.id)}
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
+            <div className="rounded-md border bg-card shadow-sm">
+              <Table className="text-base">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Título</TableHead>
+                    <TableHead>Paciente</TableHead>
+                    <TableHead>Profissional</TableHead>
+                    <TableHead>Frequência</TableHead>
+                    <TableHead>Progresso</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {plans.map((plan) => (
+                    <TableRow key={plan.id}>
+                      <TableCell className="font-medium">
+                        <div>
+                          <div>{plan.title}</div>
+                          <div className="text-sm text-muted-foreground line-clamp-1">
+                            {plan.description}
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <User className="h-3 w-3 text-muted-foreground" />
+                          {plan.patient_name}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Briefcase className="h-3 w-3 text-muted-foreground" />
+                          {plan.professional_name || "Qualquer (Flexível)"}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Clock className="h-3 w-3 text-muted-foreground" />
+                          <span>
+                            {frequencyLabels[plan.frequency]} às {plan.preferred_time}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="w-[120px] space-y-1">
+                          <div className="flex justify-between text-xs">
+                            <span>
+                              {plan.sessions_done}/{plan.total_sessions === -1 ? "∞" : plan.total_sessions}
+                            </span>
+                            <span>{plan.progress}%</span>
+                          </div>
+                          <Progress value={plan.progress} className="h-1" />
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={statusVariants[plan.status]} className="text-xs">
+                          {statusLabels[plan.status]}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-1">
+                          {plan.status === "active" && (
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() => handlePause(plan.id)}
+                                title="Pausar"
+                              >
+                                <Pause className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() => handleGenerate(plan.id)}
+                                disabled={!plan.professional_id}
+                                title={!plan.professional_id ? "Requer agendamento manual" : "Gerar próximas sessões"}
+                              >
+                                <RefreshCw className="h-4 w-4" />
+                              </Button>
+                            </>
+                          )}
+                          {plan.status === "paused" && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => handleResume(plan.id)}
+                              title="Retomar"
+                            >
+                              <Play className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {(plan.status === "active" || plan.status === "paused") && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-destructive"
+                              onClick={() => handleCancel(plan.id)}
+                              title="Cancelar"
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </div>
           )}
         </div>
