@@ -54,6 +54,8 @@ export interface TimeSlot {
   end: string
 }
 
+export type NoShowRisk = 'unknown' | 'low' | 'medium' | 'high'
+
 export interface Patient {
   id: string
   clinic_id: string
@@ -65,6 +67,11 @@ export interface Patient {
   birth_date: string
   gender: 'male' | 'female' | 'other'
   notes: string
+  no_show_risk: NoShowRisk
+  no_show_count: number
+  total_appointments: number
+  attendance_rate: number
+  risk_updated_at?: string
   created_at: string
 }
 

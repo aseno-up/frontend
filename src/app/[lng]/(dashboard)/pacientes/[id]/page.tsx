@@ -20,6 +20,10 @@ import {
   Lock,
   Loader2,
   Save,
+  UserX,
+  CheckCircle2,
+  AlertTriangle,
+  TrendingUp,
 } from 'lucide-react'
 
 import { Header } from '@/components/dashboard/header'
@@ -40,7 +44,21 @@ import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
 import { api } from '@/lib/api/client'
 import { showToast, handleApiError } from '@/lib/toast'
-import type { Patient, PatientRecord, SessionNote, FullPatientRecord } from '@/types/api'
+import type { Patient, PatientRecord, SessionNote, FullPatientRecord, Appointment, NoShowRisk } from '@/types/api'
+
+// Helper function to get risk badge variant and label
+const getRiskInfo = (risk: NoShowRisk) => {
+  switch (risk) {
+    case 'low':
+      return { variant: 'success' as const, label: 'Confiavel', icon: CheckCircle2 }
+    case 'medium':
+      return { variant: 'warning' as const, label: 'Medio Risco', icon: AlertTriangle }
+    case 'high':
+      return { variant: 'destructive' as const, label: 'Alto Risco', icon: UserX }
+    default:
+      return { variant: 'secondary' as const, label: 'Sem dados', icon: User }
+  }
+}
 
 // Schema de validacao para nota de sessao
 const sessionNoteSchema = z.object({
@@ -64,6 +82,7 @@ export default function PatientRecordPage() {
   const [patient, setPatient] = useState<Patient | null>(null)
   const [record, setRecord] = useState<PatientRecord | null>(null)
   const [sessionNotes, setSessionNotes] = useState<SessionNote[]>([])
+  const [noShowAppointments, setNoShowAppointments] = useState<Appointment[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [noteDialogOpen, setNoteDialogOpen] = useState(false)
@@ -110,14 +129,16 @@ export default function PatientRecordPage() {
   const fetchData = useCallback(async () => {
     setIsLoading(true)
     try {
-      const [patientData, fullRecord] = await Promise.all([
+      const [patientData, fullRecord, noShowsResponse] = await Promise.all([
         api.getPatient(patientId),
         api.getFullPatientRecord(patientId) as Promise<FullPatientRecord>,
+        api.getAppointments({ patient_id: patientId, status: 'no_show' }),
       ])
 
       setPatient(patientData)
       setRecord(fullRecord.record)
       setSessionNotes(fullRecord.session_notes || [])
+      setNoShowAppointments(noShowsResponse.data || [])
 
       // Initialize form with record data
       if (fullRecord.record) {
@@ -268,7 +289,25 @@ export default function PatientRecordPage() {
                   <User className="h-8 w-8 text-primary" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h2 className="text-xl font-semibold">{patient.name}</h2>
+                  <div className="flex items-center gap-3">
+                    <h2 className="text-xl font-semibold">{patient.name}</h2>
+                    {(() => {
+                      const riskInfo = getRiskInfo(patient.no_show_risk)
+                      const RiskIcon = riskInfo.icon
+                      return (
+                        <Badge variant={riskInfo.variant} className="gap-1">
+                          <RiskIcon className="h-3 w-3" />
+                          {riskInfo.label}
+                        </Badge>
+                      )
+                    })()}
+                    {patient.attendance_rate > 0 && (
+                      <span className="text-sm text-muted-foreground flex items-center gap-1">
+                        <TrendingUp className="h-3 w-3" />
+                        {patient.attendance_rate.toFixed(0)}% comparecimento
+                      </span>
+                    )}
+                  </div>
                   <div className="mt-1 flex flex-wrap gap-4 text-sm text-muted-foreground">
                     {patient.email && (
                       <span className="flex items-center gap-1">
@@ -305,6 +344,10 @@ export default function PatientRecordPage() {
             <TabsTrigger value="notes" className="gap-2">
               <Calendar className="h-4 w-4" />
               Evolucoes ({sessionNotes.length})
+            </TabsTrigger>
+            <TabsTrigger value="faltas" className="gap-2">
+              <UserX className="h-4 w-4" />
+              Faltas ({patient.no_show_count})
             </TabsTrigger>
           </TabsList>
 
@@ -586,6 +629,121 @@ export default function PatientRecordPage() {
                 ))}
               </div>
             )}
+          </TabsContent>
+
+          {/* No-Show History Tab */}
+          <TabsContent value="faltas" className="space-y-4">
+            {/* Statistics Cards */}
+            <div className="grid gap-4 md:grid-cols-3">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">
+                    Total de Faltas
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold text-red-600">
+                    {patient.no_show_count}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">
+                    Total de Agendamentos
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold">
+                    {patient.total_appointments}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">
+                    Taxa de Comparecimento
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-baseline gap-2">
+                    <span className={`text-3xl font-bold ${
+                      patient.attendance_rate >= 80 ? 'text-green-600' :
+                      patient.attendance_rate >= 60 ? 'text-yellow-600' : 'text-red-600'
+                    }`}>
+                      {patient.attendance_rate.toFixed(0)}%
+                    </span>
+                    <span className="text-sm text-muted-foreground">de presenca</span>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* No-Show Timeline */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <UserX className="h-4 w-4 text-red-500" />
+                  Historico de Faltas
+                </CardTitle>
+                <CardDescription>
+                  Consultas em que o paciente nao compareceu
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {noShowAppointments.length === 0 ? (
+                  <div className="py-8 text-center">
+                    <CheckCircle2 className="mx-auto h-12 w-12 text-green-500/50" />
+                    <p className="mt-4 text-muted-foreground">
+                      Nenhuma falta registrada
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Este paciente tem um otimo historico de comparecimento!
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {noShowAppointments.map((appointment) => (
+                      <div
+                        key={appointment.id}
+                        className="flex items-start gap-4 p-4 rounded-lg border bg-red-50/50 dark:bg-red-950/20"
+                      >
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/50">
+                          <Calendar className="h-5 w-5 text-red-600" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <p className="font-medium">
+                              {format(new Date(appointment.start_time), "dd 'de' MMMM 'de' yyyy", {
+                                locale: ptBR,
+                              })}
+                            </p>
+                            <Badge variant="destructive" className="text-xs">
+                              Nao compareceu
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            {format(new Date(appointment.start_time), 'HH:mm')} - {format(new Date(appointment.end_time), 'HH:mm')}
+                          </p>
+                          {appointment.professional?.name && (
+                            <p className="text-sm text-muted-foreground">
+                              Profissional: {appointment.professional.name}
+                            </p>
+                          )}
+                          {appointment.title && (
+                            <p className="text-sm text-muted-foreground mt-1">
+                              {appointment.title}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </div>

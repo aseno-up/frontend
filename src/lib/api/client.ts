@@ -624,6 +624,14 @@ class ApiClient {
     })
     return response.data
   }
+
+  // Analytics/Reports endpoints
+  async getReportMetrics(period: string = '3m') {
+    const response = await this.client.get('/analytics/reports', {
+      params: { period },
+    })
+    return response.data
+  }
 }
 
 export const api = new ApiClient()
