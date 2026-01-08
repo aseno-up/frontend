@@ -80,6 +80,9 @@ export default function BillingPage({ params }: BillingPageProps) {
   const [isCreatingCustomer, setIsCreatingCustomer] = useState(false)
   const [pixQRCode, setPixQRCode] = useState<PixQRCode | null>(null)
   const [isLoadingPix, setIsLoadingPix] = useState(false)
+  const [showPlanDialog, setShowPlanDialog] = useState(false)
+  const [selectedPlan, setSelectedPlan] = useState<'basic' | 'professional' | 'advanced'>('professional')
+  const [isSubscribing, setIsSubscribing] = useState(false)
 
   const {
     register,
@@ -160,6 +163,25 @@ export default function BillingPage({ params }: BillingPageProps) {
       handleApiError(err, 'Erro ao cadastrar dados de cobranca')
     } finally {
       setIsCreatingCustomer(false)
+    }
+  }
+
+  const handleSubscribe = async () => {
+    try {
+      setIsSubscribing(true)
+      await api.createSubscription({
+        plan: selectedPlan,
+        billing_type: 'PIX', // Default to PIX for MVP
+        cycle: 'MONTHLY'
+      })
+      showToast.success('Assinatura criada com sucesso!')
+      setShowPlanDialog(false)
+      fetchSubscription()
+      fetchPayments()
+    } catch (err) {
+      handleApiError(err, 'Erro ao criar assinatura')
+    } finally {
+      setIsSubscribing(false)
     }
   }
 
@@ -369,9 +391,77 @@ export default function BillingPage({ params }: BillingPageProps) {
               ) : (
                 <div className="text-center py-4">
                   <p className="text-muted-foreground mb-4">Nenhuma assinatura ativa</p>
-                  <Button disabled={!customer}>
-                    Assinar Plano
-                  </Button>
+                  
+                  <Dialog open={showPlanDialog} onOpenChange={setShowPlanDialog}>
+                    <DialogTrigger asChild>
+                      <Button disabled={!customer}>
+                        Assinar Plano
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-[700px]">
+                      <DialogHeader>
+                        <DialogTitle>Escolha seu Plano</DialogTitle>
+                        <DialogDescription>
+                          Desbloqueie todo o potencial da sua clinica
+                        </DialogDescription>
+                      </DialogHeader>
+                      
+                      <div className="grid md:grid-cols-3 gap-4 py-4">
+                        <div 
+                          className={`border rounded-lg p-4 cursor-pointer hover:border-primary transition-all ${selectedPlan === 'basic' ? 'border-primary bg-primary/5' : ''}`}
+                          onClick={() => setSelectedPlan('basic')}
+                        >
+                          <div className="text-lg font-bold">Basico</div>
+                          <div className="text-2xl font-bold mt-2">R$ 99</div>
+                          <div className="text-sm text-muted-foreground">/mes</div>
+                          <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
+                            <li>2 profissionais</li>
+                            <li>Agenda simples</li>
+                            <li>Confirmacao WhatsApp</li>
+                          </ul>
+                        </div>
+
+                        <div 
+                          className={`border rounded-lg p-4 cursor-pointer hover:border-primary transition-all relative ${selectedPlan === 'professional' ? 'border-primary bg-primary/5' : ''}`}
+                          onClick={() => setSelectedPlan('professional')}
+                        >
+                          <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-xs px-2 py-0.5 rounded-full">
+                            Recomendado
+                          </div>
+                          <div className="text-lg font-bold text-primary">Profissional</div>
+                          <div className="text-2xl font-bold mt-2">R$ 199</div>
+                          <div className="text-sm text-muted-foreground">/mes</div>
+                          <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
+                            <li>10 profissionais</li>
+                            <li>Google Calendar</li>
+                            <li>Relatorios Avancados</li>
+                            <li>IA de Risco</li>
+                          </ul>
+                        </div>
+
+                        <div 
+                          className={`border rounded-lg p-4 cursor-pointer hover:border-primary transition-all ${selectedPlan === 'advanced' ? 'border-primary bg-primary/5' : ''}`}
+                          onClick={() => setSelectedPlan('advanced')}
+                        >
+                          <div className="text-lg font-bold">Avancado</div>
+                          <div className="text-2xl font-bold mt-2">R$ 349</div>
+                          <div className="text-sm text-muted-foreground">/mes</div>
+                          <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
+                            <li>Ilimitado</li>
+                            <li>API</li>
+                            <li>Suporte VIP</li>
+                          </ul>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-end pt-4">
+                        <Button onClick={handleSubscribe} disabled={isSubscribing}>
+                          {isSubscribing ? 'Processando...' : 'Confirmar Assinatura'}
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+
                   {!customer && (
                     <p className="text-xs text-muted-foreground mt-2">
                       Cadastre os dados de cobranca primeiro

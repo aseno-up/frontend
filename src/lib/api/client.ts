@@ -346,9 +346,8 @@ class ApiClient {
 
   async createSubscription(data: {
     billing_type: string
-    value: number
+    plan: 'basic' | 'professional' | 'advanced'
     cycle: string
-    description?: string
   }) {
     const response = await this.client.post('/billing/subscription', data)
     return response.data
@@ -413,7 +412,7 @@ class ApiClient {
 
   async createSessionPlan(data: {
     patient_id: string
-    professional_id: string
+    professional_id?: string
     title: string
     description?: string
     frequency: string

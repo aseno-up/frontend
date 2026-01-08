@@ -67,7 +67,7 @@ const sessionPlanSchema = z.object({
   professional_mode: z.enum(["fixed", "flexible"]).default("fixed"),
   generation_mode: z.enum(["auto", "manual"]).default("auto"),
   generate_all: z.boolean().default(false),
-  whatsapp_confirmation: z.boolean().default(true),
+  whatsapp_confirmation: z.boolean().optional().default(true),
 }).refine((data) => {
   if (data.professional_mode === "fixed" && !data.professional_id) {
     return false
@@ -140,7 +140,7 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
     trigger,
     getValues,
   } = useForm<SessionPlanFormData>({
-    resolver: zodResolver(sessionPlanSchema),
+    resolver: zodResolver(sessionPlanSchema) as any,
     defaultValues: {
       patient_id: "",
       professional_id: "",

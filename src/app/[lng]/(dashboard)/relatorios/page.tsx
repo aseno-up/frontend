@@ -57,6 +57,7 @@ export default function RelatoriosPage(props: ReportPageProps) {
   const [metrics, setMetrics] = useState<ReportMetrics | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [period, setPeriod] = useState<Period>('3m')
+  const [isRestricted, setIsRestricted] = useState(false)
 
   useEffect(() => {
     props.params.then(p => setLng(p.lng))
@@ -68,10 +69,15 @@ export default function RelatoriosPage(props: ReportPageProps) {
   const fetchMetrics = useCallback(async () => {
     try {
       setIsLoading(true)
+      setIsRestricted(false)
       const data = await api.getReportMetrics(period)
       setMetrics(data)
-    } catch (err) {
-      handleApiError(err, "Erro ao carregar relatórios")
+    } catch (err: any) {
+      if (err.response && err.response.status === 403 && err.response.data?.error?.type === 'UPGRADE_REQUIRED') {
+        setIsRestricted(true)
+      } else {
+        handleApiError(err, "Erro ao carregar relatórios")
+      }
     } finally {
       setIsLoading(false)
     }
@@ -101,12 +107,59 @@ export default function RelatoriosPage(props: ReportPageProps) {
     }
   }
 
-  if (isLoading && !metrics) {
+  if (isLoading && !metrics && !isRestricted) {
     return (
       <div className="flex h-full flex-col space-y-6 p-8">
         <Header lng={lng} title="Relatórios" />
         <div className="flex items-center justify-center h-64">
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        </div>
+      </div>
+    )
+  }
+
+  if (isRestricted) {
+    return (
+      <div className="flex h-full flex-col">
+        <Header lng={lng} title="Relatórios" />
+        <div className="flex-1 p-8 flex items-center justify-center">
+          <Card className="max-w-2xl w-full border-primary/20 bg-primary/5">
+            <CardHeader className="text-center">
+              <div className="mx-auto bg-primary/10 w-16 h-16 rounded-full flex items-center justify-center mb-4">
+                <DollarSign className="h-8 w-8 text-primary" />
+              </div>
+              <CardTitle className="text-2xl font-bold">Descubra quanto sua clínica está perdendo</CardTitle>
+              <CardDescription className="text-lg mt-2">
+                Relatórios detalhados de faltas, horas ociosas e faturamento perdido estão disponíveis no Plano Profissional.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid md:grid-cols-2 gap-4">
+                <div className="bg-background p-4 rounded-lg border flex items-center gap-3">
+                  <UserX className="h-5 w-5 text-red-500" />
+                  <span className="font-medium">Controle de Faltas</span>
+                </div>
+                <div className="bg-background p-4 rounded-lg border flex items-center gap-3">
+                  <DollarSign className="h-5 w-5 text-red-500" />
+                  <span className="font-medium">Prejuízo Estimado</span>
+                </div>
+                <div className="bg-background p-4 rounded-lg border flex items-center gap-3">
+                  <Clock className="h-5 w-5 text-orange-500" />
+                  <span className="font-medium">Horas Perdidas</span>
+                </div>
+                <div className="bg-background p-4 rounded-lg border flex items-center gap-3">
+                  <CheckCircle2 className="h-5 w-5 text-green-500" />
+                  <span className="font-medium">Taxa de Comparecimento</span>
+                </div>
+              </div>
+              <div className="text-center">
+                <p className="text-muted-foreground mb-4">Faça upgrade agora e tome decisões baseadas em dados.</p>
+                <a href={`/${lng}/faturamento`} className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-11 px-8">
+                  Fazer Upgrade para Profissional
+                </a>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     )

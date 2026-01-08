@@ -1,20 +1,18 @@
 'use client'
 
-import { use, useState } from 'react'
+import { use } from 'react'
 import Image from 'next/image'
+import { useRouter } from 'next/navigation'
 import { useTranslation } from '@/lib/i18n/client'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog'
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from "@/components/ui/carousel"
 import {
   Calendar,
   MessageSquare,
@@ -27,9 +25,9 @@ import {
   BarChart3,
   Bell,
   Smartphone,
-  Shield,
   Zap,
-  Check
+  Check,
+  Quote
 } from 'lucide-react'
 
 interface PageProps {
@@ -38,8 +36,8 @@ interface PageProps {
 
 export default function LandingPage(props: PageProps) {
   const params = use(props.params)
+  const router = useRouter()
   const { t } = useTranslation(params.lng, 'landing')
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
 
   const benefits = [
     { icon: CheckCircle2, ...t('benefits.items.0', { returnObjects: true }) as { title: string; description: string } },
@@ -72,34 +70,60 @@ export default function LandingPage(props: PageProps) {
     { value: '24/7', label: 'Disponibilidade' },
   ]
 
-  const SignupForm = () => (
-    <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
-      <div className="grid gap-4">
-        <div className="grid gap-2">
-          <Label htmlFor="name">{t('form.name')}</Label>
-          <Input id="name" placeholder="Dr. João Silva" className="bg-background" />
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor="email">{t('form.email')}</Label>
-          <Input id="email" type="email" placeholder="joao@clinica.com" className="bg-background" />
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor="phone">{t('form.phone')}</Label>
-          <Input id="phone" type="tel" placeholder="(11) 99999-9999" className="bg-background" />
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor="clinic">{t('form.clinic')}</Label>
-          <Input id="clinic" placeholder="Clínica Saúde Total" className="bg-background" />
-        </div>
-      </div>
-      <Button type="submit" className="w-full" size="lg">
-        {t('form.submit')}
-      </Button>
-      <p className="text-xs text-center text-muted-foreground">
-        {t('form.noCard')}
-      </p>
-    </form>
-  )
+  const testimonials = [
+    {
+      text: "Desde que implementamos o Aseno, nossas faltas caíram drasticamente. A confirmação automática pelo WhatsApp é um divisor de águas para nossa recepção.",
+      author: "Clínica Vitalitá"
+    },
+    {
+      text: "Os relatórios de prejuízo abriram nossos olhos. Recuperamos muito dinheiro apenas ajustando os horários de maior risco identificados pelo sistema.",
+      author: "OdontoPlus"
+    },
+    {
+      text: "A lista de espera automática é mágica. Quando um paciente cancela, o sistema preenche a vaga sozinho em minutos. Incrível!",
+      author: "Instituto Mente Sã"
+    },
+    {
+      text: "A integração com o Google Calendar facilitou muito minha vida. Meus horários pessoais e profissionais finalmente estão em sintonia total.",
+      author: "FisioCenter"
+    },
+    {
+      text: "Saber o risco de falta do paciente antes de agendar mudou nossa estratégia. Agora confirmamos com mais rigor quem tem risco alto.",
+      author: "DermatoEstética"
+    },
+    {
+      text: "Nossa recepcionista economiza horas todos os dias. O Aseno faz o trabalho pesado de confirmar e reagendar os pacientes automaticamente.",
+      author: "Clínica Bem Estar"
+    },
+    {
+      text: "Interface limpa e muito fácil de usar. Treinei minha equipe em dez minutos e todos já estavam usando perfeitamente.",
+      author: "NutriVida"
+    },
+    {
+      text: "O sistema de encaixe automático pagou a mensalidade no primeiro dia. Nunca mais ficamos com buracos na agenda por cancelamentos.",
+      author: "Psicologia Avançada"
+    },
+    {
+      text: "O melhor investimento que fizemos este ano. A redução de no-shows foi imediata e o suporte é sempre muito atencioso.",
+      author: "Clínica Sorriso"
+    },
+    {
+      text: "Sincronização perfeita com minha agenda do Google. Não preciso mais abrir dois aplicativos para saber meu dia. Recomendo o plano profissional.",
+      author: "Dr. Lucas Oftalmologia"
+    },
+    {
+      text: "Eu não sabia quanto dinheiro perdia com faltas até ver o painel do Aseno. Agora temos controle total do nosso faturamento.",
+      author: "Espaço Terapêutico"
+    },
+    {
+      text: "A inteligência artificial nas respostas do WhatsApp é impressionante. Ela entende o paciente e resolve a agenda sem intervenção humana.",
+      author: "Clínica da Família"
+    },
+    {
+      text: "O plano profissional vale cada centavo. As ferramentas de risco e lista de espera trouxeram um retorno financeiro gigante para nós.",
+      author: "CardioMed"
+    }
+  ]
 
   return (
     <div className="min-h-screen bg-background">
@@ -126,25 +150,20 @@ export default function LandingPage(props: PageProps) {
             </a>
           </nav>
           <div className="flex items-center gap-3">
-            <Button variant="outline" size="sm" className="border-foreground/20 text-foreground hover:bg-foreground/10">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="border-foreground/20 text-foreground hover:bg-foreground/10"
+              onClick={() => router.push(`/${params.lng}/login`)}
+            >
               Login
             </Button>
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-              <DialogTrigger asChild>
-                <Button size="sm">
-                  {t('hero.cta')}
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                  <DialogTitle className="font-poppins">{t('form.title')}</DialogTitle>
-                  <DialogDescription>
-                    {t('form.subtitle')}
-                  </DialogDescription>
-                </DialogHeader>
-                <SignupForm />
-              </DialogContent>
-            </Dialog>
+            <Button 
+              size="sm"
+              onClick={() => router.push(`/${params.lng}/register`)}
+            >
+              {t('hero.cta')}
+            </Button>
           </div>
         </div>
       </header>
@@ -162,38 +181,29 @@ export default function LandingPage(props: PageProps) {
               <span>Automatize seu consultório</span>
             </div>
 
-            <h1 className="font-poppins text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight leading-tight text-foreground">
+            <h1 className="font-poppins text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight leading-tight text-foreground text-white">
               {t('hero.headline')}
             </h1>
 
-            <p className="mt-6 text-xl text-foreground/80 max-w-2xl mx-auto">
+            <p className="mt-6 text-xl text-foreground/80 max-w-2xl mx-auto text-white/90">
               {t('hero.subheadline')}
             </p>
 
             <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button size="lg" className="text-lg px-8 h-14">
-                    {t('hero.cta')}
-                    <ArrowRight className="ml-2 h-5 w-5" />
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-md">
-                  <DialogHeader>
-                    <DialogTitle className="font-poppins">{t('form.title')}</DialogTitle>
-                    <DialogDescription>
-                      {t('form.subtitle')}
-                    </DialogDescription>
-                  </DialogHeader>
-                  <SignupForm />
-                </DialogContent>
-              </Dialog>
-              <Button size="lg" variant="outline" className="text-lg px-8 h-14 border-white/20 hover:bg-white/5">
+              <Button 
+                size="lg" 
+                className="text-lg px-8 h-14"
+                onClick={() => router.push(`/${params.lng}/register`)}
+              >
+                {t('hero.cta')}
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </Button>
+              <Button size="lg" variant="outline" className="text-lg px-8 h-14 border-white/20 hover:bg-white/5 text-white">
                 Ver demonstração
               </Button>
             </div>
 
-            <p className="mt-4 text-sm text-foreground/60">
+            <p className="mt-4 text-sm text-foreground/60 text-white/60">
               {t('form.noCard')}
             </p>
           </div>
@@ -212,7 +222,7 @@ export default function LandingPage(props: PageProps) {
                   </div>
                   <div className="flex-1 flex justify-center">
                     <div className="bg-background/50 rounded px-4 py-1 text-xs text-muted-foreground">
-                      app.agendaclinic.com/dashboard
+                      app.aseno.com.br/dashboard
                     </div>
                   </div>
                 </div>
@@ -220,7 +230,7 @@ export default function LandingPage(props: PageProps) {
                   <div className="grid md:grid-cols-3 gap-4 mb-6">
                     <div className="bg-background/50 rounded-lg p-4 border border-white/5">
                       <div className="text-sm text-muted-foreground mb-1">Agendamentos Hoje</div>
-                      <div className="text-2xl font-bold text-primary">12</div>
+                      <div className="text-2xl font-bold text-primary text-white">12</div>
                     </div>
                     <div className="bg-background/50 rounded-lg p-4 border border-white/5">
                       <div className="text-sm text-muted-foreground mb-1">Confirmados</div>
@@ -233,21 +243,21 @@ export default function LandingPage(props: PageProps) {
                   </div>
                   <div className="grid md:grid-cols-2 gap-4">
                     <div className="bg-background/50 rounded-lg p-4 border border-white/5">
-                      <div className="text-sm font-medium mb-3">Próximos Pacientes</div>
+                      <div className="text-sm font-medium mb-3 text-white">Próximos Pacientes</div>
                       <div className="space-y-3">
                         {['Maria Silva - 09:00', 'João Santos - 09:30', 'Ana Costa - 10:00'].map((item, i) => (
                           <div key={i} className="flex items-center justify-between text-sm">
-                            <span className="text-muted-foreground">{item}</span>
+                            <span className="text-muted-foreground text-white/70">{item}</span>
                             <span className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded">Confirmado</span>
                           </div>
                         ))}
                       </div>
                     </div>
                     <div className="bg-background/50 rounded-lg p-4 border border-white/5">
-                      <div className="text-sm font-medium mb-3">Mensagens WhatsApp</div>
+                      <div className="text-sm font-medium mb-3 text-white">Mensagens WhatsApp</div>
                       <div className="space-y-3">
                         {['Lembrete enviado para Maria', 'João confirmou presença', 'Ana solicitou reagendamento'].map((item, i) => (
-                          <div key={i} className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <div key={i} className="flex items-center gap-2 text-sm text-muted-foreground text-white/70">
                             <MessageSquare className="h-3 w-3 text-green-500" />
                             <span>{item}</span>
                           </div>
@@ -268,8 +278,8 @@ export default function LandingPage(props: PageProps) {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             {stats.map((stat, index) => (
               <div key={index} className="text-center">
-                <div className="text-3xl md:text-4xl font-bold text-primary font-poppins">{stat.value}</div>
-                <div className="text-sm text-muted-foreground mt-1">{stat.label}</div>
+                <div className="text-3xl md:text-4xl font-bold text-primary font-poppins text-white">{stat.value}</div>
+                <div className="text-sm text-muted-foreground mt-1 text-white/70">{stat.label}</div>
               </div>
             ))}
           </div>
@@ -280,10 +290,10 @@ export default function LandingPage(props: PageProps) {
       <section id="features" className="py-20 md:py-32">
         <div className="container mx-auto px-4">
           <div className="text-center max-w-2xl mx-auto mb-16">
-            <h2 className="font-poppins text-3xl md:text-4xl font-bold mb-4 text-foreground">
+            <h2 className="font-poppins text-3xl md:text-4xl font-bold mb-4 text-foreground text-white">
               {t('benefits.title')}
             </h2>
-            <p className="text-foreground/70 text-lg">
+            <p className="text-foreground/70 text-lg text-white/70">
               Todas as ferramentas que você precisa para gerenciar sua clínica de forma eficiente
             </p>
           </div>
@@ -297,10 +307,10 @@ export default function LandingPage(props: PageProps) {
                     <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors">
                       <Icon className="h-6 w-6 text-primary" />
                     </div>
-                    <CardTitle className="text-lg font-poppins">{feature.title}</CardTitle>
+                    <CardTitle className="text-lg font-poppins text-white">{feature.title}</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-foreground/70">{feature.description}</p>
+                    <p className="text-foreground/70 text-white/70">{feature.description}</p>
                   </CardContent>
                 </Card>
               )
@@ -314,10 +324,10 @@ export default function LandingPage(props: PageProps) {
         <div className="container mx-auto px-4">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div>
-              <h2 className="font-poppins text-3xl md:text-4xl font-bold mb-6 text-foreground">
+              <h2 className="font-poppins text-3xl md:text-4xl font-bold mb-6 text-foreground text-white">
                 Software que sua equipe vai adorar usar
               </h2>
-              <p className="text-foreground/70 text-lg mb-8">
+              <p className="text-foreground/70 text-lg mb-8 text-white/70">
                 Interface intuitiva, fácil de aprender e usar. Sua equipe estará produtiva em minutos, não em semanas.
               </p>
               <ul className="space-y-4">
@@ -333,7 +343,7 @@ export default function LandingPage(props: PageProps) {
                     <div className="h-5 w-5 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
                       <Check className="h-3 w-3 text-primary" />
                     </div>
-                    <span className="text-foreground">{item}</span>
+                    <span className="text-foreground text-white/90">{item}</span>
                   </li>
                 ))}
               </ul>
@@ -346,22 +356,22 @@ export default function LandingPage(props: PageProps) {
                       <MessageSquare className="h-5 w-5 text-green-500" />
                     </div>
                     <div>
-                      <div className="font-medium">WhatsApp Automatizado</div>
-                      <div className="text-sm text-muted-foreground">3 mensagens enviadas hoje</div>
+                      <div className="font-medium text-white text-sm">WhatsApp Automatizado</div>
+                      <div className="text-xs text-white/70 font-medium italic">(Deixe nossa IA cuidar da parte chata)</div>
                     </div>
                   </div>
                   <div className="space-y-3">
                     <div className="bg-background/50 rounded-lg p-3 border border-white/5">
-                      <div className="text-xs text-muted-foreground mb-1">08:00</div>
-                      <div className="text-sm">Olá Maria! Lembrete: consulta amanhã às 14h. Confirme respondendo SIM</div>
+                      <div className="text-xs text-muted-foreground mb-1 text-white/50">08:00</div>
+                      <div className="text-sm text-white/90">Olá Maria! Lembrete: consulta amanhã às 14h. Consegue comparecer amanhã?</div>
                     </div>
                     <div className="bg-primary/10 rounded-lg p-3 border border-primary/20 ml-8">
-                      <div className="text-xs text-muted-foreground mb-1">08:05</div>
-                      <div className="text-sm">SIM</div>
+                      <div className="text-xs text-muted-foreground mb-1 text-primary/70">08:05</div>
+                      <div className="text-sm text-white/90">Vou levar minha filha na escola e chego no máximo às 14 e 05</div>
                     </div>
                     <div className="bg-background/50 rounded-lg p-3 border border-white/5">
-                      <div className="text-xs text-muted-foreground mb-1">08:05</div>
-                      <div className="text-sm">Perfeito! Sua consulta está confirmada. Até amanhã!</div>
+                      <div className="text-xs text-muted-foreground mb-1 text-white/50">08:05</div>
+                      <div className="text-sm text-white/90">Perfeito! Sem problemas! Sua consulta está confirmada. Até amanhã!</div>
                     </div>
                   </div>
                 </div>
@@ -375,10 +385,10 @@ export default function LandingPage(props: PageProps) {
       <section id="how-it-works" className="py-20 md:py-32">
         <div className="container mx-auto px-4">
           <div className="text-center max-w-2xl mx-auto mb-16">
-            <h2 className="font-poppins text-3xl md:text-4xl font-bold mb-4 text-foreground">
+            <h2 className="font-poppins text-3xl md:text-4xl font-bold mb-4 text-foreground text-white">
               {t('howItWorks.title')}
             </h2>
-            <p className="text-foreground/70 text-lg">
+            <p className="text-foreground/70 text-lg text-white/70">
               Comece a usar em menos de 5 minutos
             </p>
           </div>
@@ -392,11 +402,55 @@ export default function LandingPage(props: PageProps) {
                 <div className="h-16 w-16 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center text-2xl font-bold mx-auto mb-4 font-poppins">
                   {step.step}
                 </div>
-                <h3 className="font-poppins font-semibold text-lg mb-2 text-foreground">{step.title}</h3>
-                <p className="text-foreground/70">{step.description}</p>
+                <h3 className="font-poppins font-semibold text-lg mb-2 text-foreground text-white">{step.title}</h3>
+                <p className="text-foreground/70 text-white/70">{step.description}</p>
               </div>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* Testimonials Section */}
+      <section className="py-20 md:py-32 bg-background border-t border-white/10">
+        <div className="container mx-auto px-4">
+          <div className="text-center max-w-2xl mx-auto mb-16">
+            <h2 className="font-poppins text-3xl md:text-4xl font-bold mb-4 text-foreground text-white">
+              Quem usa, recomenda
+            </h2>
+            <p className="text-foreground/70 text-lg text-white/70">
+              Junte-se a clínicas que transformaram sua gestão
+            </p>
+          </div>
+          
+          <Carousel
+            opts={{
+              align: "start",
+              loop: true,
+            }}
+            className="w-full max-w-6xl mx-auto cursor-grab active:cursor-grabbing"
+          >
+            <CarouselContent>
+              {testimonials.map((t, i) => (
+                <CarouselItem key={i} className="md:basis-1/2 lg:basis-1/3 pl-6">
+                  <Card className="bg-card/50 border-white/10 h-full">
+                    <CardContent className="pt-6 flex flex-col justify-between h-full">
+                      <div>
+                        <div className="mb-4 text-primary opacity-80">
+                          <Quote className="h-6 w-6" />
+                        </div>
+                        <p className="text-white/80 italic mb-4 leading-relaxed">"{t.text}"</p>
+                      </div>
+                      <p className="text-sm font-semibold text-primary mt-auto">{t.author}</p>
+                    </CardContent>
+                  </Card>
+                </CarouselItem>
+              ))}
+            </CarouselContent>
+            <div className="hidden md:block">
+              <CarouselPrevious className="-left-12 border-white/10 hover:bg-white/10 text-white" />
+              <CarouselNext className="-right-12 border-white/10 hover:bg-white/10 text-white" />
+            </div>
+          </Carousel>
         </div>
       </section>
 
@@ -404,10 +458,10 @@ export default function LandingPage(props: PageProps) {
       <section id="pricing" className="py-20 md:py-32 bg-gradient-to-b from-background to-primary/5">
         <div className="container mx-auto px-4">
           <div className="text-center max-w-2xl mx-auto mb-16">
-            <h2 className="font-poppins text-3xl md:text-4xl font-bold mb-4 text-foreground">
+            <h2 className="font-poppins text-3xl md:text-4xl font-bold mb-4 text-foreground text-white">
               {t('pricing.title')}
             </h2>
-            <p className="text-foreground/70 text-lg">
+            <p className="text-foreground/70 text-lg text-white/70">
               {t('pricing.trial')}
             </p>
           </div>
@@ -416,10 +470,10 @@ export default function LandingPage(props: PageProps) {
             {/* Basic Plan */}
             <Card className="bg-card/50 border-white/10">
               <CardHeader>
-                <CardTitle className="font-poppins">{t('pricing.plans.basic.name')}</CardTitle>
+                <CardTitle className="font-poppins text-white">{t('pricing.plans.basic.name')}</CardTitle>
                 <CardDescription>
-                  <span className="text-3xl font-bold text-foreground">R$ {t('pricing.plans.basic.price')}</span>
-                  <span className="text-muted-foreground">{t('pricing.month')}</span>
+                  <span className="text-3xl font-bold text-foreground text-white">R$ {t('pricing.plans.basic.price')}</span>
+                  <span className="text-muted-foreground text-white/60">{t('pricing.month')}</span>
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -427,26 +481,17 @@ export default function LandingPage(props: PageProps) {
                   {(t('pricing.plans.basic.features', { returnObjects: true }) as string[]).map((feature, index) => (
                     <li key={index} className="flex items-center gap-2">
                       <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0" />
-                      <span className="text-sm">{feature}</span>
+                      <span className="text-sm text-white/80">{feature}</span>
                     </li>
                   ))}
                 </ul>
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <Button className="w-full mt-6" variant="outline">
-                      {t('hero.cta')}
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                      <DialogTitle className="font-poppins">{t('form.title')}</DialogTitle>
-                      <DialogDescription>
-                        {t('form.subtitle')}
-                      </DialogDescription>
-                    </DialogHeader>
-                    <SignupForm />
-                  </DialogContent>
-                </Dialog>
+                <Button 
+                  className="w-full mt-6" 
+                  variant="outline"
+                  onClick={() => router.push(`/${params.lng}/register`)}
+                >
+                  {t('hero.cta')}
+                </Button>
               </CardContent>
             </Card>
 
@@ -458,10 +503,10 @@ export default function LandingPage(props: PageProps) {
                 </span>
               </div>
               <CardHeader>
-                <CardTitle className="font-poppins">{t('pricing.plans.professional.name')}</CardTitle>
+                <CardTitle className="font-poppins text-white">{t('pricing.plans.professional.name')}</CardTitle>
                 <CardDescription>
-                  <span className="text-3xl font-bold text-foreground">R$ {t('pricing.plans.professional.price')}</span>
-                  <span className="text-muted-foreground">{t('pricing.month')}</span>
+                  <span className="text-3xl font-bold text-foreground text-white">R$ {t('pricing.plans.professional.price')}</span>
+                  <span className="text-muted-foreground text-white/60">{t('pricing.month')}</span>
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -469,36 +514,26 @@ export default function LandingPage(props: PageProps) {
                   {(t('pricing.plans.professional.features', { returnObjects: true }) as string[]).map((feature, index) => (
                     <li key={index} className="flex items-center gap-2">
                       <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0" />
-                      <span className="text-sm">{feature}</span>
+                      <span className="text-sm text-white/80">{feature}</span>
                     </li>
                   ))}
                 </ul>
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <Button className="w-full mt-6">
-                      {t('hero.cta')}
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                      <DialogTitle className="font-poppins">{t('form.title')}</DialogTitle>
-                      <DialogDescription>
-                        {t('form.subtitle')}
-                      </DialogDescription>
-                    </DialogHeader>
-                    <SignupForm />
-                  </DialogContent>
-                </Dialog>
+                <Button 
+                  className="w-full mt-6"
+                  onClick={() => router.push(`/${params.lng}/register`)}
+                >
+                  {t('hero.cta')}
+                </Button>
               </CardContent>
             </Card>
 
             {/* Advanced Plan */}
             <Card className="bg-card/50 border-white/10">
               <CardHeader>
-                <CardTitle className="font-poppins">{t('pricing.plans.advanced.name')}</CardTitle>
+                <CardTitle className="font-poppins text-white">{t('pricing.plans.advanced.name')}</CardTitle>
                 <CardDescription>
-                  <span className="text-3xl font-bold text-foreground">R$ {t('pricing.plans.advanced.price')}</span>
-                  <span className="text-muted-foreground">{t('pricing.month')}</span>
+                  <span className="text-3xl font-bold text-foreground text-white">R$ {t('pricing.plans.advanced.price')}</span>
+                  <span className="text-muted-foreground text-white/60">{t('pricing.month')}</span>
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -506,26 +541,17 @@ export default function LandingPage(props: PageProps) {
                   {(t('pricing.plans.advanced.features', { returnObjects: true }) as string[]).map((feature, index) => (
                     <li key={index} className="flex items-center gap-2">
                       <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0" />
-                      <span className="text-sm">{feature}</span>
+                      <span className="text-sm text-white/80">{feature}</span>
                     </li>
                   ))}
                 </ul>
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <Button className="w-full mt-6" variant="outline">
-                      {t('hero.cta')}
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                      <DialogTitle className="font-poppins">{t('form.title')}</DialogTitle>
-                      <DialogDescription>
-                        {t('form.subtitle')}
-                      </DialogDescription>
-                    </DialogHeader>
-                    <SignupForm />
-                  </DialogContent>
-                </Dialog>
+                <Button 
+                  className="w-full mt-6" 
+                  variant="outline"
+                  onClick={() => router.push(`/${params.lng}/register`)}
+                >
+                  {t('hero.cta')}
+                </Button>
               </CardContent>
             </Card>
           </div>
@@ -540,30 +566,21 @@ export default function LandingPage(props: PageProps) {
               <Zap className="h-4 w-4" />
               <span>Comece hoje mesmo</span>
             </div>
-            <h2 className="font-poppins text-3xl md:text-4xl font-bold mb-6 text-foreground">
+            <h2 className="font-poppins text-3xl md:text-4xl font-bold mb-6 text-foreground text-white">
               {t('cta.title')}
             </h2>
-            <p className="text-foreground/70 text-lg mb-8 max-w-2xl mx-auto">
+            <p className="text-foreground/70 text-lg mb-8 max-w-2xl mx-auto text-white/70">
               Junte-se a centenas de profissionais que já transformaram a gestão de suas clínicas
             </p>
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button size="lg" className="text-lg px-8 h-14">
-                  {t('cta.button')}
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                  <DialogTitle className="font-poppins">{t('form.title')}</DialogTitle>
-                  <DialogDescription>
-                    {t('form.subtitle')}
-                  </DialogDescription>
-                </DialogHeader>
-                <SignupForm />
-              </DialogContent>
-            </Dialog>
-            <p className="mt-4 text-sm text-foreground/60">
+            <Button 
+              size="lg" 
+              className="text-lg px-8 h-14"
+              onClick={() => router.push(`/${params.lng}/register`)}
+            >
+              {t('cta.button')}
+              <ArrowRight className="ml-2 h-5 w-5" />
+            </Button>
+            <p className="mt-4 text-sm text-foreground/60 text-white/60">
               {t('cta.note')}
             </p>
           </div>
@@ -583,37 +600,37 @@ export default function LandingPage(props: PageProps) {
                   className="object-contain" 
                 />
               </div>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-muted-foreground text-white/70">
                 Sistema de agendamento inteligente para clínicas e consultórios.
               </p>
             </div>
             <div>
-              <h4 className="font-poppins font-semibold mb-4">Produto</h4>
-              <ul className="space-y-2 text-sm text-muted-foreground">
+              <h4 className="font-poppins font-semibold mb-4 text-white">Produto</h4>
+              <ul className="space-y-2 text-sm text-muted-foreground text-white/60">
                 <li><a href="#features" className="hover:text-foreground transition-colors">Recursos</a></li>
                 <li><a href="#pricing" className="hover:text-foreground transition-colors">Preços</a></li>
                 <li><a href="#" className="hover:text-foreground transition-colors">Integrações</a></li>
               </ul>
             </div>
             <div>
-              <h4 className="font-poppins font-semibold mb-4">Empresa</h4>
-              <ul className="space-y-2 text-sm text-muted-foreground">
+              <h4 className="font-poppins font-semibold mb-4 text-white">Empresa</h4>
+              <ul className="space-y-2 text-sm text-muted-foreground text-white/60">
                 <li><a href="#" className="hover:text-foreground transition-colors">Sobre</a></li>
                 <li><a href="#" className="hover:text-foreground transition-colors">Blog</a></li>
                 <li><a href="#" className="hover:text-foreground transition-colors">Contato</a></li>
               </ul>
             </div>
             <div>
-              <h4 className="font-poppins font-semibold mb-4">Legal</h4>
-              <ul className="space-y-2 text-sm text-muted-foreground">
+              <h4 className="font-poppins font-semibold mb-4 text-white">Legal</h4>
+              <ul className="space-y-2 text-sm text-muted-foreground text-white/60">
                 <li><a href="#" className="hover:text-foreground transition-colors">{t('footer.terms')}</a></li>
                 <li><a href="#" className="hover:text-foreground transition-colors">{t('footer.privacy')}</a></li>
               </ul>
             </div>
           </div>
           <div className="pt-8 border-t border-white/10 flex flex-col md:flex-row items-center justify-between gap-4">
-            <p className="text-sm text-muted-foreground">
-              &copy; {new Date().getFullYear()} AgendaClinic. {t('footer.copyright')}
+            <p className="text-sm text-muted-foreground text-white/50">
+              &copy; {new Date().getFullYear()} Aseno. {t('footer.copyright')}
             </p>
           </div>
         </div>
