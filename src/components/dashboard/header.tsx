@@ -1,7 +1,8 @@
 "use client"
 
-import { Bell, Search, User, HelpCircle } from "lucide-react"
+import { Search, User, HelpCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { NotificationDropdown } from "@/components/notifications/notification-dropdown"
 import { Input } from "@/components/ui/input"
 import {
   DropdownMenu,
@@ -86,12 +87,9 @@ export function Header({ lng, title, children, tutorialPage = "global" }: Header
         </TooltipProvider>
 
         {/* Notifications */}
-        <Button variant="ghost" size="icon" className="relative" data-tutorial="notifications">
-          <Bell className="h-5 w-5" />
-          <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-primary text-[10px] font-medium text-primary-foreground flex items-center justify-center">
-            3
-          </span>
-        </Button>
+        <div data-tutorial="notifications">
+          <NotificationDropdown />
+        </div>
 
         {/* User Menu */}
         <DropdownMenu>

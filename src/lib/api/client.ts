@@ -506,6 +506,16 @@ class ApiClient {
     return response.data
   }
 
+  async verifyEmail(token: string) {
+    const response = await this.client.post('/auth/verify-email', { token })
+    return response.data
+  }
+
+  async resendVerificationEmail(email: string) {
+    const response = await this.client.post('/auth/resend-verification', { email })
+    return response.data
+  }
+
   // User Management endpoints
   async getUsers(page = 1, perPage = 20) {
     const response = await this.client.get('/users', {
@@ -635,6 +645,34 @@ class ApiClient {
   // Onboarding endpoints
   async getOnboardingStatus() {
     const response = await this.client.get('/onboarding/status')
+    return response.data
+  }
+
+  // Notification endpoints
+  async getNotifications(limit = 50, offset = 0) {
+    const response = await this.client.get('/notifications', {
+      params: { limit, offset },
+    })
+    return response.data
+  }
+
+  async getUnreadNotificationCount(): Promise<{ count: number }> {
+    const response = await this.client.get('/notifications/unread-count')
+    return response.data
+  }
+
+  async markNotificationAsRead(id: string) {
+    const response = await this.client.post(`/notifications/${id}/read`)
+    return response.data
+  }
+
+  async markAllNotificationsAsRead() {
+    const response = await this.client.post('/notifications/read-all')
+    return response.data
+  }
+
+  async deleteNotification(id: string) {
+    const response = await this.client.delete(`/notifications/${id}`)
     return response.data
   }
 }

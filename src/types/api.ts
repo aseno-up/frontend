@@ -672,3 +672,26 @@ export interface SmartInsight {
   severity: 'info' | 'warning' | 'critical'
   action_hint: string
 }
+
+// Notification Types
+export type NotificationType =
+  | 'appointment_reminder'
+  | 'appointment_confirmed'
+  | 'appointment_cancelled'
+  | 'appointment_rescheduled'
+  | 'whatsapp_connected'
+  | 'whatsapp_disconnected'
+  | 'trial_ending'
+  | 'trial_expired'
+  | 'new_patient'
+  | 'system'
+
+export interface Notification {
+  id: string
+  type: NotificationType
+  title: string
+  message: string
+  data?: Record<string, unknown>
+  read: boolean
+  created_at: string
+}

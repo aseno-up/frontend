@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { Plus, Pencil, Trash2, Mail, Phone, User } from "lucide-react"
+import { Plus, Pencil, Trash2, Mail, Phone, User, Clock } from "lucide-react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -26,9 +26,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { api } from "@/lib/api/client"
 import { showToast, handleApiError } from "@/lib/toast"
-import type { Professional, PaginatedResponse } from "@/types/api"
+import { WorkingHoursEditor } from "@/components/professionals/working-hours-editor"
+import type { Professional, PaginatedResponse, WorkingHours } from "@/types/api"
 
 // Schema de validacao com Zod
 const professionalSchema = z.object({
@@ -58,6 +60,16 @@ const defaultColors = [
   "#F97316", // Orange
 ]
 
+const DEFAULT_WORKING_HOURS: WorkingHours = {
+  monday: [{ start: '08:00', end: '18:00' }],
+  tuesday: [{ start: '08:00', end: '18:00' }],
+  wednesday: [{ start: '08:00', end: '18:00' }],
+  thursday: [{ start: '08:00', end: '18:00' }],
+  friday: [{ start: '08:00', end: '18:00' }],
+  saturday: [],
+  sunday: [],
+}
+
 export default function ProfissionaisPage({ params }: ProfissionaisPageProps) {
   const [lng, setLng] = useState("pt-BR")
   const [professionals, setProfessionals] = useState<Professional[]>([])
@@ -66,6 +78,8 @@ export default function ProfissionaisPage({ params }: ProfissionaisPageProps) {
   const [editingProfessional, setEditingProfessional] = useState<Professional | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [selectedColor, setSelectedColor] = useState(defaultColors[0])
+  const [workingHours, setWorkingHours] = useState<WorkingHours>(DEFAULT_WORKING_HOURS)
+  const [activeTab, setActiveTab] = useState("info")
 
   const {
     register,
@@ -107,10 +121,12 @@ export default function ProfissionaisPage({ params }: ProfissionaisPageProps) {
   }, [fetchProfessionals])
 
   const handleOpenDialog = (professional?: Professional) => {
+    setActiveTab("info")
     if (professional) {
       setEditingProfessional(professional)
       const color = professional.color || defaultColors[0]
       setSelectedColor(color)
+      setWorkingHours(professional.working_hours || DEFAULT_WORKING_HOURS)
       reset({
         name: professional.name,
         email: professional.email || "",
@@ -125,6 +141,7 @@ export default function ProfissionaisPage({ params }: ProfissionaisPageProps) {
       const colorIndex = professionals.length % defaultColors.length
       const color = defaultColors[colorIndex]
       setSelectedColor(color)
+      setWorkingHours(DEFAULT_WORKING_HOURS)
       reset({
         name: "",
         email: "",
@@ -145,6 +162,7 @@ export default function ProfissionaisPage({ params }: ProfissionaisPageProps) {
         ...data,
         color: selectedColor,
         email: data.email || undefined,
+        working_hours: workingHours,
       }
 
       if (editingProfessional) {
@@ -303,7 +321,7 @@ export default function ProfissionaisPage({ params }: ProfissionaisPageProps) {
 
       {/* Professional Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[550px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {editingProfessional ? "Editar Profissional" : "Novo Profissional"}
@@ -311,98 +329,118 @@ export default function ProfissionaisPage({ params }: ProfissionaisPageProps) {
           </DialogHeader>
 
           <form onSubmit={handleSubmit(onSubmit)}>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">
-                  Nome <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  id="name"
-                  {...register("name")}
-                  placeholder="Nome completo"
-                  className={errors.name ? "border-destructive" : ""}
-                />
-                {errors.name && (
-                  <p className="text-sm text-destructive">{errors.name.message}</p>
-                )}
-              </div>
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="info" className="flex items-center gap-2">
+                  <User className="h-4 w-4" />
+                  Informacoes
+                </TabsTrigger>
+                <TabsTrigger value="hours" className="flex items-center gap-2">
+                  <Clock className="h-4 w-4" />
+                  Horarios
+                </TabsTrigger>
+              </TabsList>
 
-              <div className="grid grid-cols-2 gap-4">
+              <TabsContent value="info" className="space-y-4 py-4">
                 <div className="space-y-2">
-                  <Label htmlFor="specialty">Especialidade</Label>
+                  <Label htmlFor="name">
+                    Nome <span className="text-destructive">*</span>
+                  </Label>
                   <Input
-                    id="specialty"
-                    {...register("specialty")}
-                    placeholder="Ex: Fisioterapeuta"
+                    id="name"
+                    {...register("name")}
+                    placeholder="Nome completo"
+                    className={errors.name ? "border-destructive" : ""}
                   />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="registration_number">Registro</Label>
-                  <Input
-                    id="registration_number"
-                    {...register("registration_number")}
-                    placeholder="Ex: CREFITO-00000"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    {...register("email")}
-                    placeholder="email@exemplo.com"
-                    className={errors.email ? "border-destructive" : ""}
-                  />
-                  {errors.email && (
-                    <p className="text-sm text-destructive">{errors.email.message}</p>
+                  {errors.name && (
+                    <p className="text-sm text-destructive">{errors.name.message}</p>
                   )}
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Telefone</Label>
-                  <Input
-                    id="phone"
-                    {...register("phone")}
-                    placeholder="(00) 00000-0000"
-                  />
-                </div>
-              </div>
 
-              <div className="space-y-2">
-                <Label>Cor no Calendario</Label>
-                <div className="flex gap-2">
-                  {defaultColors.map((color) => (
-                    <button
-                      key={color}
-                      type="button"
-                      className={`h-8 w-8 rounded-full transition-transform ${
-                        selectedColor === color
-                          ? "ring-2 ring-offset-2 ring-primary scale-110"
-                          : "hover:scale-105"
-                      }`}
-                      style={{ backgroundColor: color }}
-                      onClick={() => handleColorSelect(color)}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="specialty">Especialidade</Label>
+                    <Input
+                      id="specialty"
+                      {...register("specialty")}
+                      placeholder="Ex: Fisioterapeuta"
                     />
-                  ))}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="registration_number">Registro</Label>
+                    <Input
+                      id="registration_number"
+                      {...register("registration_number")}
+                      placeholder="Ex: CREFITO-00000"
+                    />
+                  </div>
                 </div>
-              </div>
 
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="is_active"
-                  {...register("is_active")}
-                  className="h-4 w-4 rounded border-input"
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      {...register("email")}
+                      placeholder="email@exemplo.com"
+                      className={errors.email ? "border-destructive" : ""}
+                    />
+                    {errors.email && (
+                      <p className="text-sm text-destructive">{errors.email.message}</p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">Telefone</Label>
+                    <Input
+                      id="phone"
+                      {...register("phone")}
+                      placeholder="(00) 00000-0000"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Cor no Calendario</Label>
+                  <div className="flex gap-2">
+                    {defaultColors.map((color) => (
+                      <button
+                        key={color}
+                        type="button"
+                        className={`h-8 w-8 rounded-full transition-transform ${
+                          selectedColor === color
+                            ? "ring-2 ring-offset-2 ring-primary scale-110"
+                            : "hover:scale-105"
+                        }`}
+                        style={{ backgroundColor: color }}
+                        onClick={() => handleColorSelect(color)}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="is_active"
+                    {...register("is_active")}
+                    className="h-4 w-4 rounded border-input"
+                  />
+                  <Label htmlFor="is_active" className="font-normal">
+                    Profissional ativo
+                  </Label>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="hours" className="py-4">
+                <WorkingHoursEditor
+                  value={workingHours}
+                  onChange={setWorkingHours}
                 />
-                <Label htmlFor="is_active" className="font-normal">
-                  Profissional ativo
-                </Label>
-              </div>
-            </div>
+              </TabsContent>
+            </Tabs>
 
-            <DialogFooter>
+            <DialogFooter className="mt-4">
               <Button
                 type="button"
                 variant="outline"
