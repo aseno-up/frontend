@@ -3,11 +3,11 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Header } from '@/components/dashboard/header'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { 
-  DollarSign, 
-  CalendarCheck, 
-  UserX, 
-  Users, 
+import {
+  DollarSign,
+  CalendarCheck,
+  UserX,
+  Users,
   TrendingUp,
   Clock,
   MessageSquare,
@@ -21,6 +21,7 @@ import { DashboardMetrics } from '@/types/api'
 import { format, subDays, startOfMonth, endOfMonth, subMonths } from 'date-fns'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { handleApiError } from '@/lib/toast'
+import { OnboardingChecklist } from '@/components/onboarding/onboarding-checklist'
 
 interface DashboardPageProps {
   params: Promise<{ lng: string }>
@@ -94,7 +95,7 @@ export default function DashboardPage(props: DashboardPageProps) {
   if (isLoading && !metrics) {
     return (
        <div className="flex h-full flex-col space-y-6 p-8">
-         <Header lng={lng} title="Visão Geral" />
+         <Header lng={lng} title="Visão Geral" tutorialPage="dashboard" />
          <div className="flex items-center justify-center h-64">
            <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
          </div>
@@ -124,7 +125,7 @@ export default function DashboardPage(props: DashboardPageProps) {
 
   return (
     <div className="flex h-full flex-col">
-      <Header lng={lng} title="Visão Geral">
+      <Header lng={lng} title="Visão Geral" tutorialPage="dashboard">
         <div className="flex items-center gap-2">
            <Filter className="h-4 w-4 text-muted-foreground" />
            <Select value={dateRange} onValueChange={(v) => setDateRange(v as DateRange)}>
@@ -142,8 +143,11 @@ export default function DashboardPage(props: DashboardPageProps) {
       </Header>
 
       <div className="flex-1 space-y-6 p-8 overflow-y-auto">
+        {/* Onboarding Checklist - shows only if not complete */}
+        <OnboardingChecklist lng={lng} />
+
         {/* Bloco 1 - Visão Rápida */}
-        <div>
+        <div data-tutorial="stats-cards">
         <h2 className="text-lg font-semibold mb-4 text-muted-foreground uppercase tracking-wider text-sm">Operacional & Financeiro</h2>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card>
@@ -161,7 +165,7 @@ export default function DashboardPage(props: DashboardPageProps) {
             </CardContent>
           </Card>
           
-          <Card>
+          <Card data-tutorial="attendance-rate">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
                 Taxa de Comparecimento
@@ -305,7 +309,7 @@ export default function DashboardPage(props: DashboardPageProps) {
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-primary/10 to-transparent">
+          <Card className="bg-gradient-to-br from-primary/10 to-transparent" data-tutorial="revenue-card">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-primary">
                 Receita Preservada

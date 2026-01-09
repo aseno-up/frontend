@@ -14,17 +14,18 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useAuthStore } from "@/stores/auth-store"
-import { useTutorial } from "@/hooks/use-tutorial"
+import { useTutorial, TutorialPage } from "@/hooks/use-tutorial"
 
 interface HeaderProps {
   lng: string
   title?: string
   children?: React.ReactNode
+  tutorialPage?: TutorialPage
 }
 
-export function Header({ lng, title, children }: HeaderProps) {
+export function Header({ lng, title, children, tutorialPage = "global" }: HeaderProps) {
   const { user, logout } = useAuthStore()
-  const { startTutorial, isRunning } = useTutorial({ lng })
+  const { startTutorial, isRunning } = useTutorial({ page: tutorialPage, lng })
 
   const handleLogout = async () => {
     await logout()
@@ -71,7 +72,7 @@ export function Header({ lng, title, children }: HeaderProps) {
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={startTutorial}
+                onClick={() => startTutorial()}
                 disabled={isRunning}
                 data-tutorial="tutorial-button"
               >

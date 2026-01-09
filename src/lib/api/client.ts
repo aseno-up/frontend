@@ -631,6 +631,12 @@ class ApiClient {
     })
     return response.data
   }
+
+  // Onboarding endpoints
+  async getOnboardingStatus() {
+    const response = await this.client.get('/onboarding/status')
+    return response.data
+  }
 }
 
 export const api = new ApiClient()

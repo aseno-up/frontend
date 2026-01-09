@@ -192,7 +192,7 @@ export default function PacientesPage({ params }: PacientesPageProps) {
 
   return (
     <div className="flex h-full flex-col">
-      <Header lng={lng} title="Pacientes" />
+      <Header lng={lng} title="Pacientes" tutorialPage="pacientes" />
 
       <div className="flex-1 p-4 md:p-6">
         {/* Toolbar */}

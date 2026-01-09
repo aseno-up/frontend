@@ -704,7 +704,7 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
 
   return (
     <div className="flex h-full flex-col">
-      <Header lng={lng} title="Planos de Sessão" />
+      <Header lng={lng} title="Planos de Sessão" tutorialPage="planos-sessao" />
 
       <div className="flex-1 overflow-auto p-4 md:p-6">
         <div className="space-y-6">

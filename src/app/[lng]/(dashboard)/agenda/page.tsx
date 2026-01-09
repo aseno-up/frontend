@@ -89,12 +89,12 @@ export default function AgendaPage({ params }: AgendaPageProps) {
 
   return (
     <div className="flex h-full flex-col">
-      <Header lng={lng} title="Agenda" />
+      <Header lng={lng} title="Agenda" tutorialPage="agenda" />
 
       <div className="flex-1 p-4 md:p-6">
         {/* Toolbar */}
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
-          <div className="w-64">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-4" data-tutorial="calendar-navigation">
+          <div className="w-64" data-tutorial="professional-filter">
             <ReactSelect
               value={selectedProfessionalOption}
               onChange={(option) =>
@@ -107,14 +107,14 @@ export default function AgendaPage({ params }: AgendaPageProps) {
             />
           </div>
 
-          <Button onClick={handleNewAppointment}>
+          <Button onClick={handleNewAppointment} data-tutorial="new-appointment">
             <Plus className="mr-2 h-4 w-4" />
             Novo Agendamento
           </Button>
         </div>
 
         {/* Calendar */}
-        <div className="h-[calc(100vh-220px)] rounded-lg border bg-card p-4">
+        <div className="h-[calc(100vh-220px)] rounded-lg border bg-card p-4" data-tutorial="calendar-view">
           <Calendar
             key={refreshKey}
             onEventClick={handleEventClick}

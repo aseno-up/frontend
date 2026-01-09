@@ -211,7 +211,7 @@ export default function BillingPage({ params }: BillingPageProps) {
 
   return (
     <div className="flex h-full flex-col">
-      <Header lng={lng} title="Faturamento" />
+      <Header lng={lng} title="Faturamento" tutorialPage="faturamento" />
 
       <div className="flex-1 overflow-auto p-4 md:p-6 space-y-6">
         <div className="grid gap-6 md:grid-cols-2">

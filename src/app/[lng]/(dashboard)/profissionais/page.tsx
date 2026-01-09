@@ -183,7 +183,7 @@ export default function ProfissionaisPage({ params }: ProfissionaisPageProps) {
 
   return (
     <div className="flex h-full flex-col">
-      <Header lng={lng} title="Profissionais" />
+      <Header lng={lng} title="Profissionais" tutorialPage="profissionais" />
 
       <div className="flex-1 p-4 md:p-6">
         {/* Toolbar */}

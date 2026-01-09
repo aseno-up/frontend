@@ -123,7 +123,7 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
 
   return (
     <div className="flex h-full flex-col">
-      <Header lng={lng} title="Configuracoes" />
+      <Header lng={lng} title="Configuracoes" tutorialPage="configuracoes" />
 
       <div className="flex-1 overflow-auto p-4 md:p-6">
         <div className="mx-auto max-w-3xl space-y-6">
