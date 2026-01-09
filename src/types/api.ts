@@ -654,11 +654,21 @@ export interface DashboardMetrics {
   avoided_no_shows: number
   auto_confirmed: number
   preserved_revenue: number
+  annual_savings_projection: number
   top_absentees: PatientAbsentee[]
   insights: string[]
+  smart_insights?: SmartInsight[]
 }
 
 export interface PatientAbsentee {
   name: string
   absent_count: number
+}
+
+export interface SmartInsight {
+  type: 'patient_time' | 'professional_day' | 'best_time' | 'worst_time' | 'worst_day'
+  title: string
+  description: string
+  severity: 'info' | 'warning' | 'critical'
+  action_hint: string
 }

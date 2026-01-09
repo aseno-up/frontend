@@ -119,8 +119,10 @@ export default function DashboardPage(props: DashboardPageProps) {
     avoided_no_shows: 0,
     auto_confirmed: 0,
     preserved_revenue: 0,
+    annual_savings_projection: 0,
     top_absentees: [],
-    insights: []
+    insights: [],
+    smart_insights: []
   }
 
   return (
@@ -278,7 +280,7 @@ export default function DashboardPage(props: DashboardPageProps) {
         <h2 className="text-lg font-semibold mb-4 text-muted-foreground uppercase tracking-wider text-sm flex items-center gap-2">
           <MessageSquare className="h-4 w-4" /> Impacto da Automação (WhatsApp)
         </h2>
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card className="bg-gradient-to-br from-green-50 to-transparent dark:from-green-950/20">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-green-700 dark:text-green-400">
@@ -320,6 +322,21 @@ export default function DashboardPage(props: DashboardPageProps) {
               <div className="text-2xl font-bold text-primary">{formatCurrency(m.preserved_revenue)}</div>
               <p className="text-xs text-primary/80 mt-1">
                 Sem automação, essas consultas seriam perdidas
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-emerald-50 to-transparent dark:from-emerald-950/20 border-emerald-200 dark:border-emerald-800">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
+                Projeção Anual
+              </CardTitle>
+              <TrendingUp className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-emerald-700 dark:text-emerald-400">{formatCurrency(m.annual_savings_projection)}</div>
+              <p className="text-xs text-emerald-600/80 dark:text-emerald-400/80 mt-1">
+                Economia estimada se manter essa taxa
               </p>
             </CardContent>
           </Card>
@@ -382,8 +399,82 @@ export default function DashboardPage(props: DashboardPageProps) {
                  </ul>
                )}
             </CardContent>
-                  </Card>
-               </div>
+         </Card>
+      </div>
+
+      {/* Bloco 5 - Smart Insights por Horário */}
+      {m.smart_insights && m.smart_insights.length > 0 && (
+        <div>
+          <h2 className="text-lg font-semibold mb-4 text-muted-foreground uppercase tracking-wider text-sm flex items-center gap-2">
+            <Clock className="h-4 w-4" /> Padrões de Faltas por Horário
+          </h2>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {m.smart_insights.map((insight, i) => {
+              const severityStyles = {
+                info: {
+                  card: 'border-blue-200 bg-blue-50/50 dark:border-blue-800 dark:bg-blue-950/20',
+                  icon: 'text-blue-600 dark:text-blue-400',
+                  title: 'text-blue-700 dark:text-blue-300',
+                  badge: 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
+                },
+                warning: {
+                  card: 'border-amber-200 bg-amber-50/50 dark:border-amber-800 dark:bg-amber-950/20',
+                  icon: 'text-amber-600 dark:text-amber-400',
+                  title: 'text-amber-700 dark:text-amber-300',
+                  badge: 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300'
+                },
+                critical: {
+                  card: 'border-red-200 bg-red-50/50 dark:border-red-800 dark:bg-red-950/20',
+                  icon: 'text-red-600 dark:text-red-400',
+                  title: 'text-red-700 dark:text-red-300',
+                  badge: 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
+                }
+              }
+              const style = severityStyles[insight.severity] || severityStyles.info
+              const typeLabels: Record<string, string> = {
+                'patient_time': 'Paciente',
+                'professional_day': 'Profissional',
+                'best_time': 'Melhor Horário',
+                'worst_time': 'Atenção',
+                'worst_day': 'Dia Crítico'
+              }
+
+              return (
+                <Card key={i} className={style.card}>
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center justify-between">
+                      <span className={`text-xs font-medium px-2 py-0.5 rounded ${style.badge}`}>
+                        {typeLabels[insight.type] || insight.type}
+                      </span>
+                      {insight.severity === 'critical' && (
+                        <AlertCircle className={`h-4 w-4 ${style.icon}`} />
+                      )}
+                      {insight.severity === 'warning' && (
+                        <AlertCircle className={`h-4 w-4 ${style.icon}`} />
+                      )}
+                      {insight.severity === 'info' && (
+                        <CheckCircle2 className={`h-4 w-4 ${style.icon}`} />
+                      )}
+                    </div>
+                    <CardTitle className={`text-sm font-semibold mt-2 ${style.title}`}>
+                      {insight.title}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <p className="text-sm text-muted-foreground mb-3">
+                      {insight.description}
+                    </p>
+                    <div className="flex items-start gap-2 text-xs bg-background/50 rounded p-2">
+                      <TrendingUp className="h-3 w-3 mt-0.5 text-muted-foreground shrink-0" />
+                      <span className="text-muted-foreground">{insight.action_hint}</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              )
+            })}
+          </div>
+        </div>
+      )}
              </div>
              </div>
            )
