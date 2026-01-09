@@ -13,6 +13,7 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from "@/components/ui/carousel"
+import Autoplay from "embla-carousel-autoplay"
 import {
   Calendar,
   MessageSquare,
@@ -27,7 +28,11 @@ import {
   Smartphone,
   Zap,
   Check,
-  Quote
+  Quote,
+  Shield,
+  FileText,
+  UserCog,
+  HelpCircle
 } from 'lucide-react'
 
 interface PageProps {
@@ -59,7 +64,9 @@ export default function LandingPage(props: PageProps) {
     { icon: MessageSquare, title: 'WhatsApp Integrado', description: 'Confirmações e lembretes automáticos via WhatsApp' },
     { icon: RefreshCw, title: 'Reagendamento Fácil', description: 'Pacientes podem reagendar sem ligar para a clínica' },
     { icon: BarChart3, title: 'Relatórios', description: 'Acompanhe métricas importantes do seu consultório' },
-    { icon: Bell, title: 'Notificações', description: 'Alertas em tempo real sobre novos agendamentos' },
+    { icon: UserCog, title: 'Controle de Acesso', description: 'Permissões por função: admin, recepção e profissional' },
+    { icon: FileText, title: 'Ficha do Paciente', description: 'Histórico básico de atendimentos do paciente' },
+    { icon: Shield, title: 'Segurança', description: 'Dados protegidos e acesso seguro para sua equipe' },
     { icon: Smartphone, title: 'Mobile First', description: 'Acesse de qualquer dispositivo, a qualquer hora' },
   ]
 
@@ -116,7 +123,7 @@ export default function LandingPage(props: PageProps) {
       author: "Espaço Terapêutico"
     },
     {
-      text: "A inteligência artificial nas respostas do WhatsApp é impressionante. Ela entende o paciente e resolve a agenda sem intervenção humana.",
+      text: "A automação inteligente nas respostas do WhatsApp é impressionante. Ela entende o paciente e resolve a agenda sem intervenção humana.",
       author: "Clínica da Família"
     },
     {
@@ -283,6 +290,9 @@ export default function LandingPage(props: PageProps) {
               </div>
             ))}
           </div>
+          <p className="text-center text-xs text-white/40 mt-6">
+            *Resultados médios observados em clínicas ativas
+          </p>
         </div>
       </section>
 
@@ -298,24 +308,45 @@ export default function LandingPage(props: PageProps) {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {features.map((feature, index) => {
-              const Icon = feature.icon
-              return (
-                <Card key={index} className="bg-card/50 border-white/10 hover:border-primary/50 transition-colors group">
-                  <CardHeader>
-                    <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors">
-                      <Icon className="h-6 w-6 text-primary" />
-                    </div>
-                    <CardTitle className="text-lg font-poppins text-white">{feature.title}</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-foreground/70 text-white/70">{feature.description}</p>
-                  </CardContent>
-                </Card>
-              )
-            })}
-          </div>
+          <Carousel
+            opts={{
+              align: "center",
+              loop: true,
+            }}
+            plugins={[
+              Autoplay({
+                delay: 3000,
+                stopOnInteraction: true,
+                stopOnMouseEnter: true,
+              }),
+            ]}
+            className="w-full max-w-6xl mx-auto cursor-grab active:cursor-grabbing"
+          >
+            <CarouselContent>
+              {features.map((feature, index) => {
+                const Icon = feature.icon
+                return (
+                  <CarouselItem key={index} className="md:basis-1/2 lg:basis-1/3 pl-6">
+                    <Card className="bg-card/50 border-white/10 hover:border-primary/50 transition-colors group h-full">
+                      <CardHeader className="text-center">
+                        <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors mx-auto">
+                          <Icon className="h-6 w-6 text-primary" />
+                        </div>
+                        <CardTitle className="text-lg font-poppins text-white">{feature.title}</CardTitle>
+                      </CardHeader>
+                      <CardContent className="text-center">
+                        <p className="text-foreground/70 text-white/70">{feature.description}</p>
+                      </CardContent>
+                    </Card>
+                  </CarouselItem>
+                )
+              })}
+            </CarouselContent>
+            <div className="hidden md:block">
+              <CarouselPrevious className="-left-12 border-white/10 hover:bg-white/10 text-white" />
+              <CarouselNext className="-right-12 border-white/10 hover:bg-white/10 text-white" />
+            </div>
+          </Carousel>
         </div>
       </section>
 
@@ -357,7 +388,7 @@ export default function LandingPage(props: PageProps) {
                     </div>
                     <div>
                       <div className="font-medium text-white text-sm">WhatsApp Automatizado</div>
-                      <div className="text-xs text-white/70 font-medium italic">(Deixe nossa IA cuidar da parte chata)</div>
+                      <div className="text-xs text-white/70 font-medium italic">(Automação inteligente cuida da parte chata)</div>
                     </div>
                   </div>
                   <div className="space-y-3">
@@ -410,6 +441,40 @@ export default function LandingPage(props: PageProps) {
         </div>
       </section>
 
+      {/* Para Quem É Section */}
+      <section className="py-16 md:py-24 bg-gradient-to-b from-background to-primary/5">
+        <div className="container mx-auto px-4">
+          <div className="text-center max-w-2xl mx-auto mb-12">
+            <h2 className="font-poppins text-3xl md:text-4xl font-bold mb-4 text-foreground text-white">
+              Para quem é o Aseno?
+            </h2>
+          </div>
+          <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+            <div className="bg-card/50 border border-white/10 rounded-xl p-6 text-center">
+              <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                <Users className="h-6 w-6 text-primary" />
+              </div>
+              <h3 className="font-semibold text-white mb-2">Clínicas pequenas e médias</h3>
+              <p className="text-sm text-white/70">De 1 a 20 profissionais que buscam eficiência</p>
+            </div>
+            <div className="bg-card/50 border border-white/10 rounded-xl p-6 text-center">
+              <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                <Calendar className="h-6 w-6 text-primary" />
+              </div>
+              <h3 className="font-semibold text-white mb-2">Consultórios com agenda recorrente</h3>
+              <p className="text-sm text-white/70">Sessões, retornos e tratamentos contínuos</p>
+            </div>
+            <div className="bg-card/50 border border-white/10 rounded-xl p-6 text-center">
+              <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                <MessageSquare className="h-6 w-6 text-primary" />
+              </div>
+              <h3 className="font-semibold text-white mb-2">Equipes que usam WhatsApp</h3>
+              <p className="text-sm text-white/70">Para comunicação com pacientes no dia a dia</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Testimonials Section */}
       <section className="py-20 md:py-32 bg-background border-t border-white/10">
         <div className="container mx-auto px-4">
@@ -427,6 +492,13 @@ export default function LandingPage(props: PageProps) {
               align: "start",
               loop: true,
             }}
+            plugins={[
+              Autoplay({
+                delay: 4000,
+                stopOnInteraction: true,
+                stopOnMouseEnter: true,
+              }),
+            ]}
             className="w-full max-w-6xl mx-auto cursor-grab active:cursor-grabbing"
           >
             <CarouselContent>
@@ -554,6 +626,40 @@ export default function LandingPage(props: PageProps) {
                 </Button>
               </CardContent>
             </Card>
+          </div>
+        </div>
+      </section>
+
+      {/* Micro-FAQ Section */}
+      <section className="py-16 md:py-24 border-t border-white/10">
+        <div className="container mx-auto px-4">
+          <div className="text-center max-w-2xl mx-auto mb-12">
+            <h2 className="font-poppins text-2xl md:text-3xl font-bold mb-4 text-foreground text-white">
+              Dúvidas frequentes
+            </h2>
+          </div>
+          <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+            <div className="bg-card/50 border border-white/10 rounded-xl p-6">
+              <div className="flex items-center gap-3 mb-3">
+                <HelpCircle className="h-5 w-5 text-primary" />
+                <h3 className="font-semibold text-white">Preciso instalar algo?</h3>
+              </div>
+              <p className="text-white/70">Não. O Aseno funciona 100% no navegador, sem instalação.</p>
+            </div>
+            <div className="bg-card/50 border border-white/10 rounded-xl p-6">
+              <div className="flex items-center gap-3 mb-3">
+                <HelpCircle className="h-5 w-5 text-primary" />
+                <h3 className="font-semibold text-white">Funciona no celular?</h3>
+              </div>
+              <p className="text-white/70">Sim. Interface responsiva que funciona em qualquer dispositivo.</p>
+            </div>
+            <div className="bg-card/50 border border-white/10 rounded-xl p-6">
+              <div className="flex items-center gap-3 mb-3">
+                <HelpCircle className="h-5 w-5 text-primary" />
+                <h3 className="font-semibold text-white">Preciso de cartão para testar?</h3>
+              </div>
+              <p className="text-white/70">Não. Teste grátis por 14 dias sem precisar de cartão de crédito.</p>
+            </div>
           </div>
         </div>
       </section>

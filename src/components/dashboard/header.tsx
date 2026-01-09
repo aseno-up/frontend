@@ -1,6 +1,6 @@
 "use client"
 
-import { Bell, Search, User } from "lucide-react"
+import { Bell, Search, User, HelpCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -12,7 +12,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useAuthStore } from "@/stores/auth-store"
+import { useTutorial } from "@/hooks/use-tutorial"
 
 interface HeaderProps {
   lng: string
@@ -22,6 +24,7 @@ interface HeaderProps {
 
 export function Header({ lng, title, children }: HeaderProps) {
   const { user, logout } = useAuthStore()
+  const { startTutorial, isRunning } = useTutorial({ lng })
 
   const handleLogout = async () => {
     await logout()
@@ -50,7 +53,7 @@ export function Header({ lng, title, children }: HeaderProps) {
       </div>
 
       {/* Search */}
-      <div className="hidden md:flex relative w-64">
+      <div className="hidden md:flex relative w-64" data-tutorial="search">
         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
         <Input
           type="search"
@@ -61,8 +64,28 @@ export function Header({ lng, title, children }: HeaderProps) {
 
       {/* Actions */}
       <div className="flex items-center gap-2">
+        {/* Tutorial Button */}
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={startTutorial}
+                disabled={isRunning}
+                data-tutorial="tutorial-button"
+              >
+                <HelpCircle className="h-5 w-5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Ver tutorial</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+
         {/* Notifications */}
-        <Button variant="ghost" size="icon" className="relative">
+        <Button variant="ghost" size="icon" className="relative" data-tutorial="notifications">
           <Bell className="h-5 w-5" />
           <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-primary text-[10px] font-medium text-primary-foreground flex items-center justify-center">
             3
@@ -72,7 +95,7 @@ export function Header({ lng, title, children }: HeaderProps) {
         {/* User Menu */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="relative h-9 w-9 rounded-full">
+            <Button variant="ghost" className="relative h-9 w-9 rounded-full" data-tutorial="user-menu">
               <Avatar className="h-9 w-9">
                 <AvatarFallback className="bg-primary/10 text-primary">
                   {user ? getInitials(user.name) : <User className="h-4 w-4" />}

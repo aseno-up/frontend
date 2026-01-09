@@ -67,7 +67,6 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
       window.open(data.auth_url, '_blank', 'width=600,height=700')
     } catch (err) {
       console.error('Failed to get auth URL:', err)
-      handleApiError(err, "Erro ao conectar Google Calendar")
     } finally {
       setIsConnecting(false)
     }

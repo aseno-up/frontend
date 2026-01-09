@@ -152,3 +152,44 @@
 .fc .fc-timegrid-now-indicator-arrow {
   @apply border-l-primary;
 }
+
+/* Driver.js Tutorial Styles */
+.driver-popover {
+  @apply bg-card border border-border shadow-lg rounded-xl;
+}
+
+.driver-popover .driver-popover-title {
+  @apply text-foreground font-poppins font-semibold text-lg;
+}
+
+.driver-popover .driver-popover-description {
+  @apply text-muted-foreground text-sm leading-relaxed;
+}
+
+.driver-popover .driver-popover-progress-text {
+  @apply text-muted-foreground text-xs;
+}
+
+.driver-popover .driver-popover-prev-btn,
+.driver-popover .driver-popover-next-btn {
+  @apply bg-primary text-primary-foreground text-sm font-medium px-4 py-2 rounded-md hover:bg-primary/90 transition-colors;
+}
+
+.driver-popover .driver-popover-prev-btn {
+  @apply bg-muted text-muted-foreground hover:bg-muted/80;
+}
+
+.driver-popover .driver-popover-close-btn {
+  @apply text-muted-foreground hover:text-foreground transition-colors;
+}
+
+.driver-popover-arrow-side-left .driver-popover-arrow,
+.driver-popover-arrow-side-right .driver-popover-arrow,
+.driver-popover-arrow-side-top .driver-popover-arrow,
+.driver-popover-arrow-side-bottom .driver-popover-arrow {
+  @apply border-border;
+}
+
+.driver-overlay {
+  background-color: rgba(0, 0, 0, 0.7) !important;
+}

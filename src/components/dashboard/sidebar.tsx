@@ -31,18 +31,19 @@ interface NavItem {
   label: string
   icon: React.ElementType
   permission?: Permission
+  tutorialId?: string
 }
 
 const navItems: NavItem[] = [
-  { href: "/dashboard", label: "Visão Geral", icon: LayoutDashboard },
-  { href: "/agenda", label: "Agenda", icon: Calendar, permission: "agenda:view" },
-  { href: "/pacientes", label: "Pacientes", icon: Users, permission: "patients:view" },
-  { href: "/profissionais", label: "Profissionais", icon: UserCog, permission: "professionals:view" },
-  { href: "/planos-sessao", label: "Planos de Sessao", icon: CalendarRange, permission: "session-plans:view" },
-  { href: "/whatsapp", label: "WhatsApp", icon: MessageCircle, permission: "whatsapp:access" },
-  { href: "/faturamento", label: "Faturamento", icon: CreditCard, permission: "billing:access" },
-  { href: "/usuarios", label: "Usuarios", icon: UserPlus, permission: "users:manage" },
-  { href: "/configuracoes", label: "Configuracoes", icon: Settings, permission: "settings:access" },
+  { href: "/dashboard", label: "Visão Geral", icon: LayoutDashboard, tutorialId: "dashboard" },
+  { href: "/agenda", label: "Agenda", icon: Calendar, permission: "agenda:view", tutorialId: "agenda" },
+  { href: "/pacientes", label: "Pacientes", icon: Users, permission: "patients:view", tutorialId: "pacientes" },
+  { href: "/profissionais", label: "Profissionais", icon: UserCog, permission: "professionals:view", tutorialId: "profissionais" },
+  { href: "/planos-sessao", label: "Planos de Sessao", icon: CalendarRange, permission: "session-plans:view", tutorialId: "planos-sessao" },
+  { href: "/whatsapp", label: "WhatsApp", icon: MessageCircle, permission: "whatsapp:access", tutorialId: "whatsapp" },
+  { href: "/faturamento", label: "Faturamento", icon: CreditCard, permission: "billing:access", tutorialId: "faturamento" },
+  { href: "/usuarios", label: "Usuarios", icon: UserPlus, permission: "users:manage", tutorialId: "usuarios" },
+  { href: "/configuracoes", label: "Configuracoes", icon: Settings, permission: "settings:access", tutorialId: "configuracoes" },
 ]
 
 interface SidebarProps {
@@ -85,7 +86,7 @@ export function Sidebar({ lng }: SidebarProps) {
   }
 
   const NavLinks = ({ onItemClick }: { onItemClick?: () => void }) => (
-    <nav className="flex-1 space-y-1 px-2 py-4">
+    <nav className="flex-1 space-y-1 px-2 py-4" data-tutorial="sidebar">
       {filteredNavItems.map((item) => {
         const isActive = pathname.includes(item.href)
         const Icon = item.icon
@@ -94,6 +95,7 @@ export function Sidebar({ lng }: SidebarProps) {
             key={item.href}
             href={`/${lng}${item.href}`}
             onClick={onItemClick}
+            data-tutorial={item.tutorialId}
             className={cn(
               "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
               isActive
