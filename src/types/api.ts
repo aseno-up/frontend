@@ -15,14 +15,25 @@ export interface User {
   created_at: string
 }
 
+export interface ClinicSettings {
+  timezone?: string
+  default_appointment_minutes?: number
+  reminder_hours_before?: number
+  allow_online_booking?: boolean
+  require_confirmation?: boolean
+  whatsapp_reminders_enabled?: boolean
+  email_reminders_enabled?: boolean
+}
+
 export interface Clinic {
   id: string
   name: string
   slug: string
   subscription_status: 'trial' | 'active' | 'past_due' | 'canceled'
-  plan: 'free' | 'basic' | 'professional' | 'enterprise'
+  plan: 'free' | 'basic' | 'professional' | 'enterprise' | 'advanced'
   trial_ends_at: string
   created_at: string
+  settings?: ClinicSettings
 }
 
 export interface Professional {

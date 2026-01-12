@@ -14,6 +14,7 @@ interface AuthState {
   logout: () => Promise<void>
   loadUser: () => Promise<void>
   setUser: (user: User, clinic: Clinic) => void
+  setClinic: (clinic: Clinic) => void
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -88,5 +89,9 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   setUser: (user: User, clinic: Clinic) => {
     set({ user, clinic, isAuthenticated: true, isLoading: false })
+  },
+
+  setClinic: (clinic: Clinic) => {
+    set({ clinic })
   },
 }))

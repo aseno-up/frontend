@@ -675,6 +675,35 @@ class ApiClient {
     const response = await this.client.delete(`/notifications/${id}`)
     return response.data
   }
+
+  // Clinic endpoints
+  async getClinic() {
+    const response = await this.client.get('/clinic')
+    return response.data
+  }
+
+  async updateClinic(data: {
+    name?: string
+    phone?: string
+    address?: string
+    city?: string
+    state?: string
+    zip_code?: string
+    logo_url?: string
+    primary_color?: string
+    settings?: {
+      timezone?: string
+      default_appointment_minutes?: number
+      reminder_hours_before?: number
+      allow_online_booking?: boolean
+      require_confirmation?: boolean
+      whatsapp_reminders_enabled?: boolean
+      email_reminders_enabled?: boolean
+    }
+  }) {
+    const response = await this.client.put('/clinic', data)
+    return response.data
+  }
 }
 
 export const api = new ApiClient()
