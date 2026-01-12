@@ -236,13 +236,25 @@ export function Calendar({
 
   // Custom event content renderer
   const renderEventContent = (eventInfo: EventContentArg) => {
-    const appointment = eventInfo.event.extendedProps.appointment as Appointment
-    const professionalColor = eventInfo.event.extendedProps.professionalColor as string | undefined
-    const status = appointment?.status || "pending"
+    const appointment = eventInfo.event.extendedProps?.appointment as Appointment | undefined
+    const professionalColor = eventInfo.event.extendedProps?.professionalColor as string | undefined
+
+    // If no appointment data, return simple event rendering
+    if (!appointment) {
+      return (
+        <div className="p-1 text-xs truncate">
+          {eventInfo.event.title}
+        </div>
+      )
+    }
+
+    const status = appointment.status || "pending"
     const config = statusConfig[status] || statusConfig.pending
-    
+
     // Find professional name if multiple professionals are shown
-    const professionalName = professionals.find(p => p.id === appointment.professional_id)?.name 
+    const professionalName = appointment.professional_id
+      ? professionals.find(p => p.id === appointment.professional_id)?.name
+      : undefined 
 
     return (
       <Tooltip>
