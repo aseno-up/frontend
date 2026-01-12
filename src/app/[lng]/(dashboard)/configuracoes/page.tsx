@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
+import { useSearchParams, useRouter } from "next/navigation"
 import { Building2, Bell, CreditCard, Users, Calendar, Loader2, Check } from "lucide-react"
 
 import { Header } from "@/components/dashboard/header"
@@ -24,6 +25,8 @@ interface ConfiguracoesPageProps {
 
 export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
   const [lng, setLng] = useState("pt-BR")
+  const searchParams = useSearchParams()
+  const router = useRouter()
   const { clinic, user, setClinic } = useAuthStore()
 
   // Clinic editing state
@@ -58,6 +61,19 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
   useEffect(() => {
     params.then(({ lng }) => setLng(lng))
   }, [params])
+
+  // Handle calendar OAuth callback result
+  useEffect(() => {
+    const calendarStatus = searchParams.get("calendar")
+    if (calendarStatus === "connected") {
+      showToast.success("Google Calendar conectado com sucesso!")
+      // Remove query param from URL without reload
+      router.replace(`/${lng}/configuracoes`, { scroll: false })
+    } else if (calendarStatus === "error") {
+      showToast.error("Erro ao conectar Google Calendar. Tente novamente.")
+      router.replace(`/${lng}/configuracoes`, { scroll: false })
+    }
+  }, [searchParams, router, lng])
 
   // Sync clinic name with store
   useEffect(() => {
@@ -214,11 +230,10 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
     try {
       setIsConnecting(true)
       const data = await api.getCalendarAuthURL()
-      // Open Google OAuth in a new window
-      window.open(data.auth_url, '_blank', 'width=600,height=700')
+      // Navigate in the same tab (not a popup) so user returns to full window
+      window.location.href = data.auth_url
     } catch (err) {
       handleApiError(err)
-    } finally {
       setIsConnecting(false)
     }
   }
