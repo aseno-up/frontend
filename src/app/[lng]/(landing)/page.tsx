@@ -1,10 +1,12 @@
 'use client'
 
-import { use } from 'react'
+import { use, useState, useEffect } from 'react'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { useTranslation } from '@/lib/i18n/client'
 import { Button } from '@/components/ui/button'
+import { Switch } from '@/components/ui/switch'
+import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import {
   Carousel,
@@ -39,10 +41,45 @@ interface PageProps {
   params: Promise<{ lng: string }>
 }
 
+interface PublicConfig {
+  trial_days: number
+  plans: {
+    [key: string]: {
+      limit_professionals: number
+      price_monthly: number
+      excess_price: number
+    }
+  }
+}
+
 export default function LandingPage(props: PageProps) {
   const params = use(props.params)
   const router = useRouter()
   const { t } = useTranslation(params.lng, 'landing')
+  const [billingCycle, setBillingCycle] = useState<'monthly' | 'annually'>('annually')
+  const [publicConfig, setPublicConfig] = useState<PublicConfig | null>(null)
+
+  // Fetch public config for dynamic pricing
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        // NEXT_PUBLIC_API_URL may or may not include /api/v1, so we use the base URL
+        const baseUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4901').replace(/\/api\/v1\/?$/, '')
+        console.log('[Landing] Fetching config from:', `${baseUrl}/api/v1/public/config`)
+        const response = await fetch(`${baseUrl}/api/v1/public/config`)
+        if (response.ok) {
+          const data = await response.json()
+          console.log('[Landing] Config loaded:', data)
+          setPublicConfig(data)
+        } else {
+          console.error('[Landing] Failed to fetch config:', response.status)
+        }
+      } catch (err) {
+        console.error('[Landing] Error fetching config:', err)
+      }
+    }
+    fetchConfig()
+  }, [])
 
   const benefits = [
     { icon: CheckCircle2, ...t('benefits.items.0', { returnObjects: true }) as { title: string; description: string } },
@@ -57,6 +94,7 @@ export default function LandingPage(props: PageProps) {
     t('howItWorks.steps.0', { returnObjects: true }) as { step: string; title: string; description: string },
     t('howItWorks.steps.1', { returnObjects: true }) as { step: string; title: string; description: string },
     t('howItWorks.steps.2', { returnObjects: true }) as { step: string; title: string; description: string },
+    t('howItWorks.steps.3', { returnObjects: true }) as { step: string; title: string; description: string },
   ]
 
   const features = [
@@ -132,6 +170,79 @@ export default function LandingPage(props: PageProps) {
     }
   ]
 
+  // Get price for a plan - uses dynamic config if available, fallback to translations
+  const getPlanPrice = (plan: 'basic' | 'professional' | 'advanced'): number => {
+    if (publicConfig?.plans?.[plan]) {
+      return publicConfig.plans[plan].price_monthly
+    }
+    // Fallback to static translations
+    return parseInt(t(`pricing.plans.${plan}.price`) as string) || 0
+  }
+
+  // Get limit for a plan - uses dynamic config if available
+  const getPlanLimit = (plan: 'basic' | 'professional' | 'advanced'): number => {
+    if (publicConfig?.plans?.[plan]) {
+      return publicConfig.plans[plan].limit_professionals
+    }
+    // Fallback defaults
+    const defaults: Record<string, number> = { basic: 5, professional: 15, advanced: -1 }
+    return defaults[plan] || 0
+  }
+
+  // Get limit text for display
+  const getPlanLimitText = (plan: 'basic' | 'professional' | 'advanced'): string => {
+    const limit = getPlanLimit(plan)
+    if (limit === -1) {
+      return params.lng === 'en' ? 'Unlimited professionals' : 'Profissionais ilimitados'
+    }
+    return params.lng === 'en' ? `Up to ${limit} professionals` : `Até ${limit} profissionais`
+  }
+
+  // Get features for a plan with dynamic limit
+  const getPlanFeatures = (plan: 'basic' | 'professional' | 'advanced'): string[] => {
+    const features = t(`pricing.plans.${plan}.features`, { returnObjects: true }) as string[]
+    // Replace the first feature (limit text) with dynamic value
+    return [getPlanLimitText(plan), ...features.slice(1)]
+  }
+
+  const calculateMonthlyPrice = (basePrice: number) => {
+    if (billingCycle === 'monthly') return basePrice.toString()
+    // Annual price is 10x monthly price, divided by 12 months for display
+    return Math.round((basePrice * 10) / 12).toString()
+  }
+
+  // Get trial days from config or fallback
+  const getTrialDays = (): number => {
+    return publicConfig?.trial_days || 14
+  }
+
+  // Get trial text for display
+  const getTrialText = (): string => {
+    const days = getTrialDays()
+    if (params.lng === 'en') {
+      return `Start with ${days} days free on Professional plan. No credit card required.`
+    }
+    return `Comece com ${days} dias grátis no plano Profissional. Sem cartão de crédito.`
+  }
+
+  // Get CTA trial button text
+  const getTrialCtaText = (): string => {
+    const days = getTrialDays()
+    if (params.lng === 'en') {
+      return `Try free for ${days} days`
+    }
+    return `Testar grátis por ${days} dias`
+  }
+
+  // Get FAQ trial text
+  const getFaqTrialText = (): string => {
+    const days = getTrialDays()
+    if (params.lng === 'en') {
+      return `No. Free trial for ${days} days without a credit card.`
+    }
+    return `Não. Teste grátis por ${days} dias sem precisar de cartão de crédito.`
+  }
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -165,11 +276,11 @@ export default function LandingPage(props: PageProps) {
             >
               Login
             </Button>
-            <Button 
+            <Button
               size="sm"
               onClick={() => router.push(`/${params.lng}/register`)}
             >
-              {t('hero.cta')}
+              {getTrialCtaText()}
             </Button>
           </div>
         </div>
@@ -197,12 +308,12 @@ export default function LandingPage(props: PageProps) {
             </p>
 
             <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
-              <Button 
-                size="lg" 
+              <Button
+                size="lg"
                 className="text-lg px-8 h-14"
                 onClick={() => router.push(`/${params.lng}/register`)}
               >
-                {t('hero.cta')}
+                {getTrialCtaText()}
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
               <Button size="lg" variant="outline" className="text-lg px-8 h-14 border-white/20 hover:bg-white/5 text-white">
@@ -424,11 +535,11 @@ export default function LandingPage(props: PageProps) {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-8 max-w-4xl mx-auto">
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 max-w-7xl mx-auto">
             {steps.map((step, index) => (
               <div key={index} className="text-center relative">
                 {index < steps.length - 1 && (
-                  <div className="hidden md:block absolute top-8 left-[60%] w-[80%] h-[2px] bg-gradient-to-r from-primary/50 to-transparent" />
+                  <div className="hidden lg:block absolute top-8 left-[60%] w-[80%] h-[2px] bg-gradient-to-r from-primary/50 to-transparent" />
                 )}
                 <div className="h-16 w-16 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center text-2xl font-bold mx-auto mb-4 font-poppins">
                   {step.step}
@@ -529,28 +640,50 @@ export default function LandingPage(props: PageProps) {
       {/* Pricing Section */}
       <section id="pricing" className="py-20 md:py-32 bg-gradient-to-b from-background to-primary/5">
         <div className="container mx-auto px-4">
-          <div className="text-center max-w-2xl mx-auto mb-16">
+          <div className="text-center max-w-2xl mx-auto mb-10">
             <h2 className="font-poppins text-3xl md:text-4xl font-bold mb-4 text-foreground text-white">
               {t('pricing.title')}
             </h2>
-            <p className="text-foreground/70 text-lg text-white/70">
-              {t('pricing.trial')}
+            <p className="text-foreground/70 text-lg text-white/70 mb-8">
+              {getTrialText()}
             </p>
+
+            <div className="flex items-center justify-center gap-4 mb-8">
+              <span className={`text-sm ${billingCycle === 'monthly' ? 'text-white font-bold' : 'text-white/60'}`}>
+                {t('pricing.monthly')}
+              </span>
+              <Switch 
+                checked={billingCycle === 'annually'}
+                onCheckedChange={(checked) => setBillingCycle(checked ? 'annually' : 'monthly')}
+              />
+              <span className={`text-sm ${billingCycle === 'annually' ? 'text-white font-bold' : 'text-white/60'}`}>
+                {t('pricing.annually')}
+                <span className="ml-2 bg-green-500/20 text-green-400 text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider font-bold">
+                  {t('pricing.save')}
+                </span>
+              </span>
+            </div>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-            {/* Basic Plan */}
-            <Card className="bg-card/50 border-white/10">
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto">
+            {/* Trial Plan */}
+            <Card className="bg-gradient-to-br from-primary/20 to-card border-primary/50 relative overflow-hidden flex flex-col">
+              <div className="absolute top-0 right-0 p-3 opacity-10">
+                <Sparkles className="w-24 h-24" />
+              </div>
               <CardHeader>
-                <CardTitle className="font-poppins text-white">{t('pricing.plans.basic.name')}</CardTitle>
+                <CardTitle className="font-poppins text-white text-2xl">Teste Grátis</CardTitle>
                 <CardDescription>
-                  <span className="text-3xl font-bold text-foreground text-white">R$ {t('pricing.plans.basic.price')}</span>
-                  <span className="text-muted-foreground text-white/60">{t('pricing.month')}</span>
+                  <span className="text-3xl font-bold text-foreground text-white">R$ 0</span>
+                  <span className="text-muted-foreground text-white/60">/{getTrialDays()} dias</span>
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <ul className="space-y-3">
-                  {(t('pricing.plans.basic.features', { returnObjects: true }) as string[]).map((feature, index) => (
+              <CardContent className="flex-1 flex flex-col">
+                <p className="text-sm text-white/80 mb-6 min-h-[40px]">
+                  {getTrialText()}
+                </p>
+                <ul className="space-y-3 mb-6 flex-1">
+                  {(t('pricing.trial_features', { returnObjects: true }) as string[]).map((feature, index) => (
                     <li key={index} className="flex items-center gap-2">
                       <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0" />
                       <span className="text-sm text-white/80">{feature}</span>
@@ -558,71 +691,126 @@ export default function LandingPage(props: PageProps) {
                   ))}
                 </ul>
                 <Button 
-                  className="w-full mt-6" 
-                  variant="outline"
+                  className="w-full mt-auto"
+                  size="lg"
                   onClick={() => router.push(`/${params.lng}/register`)}
                 >
-                  {t('hero.cta')}
+                  {t('pricing.cta_trial')}
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Basic Plan */}
+            <Card className="bg-card/50 border-white/10 relative flex flex-col">
+              {billingCycle === 'annually' && (
+                <div className="absolute top-4 right-4">
+                  <span className="bg-green-500/20 text-green-400 text-xs px-2 py-1 rounded-full font-bold">
+                    -17%
+                  </span>
+                </div>
+              )}
+              <CardHeader>
+                <CardTitle className="font-poppins text-white">{t('pricing.plans.basic.name')}</CardTitle>
+                <CardDescription>
+                  <span className="text-3xl font-bold text-foreground text-white">
+                    R$ {calculateMonthlyPrice(getPlanPrice('basic'))}
+                  </span>
+                  <span className="text-muted-foreground text-white/60">{t('pricing.month')}</span>
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex-1 flex flex-col">
+                <ul className="space-y-3 mb-6 flex-1">
+                  {getPlanFeatures('basic').map((feature, index) => (
+                    <li key={index} className="flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0" />
+                      <span className="text-sm text-white/80">{feature}</span>
+                    </li>
+                  ))}
+                </ul>
+                <Button
+                  className="w-full"
+                  variant="outline"
+                  onClick={() => router.push(`/${params.lng}/register?plan=basic&billing=${billingCycle}`)}
+                >
+                  {t('pricing.cta_subscribe')}
                 </Button>
               </CardContent>
             </Card>
 
             {/* Professional Plan */}
-            <Card className="bg-card border-primary relative scale-105">
-              <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                <span className="bg-primary text-primary-foreground text-sm px-4 py-1 rounded-full font-medium">
+            <Card className="bg-card border-primary relative scale-105 shadow-xl shadow-primary/10 z-10 flex flex-col">
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-full text-center">
+                <span className="bg-primary text-primary-foreground text-sm px-4 py-1 rounded-full font-medium shadow-lg">
                   Recomendado
                 </span>
               </div>
+              {billingCycle === 'annually' && (
+                <div className="absolute top-4 right-4">
+                  <span className="bg-green-500/20 text-green-400 text-xs px-2 py-1 rounded-full font-bold">
+                    -17%
+                  </span>
+                </div>
+              )}
               <CardHeader>
                 <CardTitle className="font-poppins text-white">{t('pricing.plans.professional.name')}</CardTitle>
                 <CardDescription>
-                  <span className="text-3xl font-bold text-foreground text-white">R$ {t('pricing.plans.professional.price')}</span>
+                  <span className="text-3xl font-bold text-foreground text-white">
+                    R$ {calculateMonthlyPrice(getPlanPrice('professional'))}
+                  </span>
                   <span className="text-muted-foreground text-white/60">{t('pricing.month')}</span>
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <ul className="space-y-3">
-                  {(t('pricing.plans.professional.features', { returnObjects: true }) as string[]).map((feature, index) => (
+              <CardContent className="flex-1 flex flex-col">
+                <ul className="space-y-3 mb-6 flex-1">
+                  {getPlanFeatures('professional').map((feature, index) => (
                     <li key={index} className="flex items-center gap-2">
                       <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0" />
                       <span className="text-sm text-white/80">{feature}</span>
                     </li>
                   ))}
                 </ul>
-                <Button 
-                  className="w-full mt-6"
-                  onClick={() => router.push(`/${params.lng}/register`)}
+                <Button
+                  className="w-full"
+                  onClick={() => router.push(`/${params.lng}/register?plan=professional&billing=${billingCycle}`)}
                 >
-                  {t('hero.cta')}
+                  {t('pricing.cta_subscribe')}
                 </Button>
               </CardContent>
             </Card>
 
             {/* Advanced Plan */}
-            <Card className="bg-card/50 border-white/10">
+            <Card className="bg-card/50 border-white/10 relative flex flex-col">
+              {billingCycle === 'annually' && (
+                <div className="absolute top-4 right-4">
+                  <span className="bg-green-500/20 text-green-400 text-xs px-2 py-1 rounded-full font-bold">
+                    -17%
+                  </span>
+                </div>
+              )}
               <CardHeader>
                 <CardTitle className="font-poppins text-white">{t('pricing.plans.advanced.name')}</CardTitle>
                 <CardDescription>
-                  <span className="text-3xl font-bold text-foreground text-white">R$ {t('pricing.plans.advanced.price')}</span>
+                  <span className="text-3xl font-bold text-foreground text-white">
+                    R$ {calculateMonthlyPrice(getPlanPrice('advanced'))}
+                  </span>
                   <span className="text-muted-foreground text-white/60">{t('pricing.month')}</span>
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <ul className="space-y-3">
-                  {(t('pricing.plans.advanced.features', { returnObjects: true }) as string[]).map((feature, index) => (
+              <CardContent className="flex-1 flex flex-col">
+                <ul className="space-y-3 mb-6 flex-1">
+                  {getPlanFeatures('advanced').map((feature, index) => (
                     <li key={index} className="flex items-center gap-2">
                       <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0" />
                       <span className="text-sm text-white/80">{feature}</span>
                     </li>
                   ))}
                 </ul>
-                <Button 
-                  className="w-full mt-6" 
+                <Button
+                  className="w-full"
                   variant="outline"
-                  onClick={() => router.push(`/${params.lng}/register`)}
+                  onClick={() => router.push(`/${params.lng}/register?plan=advanced&billing=${billingCycle}`)}
                 >
-                  {t('hero.cta')}
+                  {t('pricing.cta_subscribe')}
                 </Button>
               </CardContent>
             </Card>
@@ -658,7 +846,7 @@ export default function LandingPage(props: PageProps) {
                 <HelpCircle className="h-5 w-5 text-primary" />
                 <h3 className="font-semibold text-white">Preciso de cartão para testar?</h3>
               </div>
-              <p className="text-white/70">Não. Teste grátis por 14 dias sem precisar de cartão de crédito.</p>
+              <p className="text-white/70">{getFaqTrialText()}</p>
             </div>
           </div>
         </div>
@@ -678,12 +866,12 @@ export default function LandingPage(props: PageProps) {
             <p className="text-foreground/70 text-lg mb-8 max-w-2xl mx-auto text-white/70">
               Junte-se a centenas de profissionais que já transformaram a gestão de suas clínicas
             </p>
-            <Button 
-              size="lg" 
+            <Button
+              size="lg"
               className="text-lg px-8 h-14"
               onClick={() => router.push(`/${params.lng}/register`)}
             >
-              {t('cta.button')}
+              {getTrialCtaText()}
               <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
             <p className="mt-4 text-sm text-foreground/60 text-white/60">

@@ -704,6 +704,44 @@ class ApiClient {
     const response = await this.client.put('/clinic', data)
     return response.data
   }
+
+  // ==========================================
+  // Admin Settings (dev clinics only)
+  // ==========================================
+
+  async getAdminSettings(): Promise<{
+    settings: Record<string, { value: string; description: string }>
+  }> {
+    const response = await this.client.get('/admin/settings')
+    return response.data
+  }
+
+  async updateAdminSetting(key: string, value: string): Promise<{
+    message: string
+    key: string
+    value: string
+  }> {
+    const response = await this.client.put(`/admin/settings/${key}`, { value })
+    return response.data
+  }
+
+  // ==========================================
+  // Public Config (no auth required)
+  // ==========================================
+
+  async getPublicConfig(): Promise<{
+    plans: Record<string, {
+      limit_professionals: number
+      price_monthly: number
+      excess_price_per_professional: number
+      features: string[]
+    }>
+    trial_days: number
+  }> {
+    // Use axios directly without auth interceptor
+    const response = await axios.get(`${API_URL}/public/config`)
+    return response.data
+  }
 }
 
 export const api = new ApiClient()

@@ -54,6 +54,11 @@
         "step": "3",
         "title": "The status is updated automatically",
         "description": "Appointment confirmed, cancelled, or rescheduled without manual work."
+      },
+      {
+        "step": "4",
+        "title": "Full Google Calendar sync",
+        "description": "Personal events block your schedule and vice versa."
       }
     ]
   },
@@ -67,17 +72,32 @@
   },
   "pricing": {
     "title": "Plans",
-    "trial": "14 days free",
+    "trial": "Start with 14 days free on Professional plan. No credit card required.",
+    "monthly": "Monthly",
+    "annually": "Annually",
+    "save": "Save 2 months",
     "month": "/month",
+    "year": "/year",
+    "cta_trial": "Try for free",
+    "cta_subscribe": "Subscribe now",
+    "trial_features": [
+      "All Pro features",
+      "No credit card required",
+      "Immediate access"
+    ],
     "plans": {
       "basic": {
         "name": "Basic",
         "price": "99",
         "features": [
-          "Up to 2 professionals",
+          "Up to 5 professionals",
           "Unlimited scheduling",
           "WhatsApp confirmations",
-          "Recurring sessions"
+          "Recurring sessions",
+          "Patient management",
+          "Appointment history",
+          "Mobile/Desktop access",
+          "Email support"
         ]
       },
       "professional": {
@@ -85,12 +105,15 @@
         "price": "199",
         "recommended": true,
         "features": [
-          "Up to 10 professionals",
+          "Up to 15 professionals",
           "Everything in Basic",
-          "Google Calendar",
+          "Google Calendar Integration",
           "Automatic Waitlist",
           "No-show Risk Detection",
-          "Revenue Loss Reports"
+          "Revenue Loss Reports",
+          "Absence Reports",
+          "Message customization",
+          "Priority WhatsApp support"
         ]
       },
       "advanced": {
@@ -100,7 +123,11 @@
           "Unlimited professionals",
           "Everything in Professional",
           "Integration API",
-          "Priority support"
+          "Dedicated account manager",
+          "Team training",
+          "Data import",
+          "99.9% SLA",
+          "Automatic daily backup"
         ]
       }
     }

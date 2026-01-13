@@ -54,6 +54,11 @@
         "step": "3",
         "title": "O status é atualizado automaticamente",
         "description": "Consulta confirmada, cancelada ou reagendada sem trabalho manual."
+      },
+      {
+        "step": "4",
+        "title": "Sincronização total com Google Calendar",
+        "description": "Seus compromissos pessoais bloqueiam a agenda e vice-versa."
       }
     ]
   },
@@ -67,17 +72,32 @@
   },
   "pricing": {
     "title": "Planos",
-    "trial": "14 dias grátis",
+    "trial": "Comece com 14 dias grátis no plano Profissional. Sem cartão de crédito.",
+    "monthly": "Mensal",
+    "annually": "Anual",
+    "save": "Economize 2 meses",
     "month": "/mês",
+    "year": "/ano",
+    "cta_trial": "Testar grátis",
+    "cta_subscribe": "Assinar agora",
+    "trial_features": [
+      "Todas as funções Pro",
+      "Sem cartão de crédito",
+      "Acesso imediato"
+    ],
     "plans": {
       "basic": {
         "name": "Básico",
         "price": "99",
         "features": [
-          "Até 2 profissionais",
+          "Até 5 profissionais",
           "Agenda ilimitada",
           "Confirmações WhatsApp",
-          "Sessões recorrentes"
+          "Sessões recorrentes",
+          "Gestão de pacientes",
+          "Histórico de atendimentos",
+          "Acesso via celular/computador",
+          "Suporte por email"
         ]
       },
       "professional": {
@@ -85,12 +105,15 @@
         "price": "199",
         "recommended": true,
         "features": [
-          "Até 10 profissionais",
+          "Até 15 profissionais",
           "Tudo do Básico",
-          "Google Calendar",
+          "Integração Google Calendar",
           "Lista de Espera Automática",
           "Detector de Risco de Faltas",
-          "Relatórios de Prejuízo e Faltas"
+          "Relatórios de Prejuízo",
+          "Relatórios de Faltas",
+          "Personalização de mensagens",
+          "Suporte prioritário WhatsApp"
         ]
       },
       "advanced": {
@@ -100,7 +123,11 @@
           "Profissionais ilimitados",
           "Tudo do Profissional",
           "API de integração",
-          "Suporte prioritário"
+          "Gerente de conta dedicado",
+          "Treinamento da equipe",
+          "Importação de dados",
+          "SLA de 99.9%",
+          "Backup diário automático"
         ]
       }
     }
