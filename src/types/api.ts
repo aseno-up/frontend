@@ -34,6 +34,7 @@ export interface Clinic {
   trial_ends_at: string
   created_at: string
   settings?: ClinicSettings
+  booking_url?: string
 }
 
 export interface Professional {

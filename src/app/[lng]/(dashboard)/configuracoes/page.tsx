@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
-import { Building2, Bell, CreditCard, Users, Calendar, Loader2, Check } from "lucide-react"
+import { Building2, Bell, CreditCard, Users, Calendar, Loader2, Check, Copy, ExternalLink } from "lucide-react"
 
 import { Header } from "@/components/dashboard/header"
 import { Button } from "@/components/ui/button"
@@ -51,6 +51,12 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
   )
   const [isSavingNotifications, setIsSavingNotifications] = useState(false)
 
+  // Online booking state
+  const [allowOnlineBooking, setAllowOnlineBooking] = useState(
+    clinic?.settings?.allow_online_booking ?? false
+  )
+  const [isSavingOnlineBooking, setIsSavingOnlineBooking] = useState(false)
+
   // Calendar integration state
   const [calendarIntegration, setCalendarIntegration] = useState<CalendarIntegration | null>(null)
   const [calendars, setCalendars] = useState<GoogleCalendar[]>([])
@@ -94,6 +100,7 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
     if (clinic?.settings) {
       setWhatsappReminders(clinic.settings.whatsapp_reminders_enabled ?? false)
       setEmailReminders(clinic.settings.email_reminders_enabled ?? false)
+      setAllowOnlineBooking(clinic.settings.allow_online_booking ?? false)
     }
   }, [clinic?.settings])
 
@@ -188,6 +195,28 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
     }
   }
 
+  const handleToggleOnlineBooking = async (enabled: boolean) => {
+    if (!canEditClinic) return
+
+    try {
+      setIsSavingOnlineBooking(true)
+      setAllowOnlineBooking(enabled)
+      const updatedClinic = await api.updateClinic({
+        settings: {
+          ...clinic?.settings,
+          allow_online_booking: enabled,
+        },
+      })
+      setClinic(updatedClinic)
+      showToast.success(enabled ? "Agendamento online ativado" : "Agendamento online desativado")
+    } catch (err) {
+      setAllowOnlineBooking(!enabled) // Revert on error
+      handleApiError(err)
+    } finally {
+      setIsSavingOnlineBooking(false)
+    }
+  }
+
   const handleRequestPasswordReset = async () => {
     if (!user?.email) return
 
@@ -201,6 +230,20 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
       setIsSendingPasswordReset(false)
     }
   }
+
+  // Fetch fresh clinic data on page load
+  const fetchClinicData = useCallback(async () => {
+    try {
+      const data = await api.getClinic()
+      setClinic(data)
+    } catch {
+      // Keep existing data if fetch fails
+    }
+  }, [setClinic])
+
+  useEffect(() => {
+    fetchClinicData()
+  }, [fetchClinicData])
 
   const fetchCalendarIntegration = useCallback(async () => {
     try {
@@ -352,6 +395,58 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
                   O identificador nao pode ser alterado.
                 </p>
               </div>
+
+              <Separator />
+
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label>Agendamento Online</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Permitir que pacientes agendem consultas pelo link publico
+                  </p>
+                </div>
+                <Switch
+                  checked={allowOnlineBooking}
+                  onCheckedChange={handleToggleOnlineBooking}
+                  disabled={!canEditClinic || isSavingOnlineBooking}
+                />
+              </div>
+
+              {allowOnlineBooking && clinic?.booking_url && (
+                <div className="space-y-2">
+                  <Label htmlFor="booking_url">Link de Agendamento Online</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="booking_url"
+                      value={clinic.booking_url}
+                      readOnly
+                      className="bg-muted"
+                    />
+                    <Button
+                      size="icon"
+                      variant="outline"
+                      onClick={() => {
+                        navigator.clipboard.writeText(clinic.booking_url)
+                        showToast.success("Link copiado!")
+                      }}
+                      title="Copiar link"
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="outline"
+                      onClick={() => window.open(clinic.booking_url, "_blank")}
+                      title="Abrir link"
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Compartilhe este link com seus pacientes para agendamento online.
+                  </p>
+                </div>
+              )}
             </CardContent>
           </Card>
 

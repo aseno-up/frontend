@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { Bell, Check, CheckCheck, Trash2, Calendar, MessageSquare, AlertTriangle, User, Info } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import { ptBR } from "date-fns/locale"
@@ -14,7 +14,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { api } from "@/lib/api/client"
+import { api, getApiUrl } from "@/lib/api/client"
 import { handleApiError } from "@/lib/toast"
 import type { Notification, NotificationType } from "@/types/api"
 import { cn } from "@/lib/utils"
@@ -38,10 +38,18 @@ export function NotificationDropdown() {
   const [isLoading, setIsLoading] = useState(false)
   const [isOpen, setIsOpen] = useState(false)
 
+  // Refs for SSE connection management
+  const eventSourceRef = useRef<EventSource | null>(null)
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const isConnectingRef = useRef(false)
+  const isMountedRef = useRef(true)
+
   const fetchUnreadCount = useCallback(async () => {
     try {
       const data = await api.getUnreadNotificationCount()
-      setUnreadCount(data.count)
+      if (isMountedRef.current) {
+        setUnreadCount(data.count)
+      }
     } catch {
       // Silently fail - don't show error for background polling
     }
@@ -51,21 +59,130 @@ export function NotificationDropdown() {
     setIsLoading(true)
     try {
       const data = await api.getNotifications(20, 0)
-      setNotifications(data || [])
+      if (isMountedRef.current) {
+        setNotifications(data || [])
+      }
     } catch (err) {
       handleApiError(err, "Erro ao carregar notificacoes")
     } finally {
-      setIsLoading(false)
+      if (isMountedRef.current) {
+        setIsLoading(false)
+      }
     }
   }, [])
 
-  useEffect(() => {
-    fetchUnreadCount()
-    // Poll for new notifications every 30 seconds
-    const interval = setInterval(fetchUnreadCount, 30000)
-    return () => clearInterval(interval)
-  }, [fetchUnreadCount])
+  // Cleanup function
+  const cleanup = useCallback(() => {
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current)
+      reconnectTimeoutRef.current = null
+    }
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close()
+      eventSourceRef.current = null
+    }
+    isConnectingRef.current = false
+  }, [])
 
+  // SSE connection function
+  const connectSSE = useCallback(async () => {
+    // Prevent multiple simultaneous connection attempts
+    if (isConnectingRef.current || !isMountedRef.current) {
+      return
+    }
+
+    // Cleanup any existing connection
+    cleanup()
+
+    isConnectingRef.current = true
+
+    try {
+      // Get SSE token (uses cookie auth)
+      const { token } = await api.getSSEToken()
+
+      // Check if still mounted after async call
+      if (!isMountedRef.current) {
+        isConnectingRef.current = false
+        return
+      }
+
+      // Build SSE URL with token
+      const sseUrl = `${getApiUrl()}/notifications/stream?token=${encodeURIComponent(token)}`
+
+      // Create EventSource
+      const eventSource = new EventSource(sseUrl)
+      eventSourceRef.current = eventSource
+
+      eventSource.onopen = () => {
+        isConnectingRef.current = false
+      }
+
+      eventSource.addEventListener('notification', (event) => {
+        try {
+          const notification = JSON.parse(event.data) as Notification
+          if (isMountedRef.current) {
+            setNotifications(prev => [notification, ...prev.filter(n => n.id !== notification.id)])
+            if (!notification.read) {
+              setUnreadCount(prev => prev + 1)
+            }
+          }
+        } catch {
+          // Silently ignore parse errors
+        }
+      })
+
+      eventSource.onerror = () => {
+        // Close this connection
+        eventSource.close()
+
+        if (eventSourceRef.current === eventSource) {
+          eventSourceRef.current = null
+        }
+
+        isConnectingRef.current = false
+
+        // Only reconnect if still mounted
+        if (isMountedRef.current) {
+          reconnectTimeoutRef.current = setTimeout(() => {
+            if (isMountedRef.current) {
+              connectSSE()
+            }
+          }, 5000)
+        }
+      }
+
+    } catch {
+      isConnectingRef.current = false
+
+      // Retry after 5 seconds if still mounted
+      if (isMountedRef.current) {
+        reconnectTimeoutRef.current = setTimeout(() => {
+          if (isMountedRef.current) {
+            connectSSE()
+          }
+        }, 5000)
+      }
+    }
+  }, [cleanup])
+
+  // Initialize SSE connection
+  useEffect(() => {
+    isMountedRef.current = true
+
+    // Fetch initial unread count
+    fetchUnreadCount()
+
+    // Connect to SSE
+    connectSSE()
+
+    // Cleanup on unmount
+    return () => {
+      isMountedRef.current = false
+      cleanup()
+    }
+  }, []) // Empty deps - only run once on mount
+
+  // Fetch notifications when dropdown opens
   useEffect(() => {
     if (isOpen) {
       fetchNotifications()
@@ -114,7 +231,7 @@ export function NotificationDropdown() {
           <Bell className="h-5 w-5" />
           {unreadCount > 0 && (
             <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-medium text-white">
-              {unreadCount > 99 ? "99+" : unreadCount}
+              {unreadCount > 9 ? "9+" : unreadCount}
             </span>
           )}
         </Button>

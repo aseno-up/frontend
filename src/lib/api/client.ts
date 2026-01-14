@@ -3,6 +3,11 @@ import type { ApiError } from '@/types/api'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1'
 
+// Export API URL for SSE connections
+export function getApiUrl(): string {
+  return API_URL
+}
+
 class ApiClient {
   private client: AxiosInstance
   private accessToken: string | null = null
@@ -673,6 +678,11 @@ class ApiClient {
 
   async deleteNotification(id: string) {
     const response = await this.client.delete(`/notifications/${id}`)
+    return response.data
+  }
+
+  async getSSEToken(): Promise<{ token: string }> {
+    const response = await this.client.get('/notifications/sse-token')
     return response.data
   }
 

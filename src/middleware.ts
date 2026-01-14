@@ -5,11 +5,12 @@ import { languages, fallbackLng, cookieName } from '@/lib/i18n/settings'
 export function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname
 
-  // Skip for public files and api routes
+  // Skip for public files, api routes, and public booking pages
   if (
     pathname.startsWith('/_next') ||
     pathname.startsWith('/api') ||
     pathname.startsWith('/static') ||
+    pathname.startsWith('/agendar') ||
     pathname.includes('/favicon.ico') ||
     pathname.includes('.')
   ) {
