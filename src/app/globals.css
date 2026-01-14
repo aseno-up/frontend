@@ -193,3 +193,118 @@
 .driver-overlay {
   background-color: rgba(0, 0, 0, 0.7) !important;
 }
+
+/* Booking Calendar - Public page styles */
+.booking-calendar .fc {
+  --fc-border-color: hsl(220 13% 91%);
+  --fc-today-bg-color: hsl(202 100% 61% / 0.03);
+}
+
+.booking-calendar .fc .fc-toolbar {
+  @apply flex-wrap gap-2 mb-3;
+}
+
+.booking-calendar .fc .fc-toolbar-title {
+  @apply text-sm sm:text-base font-semibold text-gray-800;
+}
+
+.booking-calendar .fc .fc-button {
+  @apply text-xs font-medium rounded-lg px-2 py-1 shadow-sm;
+}
+
+.booking-calendar .fc .fc-button-group {
+  @apply shadow-sm rounded-lg overflow-hidden;
+}
+
+.booking-calendar .fc .fc-button-group .fc-button {
+  @apply rounded-none shadow-none;
+}
+
+.booking-calendar .fc .fc-col-header {
+  background-color: white;
+}
+
+.booking-calendar .fc .fc-col-header-cell {
+  background-color: white;
+  @apply border-b-2 border-gray-200;
+}
+
+.booking-calendar .fc .fc-timegrid-axis {
+  background-color: white;
+}
+
+.booking-calendar .fc .fc-col-header-cell-cushion {
+  @apply py-2 text-[9px] sm:text-[10px] font-semibold uppercase tracking-wide text-gray-600;
+}
+
+.booking-calendar .fc .fc-day-today .fc-col-header-cell-cushion {
+  @apply text-primary font-bold;
+}
+
+.booking-calendar .fc .fc-timegrid-slot {
+  height: 2rem !important;
+}
+
+@media (min-width: 640px) {
+  .booking-calendar .fc .fc-timegrid-slot {
+    height: 2.5rem !important;
+  }
+}
+
+.booking-calendar .fc .fc-timegrid-slot-label-cushion {
+  @apply text-[9px] sm:text-[10px] text-gray-400 font-medium;
+}
+
+.booking-calendar .fc .fc-event {
+  @apply rounded border transition-all duration-150;
+  border-left-width: 2px !important;
+  margin: 1px !important;
+}
+
+.booking-calendar .fc .fc-event.available-slot {
+  @apply cursor-pointer;
+}
+
+.booking-calendar .fc .fc-event.available-slot:hover {
+  @apply scale-[1.02] shadow-md z-10;
+}
+
+.booking-calendar .fc .fc-event.unavailable-slot {
+  @apply cursor-not-allowed opacity-50;
+}
+
+.booking-calendar .fc .fc-event.past-slot {
+  @apply cursor-not-allowed opacity-30;
+}
+
+.booking-calendar .fc .fc-event-main {
+  @apply p-0;
+}
+
+.booking-calendar .fc .fc-timegrid-now-indicator-line {
+  @apply border-2 border-red-400;
+}
+
+.booking-calendar .fc .fc-timegrid-now-indicator-arrow {
+  border-left-color: hsl(0 84.2% 60.2%) !important;
+}
+
+.booking-calendar .fc .fc-scrollgrid {
+  @apply border-0 rounded-lg overflow-hidden;
+}
+
+.booking-calendar .fc .fc-scrollgrid-section > * {
+  @apply border-gray-200;
+}
+
+.booking-calendar .fc .fc-scroller {
+  overflow-y: auto !important;
+}
+
+.booking-calendar .fc .fc-day-past {
+  @apply bg-gray-50/50;
+}
+
+.booking-calendar .fc .fc-day-past .fc-timegrid-col-bg {
+  @apply bg-gray-100/30;
+}

@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from "react"
 import { useParams } from "next/navigation"
-import { Calendar, Clock, User, Phone, Loader2, CheckCircle, AlertCircle } from "lucide-react"
+import { Phone, Loader2, CheckCircle, AlertCircle, CalendarDays } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
+import { BookingCalendar } from "./booking-calendar"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4901/api/v1"
 
@@ -38,32 +39,22 @@ interface AvailableSlot {
   end_time: string
 }
 
-interface SlotsResponse {
-  date: string
-  professional_id: string
-  duration_minutes: number
-  slots: AvailableSlot[]
-}
-
-type Step = "professional" | "date" | "time" | "form" | "success" | "error"
+type Step = "calendar" | "form" | "success" | "error"
 
 export default function AgendarPage() {
   const params = useParams()
   const slug = params.slug as string
 
-  const [step, setStep] = useState<Step>("professional")
+  const [step, setStep] = useState<Step>("calendar")
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   // Data
   const [clinic, setClinic] = useState<ClinicInfo | null>(null)
   const [professionals, setProfessionals] = useState<Professional[]>([])
-  const [slots, setSlots] = useState<AvailableSlot[]>([])
-  const [loadingSlots, setLoadingSlots] = useState(false)
 
   // Selections
   const [selectedProfessional, setSelectedProfessional] = useState<Professional | null>(null)
-  const [selectedDate, setSelectedDate] = useState<string>("")
   const [selectedSlot, setSelectedSlot] = useState<AvailableSlot | null>(null)
 
   // Form
@@ -110,32 +101,6 @@ export default function AgendarPage() {
     }
   }, [slug])
 
-  // Fetch available slots when date changes
-  useEffect(() => {
-    async function fetchSlots() {
-      if (!selectedProfessional || !selectedDate) return
-
-      try {
-        setLoadingSlots(true)
-        const res = await fetch(
-          `${API_URL}/book/${slug}/slots?professional_id=${selectedProfessional.id}&date=${selectedDate}`
-        )
-        if (!res.ok) {
-          throw new Error("Erro ao carregar horarios")
-        }
-        const data: SlotsResponse = await res.json()
-        setSlots(data.slots || [])
-      } catch (err) {
-        console.error(err)
-        setSlots([])
-      } finally {
-        setLoadingSlots(false)
-      }
-    }
-
-    fetchSlots()
-  }, [slug, selectedProfessional, selectedDate])
-
   // Handle form submission
   async function handleSubmit() {
     if (!selectedProfessional || !selectedSlot || !patientName || !patientPhone) {
@@ -170,21 +135,14 @@ export default function AgendarPage() {
     }
   }
 
-  // Get next 14 days for date selection
-  function getNextDays(count: number): string[] {
-    const days: string[] = []
-    const today = new Date()
-    for (let i = 0; i < count; i++) {
-      const date = new Date(today)
-      date.setDate(today.getDate() + i)
-      days.push(date.toISOString().split("T")[0])
-    }
-    return days
-  }
-
   function formatDate(dateStr: string): string {
-    const date = new Date(dateStr + "T12:00:00")
-    return date.toLocaleDateString("pt-BR", { weekday: "short", day: "numeric", month: "short" })
+    const date = new Date(dateStr)
+    return date.toLocaleDateString("pt-BR", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      year: "numeric"
+    })
   }
 
   function formatTime(dateStr: string): string {
@@ -224,9 +182,9 @@ export default function AgendarPage() {
             <p className="text-muted-foreground mb-4">
               Sua consulta foi agendada com sucesso. Aguarde a confirmacao da clinica.
             </p>
-            <div className="bg-gray-100 rounded-lg p-4 text-left text-sm">
+            <div className="bg-gray-100 rounded-lg p-4 text-left text-sm space-y-1">
               <p><strong>Profissional:</strong> {selectedProfessional?.name}</p>
-              <p><strong>Data:</strong> {selectedSlot && formatDate(selectedSlot.start_time.split("T")[0])}</p>
+              <p><strong>Data:</strong> {selectedSlot && formatDate(selectedSlot.start_time)}</p>
               <p><strong>Horario:</strong> {selectedSlot && formatTime(selectedSlot.start_time)}</p>
             </div>
           </CardContent>
@@ -243,7 +201,7 @@ export default function AgendarPage() {
             <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
             <h2 className="text-xl font-semibold mb-2">Erro ao Agendar</h2>
             <p className="text-muted-foreground mb-4">{error}</p>
-            <Button onClick={() => { setError(null); setStep("professional") }}>
+            <Button onClick={() => { setError(null); setStep("calendar") }}>
               Tentar Novamente
             </Button>
           </CardContent>
@@ -253,138 +211,44 @@ export default function AgendarPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4">
-      <div className="max-w-2xl mx-auto">
+    <div className="min-h-screen bg-gray-50 py-6 px-4 flex flex-col">
+      <div className={`mx-auto w-full flex-1 flex flex-col ${step === "calendar" ? "max-w-6xl" : "max-w-2xl"}`}>
         {/* Header */}
-        <div className="text-center mb-8">
+        <div className="text-center mb-6 shrink-0">
           {clinic?.logo_url && (
-            <img src={clinic.logo_url} alt={clinic.name} className="h-16 mx-auto mb-4" />
+            <img src={clinic.logo_url} alt={clinic.name} className="h-12 mx-auto mb-2" />
           )}
-          <h1 className="text-2xl font-bold">{clinic?.name}</h1>
-          <p className="text-muted-foreground">Agendamento Online</p>
+          <h1 className="text-xl font-bold">{clinic?.name}</h1>
+          <p className="text-sm text-muted-foreground">Agendamento Online</p>
         </div>
 
-        {/* Step 1: Select Professional */}
-        {step === "professional" && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <User className="h-5 w-5" />
-                Escolha o Profissional
+        {/* Step 1: Calendar with Professional Select */}
+        {step === "calendar" && (
+          <Card className="flex-1 flex flex-col overflow-hidden">
+            <CardHeader className="shrink-0 pb-2">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <CalendarDays className="h-5 w-5" />
+                Agende sua Consulta
               </CardTitle>
-              <CardDescription>Selecione com quem deseja agendar</CardDescription>
+              <CardDescription>Selecione o profissional e clique em um horario disponivel</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-3">
-              {professionals.length === 0 ? (
-                <p className="text-center text-muted-foreground py-4">
-                  Nenhum profissional disponivel no momento.
-                </p>
-              ) : (
-                professionals.map((prof) => (
-                  <button
-                    key={prof.id}
-                    onClick={() => {
-                      setSelectedProfessional(prof)
-                      setStep("date")
-                    }}
-                    className="w-full p-4 rounded-lg border hover:border-primary hover:bg-primary/5 transition-colors text-left flex items-center gap-4"
-                  >
-                    <div
-                      className="w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold"
-                      style={{ backgroundColor: prof.color || "#6366f1" }}
-                    >
-                      {prof.name.charAt(0)}
-                    </div>
-                    <div>
-                      <p className="font-medium">{prof.name}</p>
-                      <p className="text-sm text-muted-foreground">{prof.specialty}</p>
-                    </div>
-                  </button>
-                ))
-              )}
+            <CardContent className="flex-1 min-h-0 pb-4">
+              <BookingCalendar
+                slug={slug}
+                professionals={professionals}
+                primaryColor={clinic?.primary_color || "#38b6ff"}
+                durationMinutes={clinic?.default_appointment_minutes || 50}
+                onSlotSelect={(slot, professional) => {
+                  setSelectedSlot(slot)
+                  setSelectedProfessional(professional)
+                  setStep("form")
+                }}
+              />
             </CardContent>
           </Card>
         )}
 
-        {/* Step 2: Select Date */}
-        {step === "date" && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Calendar className="h-5 w-5" />
-                Escolha a Data
-              </CardTitle>
-              <CardDescription>
-                Agendando com {selectedProfessional?.name}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-4">
-                {getNextDays(14).map((date) => (
-                  <button
-                    key={date}
-                    onClick={() => {
-                      setSelectedDate(date)
-                      setStep("time")
-                    }}
-                    className="p-3 rounded-lg border hover:border-primary hover:bg-primary/5 transition-colors text-center"
-                  >
-                    <p className="text-sm font-medium">{formatDate(date)}</p>
-                  </button>
-                ))}
-              </div>
-              <Button variant="outline" onClick={() => setStep("professional")}>
-                Voltar
-              </Button>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Step 3: Select Time */}
-        {step === "time" && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Clock className="h-5 w-5" />
-                Escolha o Horario
-              </CardTitle>
-              <CardDescription>
-                {formatDate(selectedDate)} com {selectedProfessional?.name}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {loadingSlots ? (
-                <div className="flex justify-center py-8">
-                  <Loader2 className="h-6 w-6 animate-spin" />
-                </div>
-              ) : slots.length === 0 ? (
-                <p className="text-center text-muted-foreground py-8">
-                  Nenhum horario disponivel nesta data.
-                </p>
-              ) : (
-                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mb-4">
-                  {slots.map((slot, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => {
-                        setSelectedSlot(slot)
-                        setStep("form")
-                      }}
-                      className="p-3 rounded-lg border hover:border-primary hover:bg-primary/5 transition-colors text-center"
-                    >
-                      <p className="font-medium">{formatTime(slot.start_time)}</p>
-                    </button>
-                  ))}
-                </div>
-              )}
-              <Button variant="outline" onClick={() => setStep("date")}>
-                Voltar
-              </Button>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Step 4: Patient Form */}
+        {/* Step 2: Patient Form */}
         {step === "form" && (
           <Card>
             <CardHeader>
@@ -393,7 +257,7 @@ export default function AgendarPage() {
                 Seus Dados
               </CardTitle>
               <CardDescription>
-                {formatDate(selectedDate)} as {selectedSlot && formatTime(selectedSlot.start_time)} com {selectedProfessional?.name}
+                {selectedSlot && formatDate(selectedSlot.start_time)} as {selectedSlot && formatTime(selectedSlot.start_time)} com {selectedProfessional?.name}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -426,7 +290,7 @@ export default function AgendarPage() {
                 />
               </div>
               <div className="flex gap-2 pt-4">
-                <Button variant="outline" onClick={() => setStep("time")}>
+                <Button variant="outline" onClick={() => setStep("calendar")}>
                   Voltar
                 </Button>
                 <Button
