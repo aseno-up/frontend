@@ -13,7 +13,6 @@ import {
   ChevronLeft,
   Menu,
   MessageCircle,
-  CreditCard,
   CalendarRange,
   UserPlus,
 } from "lucide-react"
@@ -41,7 +40,6 @@ const navItems: NavItem[] = [
   { href: "/profissionais", label: "Profissionais", icon: UserCog, permission: "professionals:view", tutorialId: "profissionais" },
   { href: "/planos-sessao", label: "Planos de Sessao", icon: CalendarRange, permission: "session-plans:view", tutorialId: "planos-sessao" },
   { href: "/whatsapp", label: "WhatsApp", icon: MessageCircle, permission: "whatsapp:access", tutorialId: "whatsapp" },
-  { href: "/faturamento", label: "Faturamento", icon: CreditCard, permission: "billing:access", tutorialId: "faturamento" },
   { href: "/usuarios", label: "Usuarios", icon: UserPlus, permission: "users:manage", tutorialId: "usuarios" },
   { href: "/configuracoes", label: "Configuracoes", icon: Settings, permission: "settings:access", tutorialId: "configuracoes" },
 ]
