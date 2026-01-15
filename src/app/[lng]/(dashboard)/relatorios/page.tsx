@@ -10,7 +10,13 @@ import {
   DollarSign,
   Filter,
   TrendingDown,
-  Calendar
+  Calendar,
+  MessageSquare,
+  Send,
+  CheckCheck,
+  Reply,
+  XCircle,
+  AlertCircle
 } from 'lucide-react'
 import { useTranslation } from '@/lib/i18n/client'
 import { api } from '@/lib/api/client'
@@ -39,6 +45,28 @@ interface MonthlyMetrics {
   lost_revenue: number
 }
 
+interface WhatsAppMetrics {
+  messages_sent: number
+  delivered: number
+  replied: number
+  failed: number
+  confirmation_timeout: number
+}
+
+interface AppointmentsSummary {
+  total: number
+  confirmed: number
+  canceled: number
+  no_response: number
+  no_show: number
+  completed: number
+}
+
+interface Professional {
+  id: string
+  name: string
+}
+
 interface ReportMetrics {
   period: string
   no_shows: number
@@ -48,6 +76,8 @@ interface ReportMetrics {
   total_revenue: number
   attendance_rate: number
   monthly_breakdown: MonthlyMetrics[]
+  whatsapp_metrics?: WhatsAppMetrics
+  appointments_summary?: AppointmentsSummary
 }
 
 type Period = '1m' | '3m' | '6m' | '1y'
@@ -58,10 +88,21 @@ export default function RelatoriosPage(props: ReportPageProps) {
   const [isLoading, setIsLoading] = useState(true)
   const [period, setPeriod] = useState<Period>('3m')
   const [isRestricted, setIsRestricted] = useState(false)
+  const [professionalId, setProfessionalId] = useState<string>('')
+  const [professionals, setProfessionals] = useState<Professional[]>([])
 
   useEffect(() => {
     props.params.then(p => setLng(p.lng))
   }, [props.params])
+
+  // Fetch professionals on mount
+  useEffect(() => {
+    api.getProfessionals(1, 100).then(res => {
+      setProfessionals(res.data || [])
+    }).catch(() => {
+      // Silently fail - professionals filter is optional
+    })
+  }, [])
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { t } = useTranslation(lng, 'dashboard')
@@ -70,7 +111,7 @@ export default function RelatoriosPage(props: ReportPageProps) {
     try {
       setIsLoading(true)
       setIsRestricted(false)
-      const data = await api.getReportMetrics(period)
+      const data = await api.getReportMetrics(period, professionalId || undefined)
       setMetrics(data)
     } catch (err: any) {
       if (err.response && err.response.status === 403 && err.response.data?.error?.type === 'UPGRADE_REQUIRED') {
@@ -81,7 +122,7 @@ export default function RelatoriosPage(props: ReportPageProps) {
     } finally {
       setIsLoading(false)
     }
-  }, [period])
+  }, [period, professionalId])
 
   useEffect(() => {
     fetchMetrics()
@@ -173,7 +214,9 @@ export default function RelatoriosPage(props: ReportPageProps) {
     estimated_lost_revenue: 0,
     total_revenue: 0,
     attendance_rate: 0,
-    monthly_breakdown: []
+    monthly_breakdown: [],
+    whatsapp_metrics: undefined,
+    appointments_summary: undefined
   }
 
   return (
@@ -192,6 +235,19 @@ export default function RelatoriosPage(props: ReportPageProps) {
               <SelectItem value="1y">Último ano</SelectItem>
             </SelectContent>
           </Select>
+          {professionals.length > 0 && (
+            <Select value={professionalId} onValueChange={setProfessionalId}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="Todos os profissionais" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Todos os profissionais</SelectItem>
+                {professionals.map(p => (
+                  <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </div>
       </Header>
 
@@ -267,6 +323,97 @@ export default function RelatoriosPage(props: ReportPageProps) {
             </Card>
           </div>
         </div>
+
+        {/* Resumo de Agendamentos */}
+        {m.appointments_summary && (
+          <div>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base font-medium flex items-center gap-2">
+                  <Calendar className="h-4 w-4" />
+                  Resumo de Agendamentos
+                </CardTitle>
+                <CardDescription>
+                  Distribuição dos agendamentos por status no período
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                  <div className="text-center p-3 bg-muted/50 rounded-lg">
+                    <div className="text-2xl font-bold">{m.appointments_summary.total}</div>
+                    <p className="text-xs text-muted-foreground">Total</p>
+                  </div>
+                  <div className="text-center p-3 bg-green-50 dark:bg-green-950/20 rounded-lg">
+                    <div className="text-2xl font-bold text-green-600">{m.appointments_summary.confirmed}</div>
+                    <p className="text-xs text-muted-foreground">Confirmados</p>
+                  </div>
+                  <div className="text-center p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
+                    <div className="text-2xl font-bold text-blue-600">{m.appointments_summary.completed}</div>
+                    <p className="text-xs text-muted-foreground">Realizados</p>
+                  </div>
+                  <div className="text-center p-3 bg-red-50 dark:bg-red-950/20 rounded-lg">
+                    <div className="text-2xl font-bold text-red-600">{m.appointments_summary.canceled}</div>
+                    <p className="text-xs text-muted-foreground">Cancelados</p>
+                  </div>
+                  <div className="text-center p-3 bg-orange-50 dark:bg-orange-950/20 rounded-lg">
+                    <div className="text-2xl font-bold text-orange-600">{m.appointments_summary.no_response}</div>
+                    <p className="text-xs text-muted-foreground">Sem Resposta</p>
+                  </div>
+                  <div className="text-center p-3 bg-red-50 dark:bg-red-950/20 rounded-lg">
+                    <div className="text-2xl font-bold text-red-600">{m.appointments_summary.no_show}</div>
+                    <p className="text-xs text-muted-foreground">No-Show</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Confirmações WhatsApp */}
+        {m.whatsapp_metrics && (
+          <div>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base font-medium flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4 text-green-600" />
+                  Confirmações WhatsApp
+                </CardTitle>
+                <CardDescription>
+                  Métricas de mensagens de confirmação enviadas
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                  <div className="text-center p-3 bg-muted/50 rounded-lg">
+                    <Send className="h-5 w-5 mx-auto mb-1 text-muted-foreground" />
+                    <div className="text-2xl font-bold">{m.whatsapp_metrics.messages_sent}</div>
+                    <p className="text-xs text-muted-foreground">Enviadas</p>
+                  </div>
+                  <div className="text-center p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
+                    <CheckCheck className="h-5 w-5 mx-auto mb-1 text-blue-600" />
+                    <div className="text-2xl font-bold text-blue-600">{m.whatsapp_metrics.delivered}</div>
+                    <p className="text-xs text-muted-foreground">Entregues</p>
+                  </div>
+                  <div className="text-center p-3 bg-green-50 dark:bg-green-950/20 rounded-lg">
+                    <Reply className="h-5 w-5 mx-auto mb-1 text-green-600" />
+                    <div className="text-2xl font-bold text-green-600">{m.whatsapp_metrics.replied}</div>
+                    <p className="text-xs text-muted-foreground">Respondidas</p>
+                  </div>
+                  <div className="text-center p-3 bg-red-50 dark:bg-red-950/20 rounded-lg">
+                    <XCircle className="h-5 w-5 mx-auto mb-1 text-red-600" />
+                    <div className="text-2xl font-bold text-red-600">{m.whatsapp_metrics.failed}</div>
+                    <p className="text-xs text-muted-foreground">Falharam</p>
+                  </div>
+                  <div className="text-center p-3 bg-orange-50 dark:bg-orange-950/20 rounded-lg">
+                    <AlertCircle className="h-5 w-5 mx-auto mb-1 text-orange-600" />
+                    <div className="text-2xl font-bold text-orange-600">{m.whatsapp_metrics.confirmation_timeout}</div>
+                    <p className="text-xs text-muted-foreground">Ignoradas</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
         {/* Taxa de Comparecimento */}
         <div>

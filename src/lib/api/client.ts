@@ -640,9 +640,9 @@ class ApiClient {
   }
 
   // Analytics/Reports endpoints
-  async getReportMetrics(period: string = '3m') {
+  async getReportMetrics(period: string = '3m', professionalId?: string) {
     const response = await this.client.get('/analytics/reports', {
-      params: { period },
+      params: { period, professional_id: professionalId },
     })
     return response.data
   }
