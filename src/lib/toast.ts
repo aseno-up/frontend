@@ -62,6 +62,7 @@ const errorMap: Record<string, string> = {
   "UNAUTHORIZED": "Sessão expirada. Por favor, faça login novamente.",
   "FORBIDDEN": "Você não tem permissão para realizar esta ação.",
   "SLOT_UNAVAILABLE": "Este horário não está mais disponível.",
+  "INVALID": "Token inválido ou expirado. Por favor, solicite uma nova redefinição.",
 }
 
 // Error handler for API errors

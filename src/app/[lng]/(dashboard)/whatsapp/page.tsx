@@ -52,7 +52,7 @@ export default function WhatsAppPage({ params }: WhatsAppPageProps) {
   const [error, setError] = useState<string>()
   const [isSending, setIsSending] = useState(false)
   const [pollingStartTime, setPollingStartTime] = useState<number | null>(null)
-  const MAX_POLLING_TIME_MS = 5 * 60 * 1000 // 5 minutes max polling
+  const MAX_POLLING_TIME_MS = 1 * 60 * 1000 // 1 minute max polling
 
   // Test message form with validation
   const {
@@ -96,13 +96,18 @@ export default function WhatsAppPage({ params }: WhatsAppPageProps) {
       setIsConnecting(true)
       setError(undefined)
       const data = await api.connectWhatsApp()
-      setQRCode(data)
-      setPollingStartTime(Date.now())
-      // Start polling for status
-      fetchStatus(false)
+      
+      if (data?.base64) {
+        setQRCode(data)
+        setPollingStartTime(Date.now())
+        // Start polling for status
+        fetchStatus(false)
+      } else {
+        setError('Não foi possível obter o QR Code. Por favor, tente novamente em alguns instantes.')
+        setQRCode(null)
+      }
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Erro ao conectar WhatsApp'
-      setError(message)
+      handleApiError(err, 'Erro ao conectar WhatsApp')
     } finally {
       setIsConnecting(false)
     }
@@ -177,6 +182,15 @@ export default function WhatsAppPage({ params }: WhatsAppPageProps) {
     return () => clearInterval(interval)
   }, [qrCode, isConnected, fetchStatus, pollingStartTime, MAX_POLLING_TIME_MS])
 
+  // Periodic status check - verificar status a cada 10 segundos sempre
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchStatus(true) // Silent mode - não mostra loading nem erro
+    }, 10000) // 10 segundos
+
+    return () => clearInterval(interval)
+  }, [fetchStatus])
+
   const onSubmitTestMessage = async (data: TestMessageFormData) => {
     try {
       setIsSending(true)
@@ -207,13 +221,26 @@ export default function WhatsAppPage({ params }: WhatsAppPageProps) {
         {/* Status Card */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Smartphone className="h-5 w-5" />
-              Status da Conexao
-            </CardTitle>
-            <CardDescription>
-              Status atual do WhatsApp da sua clinica
-            </CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Smartphone className="h-5 w-5" />
+                  Status da Conexao
+                </CardTitle>
+                <CardDescription>
+                  Status atual do WhatsApp da sua clinica
+                </CardDescription>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => fetchStatus(false)}
+                disabled={isLoadingStatus}
+                className="h-8 w-8 p-0"
+              >
+                <RefreshCw className={`h-4 w-4 ${isLoadingStatus ? 'animate-spin' : ''}`} />
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
             {isLoadingStatus ? (
@@ -412,12 +439,12 @@ export default function WhatsAppPage({ params }: WhatsAppPageProps) {
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
               <RefreshCw className="h-5 w-5 text-blue-500" />
-              Lembretes
+              Confirmação e Lembretes
             </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground">
-              Lembretes sao enviados automaticamente 24h e 2h antes do horario agendado.
+              Confirmações são enviadas 48h, 24h e 2h antes do agendamento. O não retorno do paciente na primeira tentativa move o status para 'Não Respondido', e na terceira, para 'Ausente'.
             </p>
           </CardContent>
         </Card>
@@ -431,7 +458,7 @@ export default function WhatsAppPage({ params }: WhatsAppPageProps) {
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground">
-              O sistema reconhece respostas como &quot;Sim&quot;, &quot;Confirmo&quot;, &quot;Cancela&quot; e atualiza automaticamente.
+              O sistema analisa a resposta do paciente para entender a intenção de confirmar ou cancelar, atualizando o agendamento de forma automática.
             </p>
           </CardContent>
         </Card>

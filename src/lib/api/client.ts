@@ -16,6 +16,7 @@ class ApiClient {
     this.client = axios.create({
       baseURL: API_URL,
       withCredentials: true, // Enable cookies for cross-origin requests
+      timeout: 30000, // 30 seconds timeout
       headers: {
         'Content-Type': 'application/json',
       },
@@ -274,8 +275,15 @@ class ApiClient {
   }
 
   async sendWhatsAppMessage(phone: string, message: string) {
-    const response = await this.client.post('/whatsapp/send', { phone, message })
-    return response.data
+    console.log('[API] Sending WhatsApp message:', { phone, message })
+    try {
+      const response = await this.client.post('/whatsapp/send', { phone, message })
+      console.log('[API] WhatsApp message sent successfully:', response.data)
+      return response.data
+    } catch (error) {
+      console.error('[API] Error sending WhatsApp message:', error)
+      throw error
+    }
   }
 
   async sendWhatsAppConfirmation(data: {
