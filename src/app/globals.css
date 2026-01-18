@@ -308,3 +308,85 @@
 .booking-calendar .fc .fc-day-past .fc-timegrid-col-bg {
   @apply bg-gray-100/30;
 }
+
+/* React Select Custom Styles - Dark Mode Support */
+.react-select__control {
+  @apply bg-background border-input text-foreground rounded-md min-h-[2.5rem] transition-colors;
+}
+
+.react-select__control:hover {
+  @apply border-input;
+}
+
+.react-select__control--is-focused {
+  @apply border-ring ring-1 ring-ring;
+  box-shadow: none;
+}
+
+.react-select__menu {
+  @apply bg-popover border border-border rounded-md shadow-md mt-1;
+}
+
+.react-select__menu-list {
+  @apply p-1;
+}
+
+.react-select__option {
+  @apply text-foreground rounded-sm px-2 py-1.5 text-sm cursor-pointer;
+}
+
+.react-select__option:hover {
+  @apply bg-accent text-accent-foreground;
+}
+
+.react-select__option--is-focused {
+  @apply bg-accent text-accent-foreground;
+}
+
+.react-select__option--is-selected {
+  @apply bg-primary text-primary-foreground;
+}
+
+.react-select__single-value {
+  @apply text-foreground;
+}
+
+.react-select__placeholder {
+  @apply text-muted-foreground;
+}
+
+.react-select__input-container {
+  @apply text-foreground;
+}
+
+.react-select__indicator-separator {
+  @apply bg-border;
+}
+
+.react-select__indicator {
+  @apply text-muted-foreground;
+}
+
+.react-select__indicator:hover {
+  @apply text-foreground;
+}
+
+.react-select__clear-indicator {
+  @apply text-muted-foreground cursor-pointer;
+}
+
+.react-select__clear-indicator:hover {
+  @apply text-destructive;
+}
+
+.react-select__multi-value {
+  @apply bg-secondary text-secondary-foreground rounded-md;
+}
+
+.react-select__multi-value__label {
+  @apply text-secondary-foreground px-1.5 py-0.5 text-sm;
+}
+
+.react-select__multi-value__remove {
+  @apply text-secondary-foreground hover:bg-destructive hover:text-destructive-foreground rounded-r-md cursor-pointer;
+}

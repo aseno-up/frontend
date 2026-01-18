@@ -15,6 +15,22 @@ export interface User {
   created_at: string
 }
 
+export interface DaySchedule {
+  enabled: boolean
+  start_time?: string
+  end_time?: string
+}
+
+export interface BusinessHoursConfig {
+  monday?: DaySchedule
+  tuesday?: DaySchedule
+  wednesday?: DaySchedule
+  thursday?: DaySchedule
+  friday?: DaySchedule
+  saturday?: DaySchedule
+  sunday?: DaySchedule
+}
+
 export interface ClinicSettings {
   timezone?: string
   default_appointment_minutes?: number
@@ -23,6 +39,9 @@ export interface ClinicSettings {
   require_confirmation?: boolean
   whatsapp_reminders_enabled?: boolean
   email_reminders_enabled?: boolean
+  ai_min_delay_between_messages?: number | null
+  ai_min_delay_between_patients?: number | null
+  ai_business_hours?: BusinessHoursConfig | null
 }
 
 export interface Clinic {
