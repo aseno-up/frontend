@@ -71,9 +71,9 @@ function DayScheduleForm({
   onEndTimeChange,
 }: DayScheduleFormProps) {
   return (
-    <div className="flex items-center justify-between py-2.5 border-b last:border-b-0">
-      <div className="flex items-center gap-3">
-        <div className="w-28">
+    <div className="flex items-center py-2.5 border-b last:border-b-0">
+      <div className="flex items-center gap-3 min-w-0 flex-shrink-0">
+        <div className="w-28 flex-shrink-0">
           <Label className="text-sm font-medium">{label}</Label>
         </div>
         <Switch
@@ -82,10 +82,10 @@ function DayScheduleForm({
         />
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 ml-auto">
         {enabled ? (
           <>
-            <div className="w-28">
+            <div className="w-24 sm:w-28 flex-shrink-0">
               <ReactSelect
                 value={startTime ? { value: startTime, label: startTime } : null}
                 onChange={(option) => onStartTimeChange(option?.value)}
@@ -93,8 +93,8 @@ function DayScheduleForm({
                 placeholder="Início"
               />
             </div>
-            <span className="text-sm text-muted-foreground">até</span>
-            <div className="w-28">
+            <span className="text-xs sm:text-sm text-muted-foreground flex-shrink-0">até</span>
+            <div className="w-24 sm:w-28 flex-shrink-0">
               <ReactSelect
                 value={endTime ? { value: endTime, label: endTime } : null}
                 onChange={(option) => onEndTimeChange(option?.value)}

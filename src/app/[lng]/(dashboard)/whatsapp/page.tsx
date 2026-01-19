@@ -22,10 +22,10 @@ export default function WhatsAppPage({ params }: WhatsAppPageProps) {
     <div className="flex h-full flex-col">
       <Header lng={lng} title="WhatsApp" tutorialPage="whatsapp" />
 
-      <div className="flex-1 overflow-auto p-4 md:p-6">
-        <div className="mx-auto max-w-6xl">
-          <Tabs defaultValue="conexao" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-6">
+      <div className="flex-1 overflow-hidden p-4 md:p-6 min-h-0">
+        <div className="mx-auto max-w-6xl h-full flex flex-col min-h-0">
+          <Tabs defaultValue="conexao" className="w-full flex-1 flex flex-col overflow-hidden min-h-0">
+            <TabsList className="grid w-full grid-cols-2 mb-6 flex-shrink-0">
               <TabsTrigger value="conexao" className="flex items-center gap-2">
                 <MessageSquare className="h-4 w-4" />
                 <span>Conexão</span>
@@ -36,11 +36,11 @@ export default function WhatsAppPage({ params }: WhatsAppPageProps) {
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="conexao">
+            <TabsContent value="conexao" className="flex-1 overflow-y-auto mt-0 min-h-0">
               <WhatsAppConnectionTab />
             </TabsContent>
 
-            <TabsContent value="configuracoes">
+            <TabsContent value="configuracoes" className="flex-1 overflow-y-auto mt-0 min-h-0">
               <WhatsAppSettingsTab />
             </TabsContent>
           </Tabs>
