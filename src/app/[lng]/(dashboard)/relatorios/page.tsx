@@ -88,7 +88,7 @@ export default function RelatoriosPage(props: ReportPageProps) {
   const [isLoading, setIsLoading] = useState(true)
   const [period, setPeriod] = useState<Period>('3m')
   const [isRestricted, setIsRestricted] = useState(false)
-  const [professionalId, setProfessionalId] = useState<string>('')
+  const [professionalId, setProfessionalId] = useState<string>('all')
   const [professionals, setProfessionals] = useState<Professional[]>([])
 
   useEffect(() => {
@@ -111,7 +111,7 @@ export default function RelatoriosPage(props: ReportPageProps) {
     try {
       setIsLoading(true)
       setIsRestricted(false)
-      const data = await api.getReportMetrics(period, professionalId || undefined)
+      const data = await api.getReportMetrics(period, professionalId === 'all' ? undefined : professionalId)
       setMetrics(data)
     } catch (err: any) {
       if (err.response && err.response.status === 403 && err.response.data?.error?.type === 'UPGRADE_REQUIRED') {
@@ -241,7 +241,7 @@ export default function RelatoriosPage(props: ReportPageProps) {
                 <SelectValue placeholder="Todos os profissionais" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todos os profissionais</SelectItem>
+                <SelectItem value="all">Todos os profissionais</SelectItem>
                 {professionals.map(p => (
                   <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
                 ))}
@@ -459,7 +459,7 @@ export default function RelatoriosPage(props: ReportPageProps) {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {m.monthly_breakdown.length === 0 ? (
+              {(m.monthly_breakdown || []).length === 0 ? (
                 <p className="text-sm text-muted-foreground">Nenhum dado disponível para o período selecionado.</p>
               ) : (
                 <Table>
