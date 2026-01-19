@@ -65,7 +65,7 @@ export function Header({ lng, title, children, tutorialPage = "global" }: Header
       </div>
 
       {/* Actions */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1 md:gap-2">
         {/* Tutorial Button */}
         <TooltipProvider>
           <Tooltip>
@@ -76,8 +76,9 @@ export function Header({ lng, title, children, tutorialPage = "global" }: Header
                 onClick={() => startTutorial()}
                 disabled={isRunning}
                 data-tutorial="tutorial-button"
+                className="h-10 w-10 md:h-10 md:w-10"
               >
-                <HelpCircle className="h-5 w-5" />
+                <HelpCircle className="h-5 w-5 md:h-5 md:w-5" />
               </Button>
             </TooltipTrigger>
             <TooltipContent>
@@ -94,8 +95,12 @@ export function Header({ lng, title, children, tutorialPage = "global" }: Header
         {/* User Menu */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="relative h-9 w-9 rounded-full" data-tutorial="user-menu">
-              <Avatar className="h-9 w-9">
+            <Button
+              variant="ghost"
+              className="relative h-10 w-10 md:h-9 md:w-9 rounded-full"
+              data-tutorial="user-menu"
+            >
+              <Avatar className="h-10 w-10 md:h-9 md:w-9">
                 <AvatarFallback className="bg-primary/10 text-primary">
                   {user ? getInitials(user.name) : <User className="h-4 w-4" />}
                 </AvatarFallback>

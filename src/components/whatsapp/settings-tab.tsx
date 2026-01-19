@@ -71,7 +71,7 @@ function DayScheduleForm({
   onEndTimeChange,
 }: DayScheduleFormProps) {
   return (
-    <div className="flex items-center py-2.5 border-b last:border-b-0">
+    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-0 py-3 border-b last:border-b-0">
       <div className="flex items-center gap-3 min-w-0 flex-shrink-0">
         <div className="w-28 flex-shrink-0">
           <Label className="text-sm font-medium">{label}</Label>
@@ -82,7 +82,7 @@ function DayScheduleForm({
         />
       </div>
 
-      <div className="flex items-center gap-2 ml-auto">
+      <div className="flex items-center gap-2 sm:ml-auto pl-0 sm:pl-0">
         {enabled ? (
           <>
             <div className="w-24 sm:w-28 flex-shrink-0">

@@ -22,11 +22,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { 
-  Tooltip, 
-  TooltipContent, 
-  TooltipProvider, 
-  TooltipTrigger 
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger
 } from "@/components/ui/tooltip"
 import type { Appointment, Professional } from "@/types/api"
 
@@ -91,10 +91,21 @@ export function Calendar({
   const calendarRef = useRef<FullCalendar>(null)
   const [events, setEvents] = useState<CalendarEvent[]>([])
   const [isLoading, setIsLoading] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
   const [recurringDialog, setRecurringDialog] = useState<{
     open: boolean
     info: EventDropArg | EventResizeDoneArg | null
   }>({ open: false, info: null })
+
+  // Detect mobile on mount
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768)
+    }
+    checkMobile()
+    window.addEventListener("resize", checkMobile)
+    return () => window.removeEventListener("resize", checkMobile)
+  }, [])
 
   const fetchAppointments = useCallback(
     async (startDate: Date, endDate: Date) => {
@@ -327,7 +338,7 @@ export function Calendar({
   return (
     <TooltipProvider delayDuration={100}>
       <div className="relative h-full">
-        {isLoading && (
+        {isLoading && events.length === 0 && (
           <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/50">
             <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
           </div>
@@ -335,18 +346,27 @@ export function Calendar({
         <FullCalendar
           ref={calendarRef}
           plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, listPlugin]}
-          initialView="timeGridWeek"
+          initialView={isMobile ? "listWeek" : "timeGridWeek"}
           locale={ptBrLocale}
-          headerToolbar={{
-            left: "prev,next today",
-            center: "title",
-            right: "dayGridMonth,timeGridWeek,timeGridDay,listWeek",
-          }}
+          headerToolbar={
+            isMobile
+              ? {
+                  left: "prev,next",
+                  center: "title",
+                  right: "today",
+                }
+              : {
+                  left: "prev,next today",
+                  center: "title",
+                  right: "dayGridMonth,timeGridWeek,timeGridDay,listWeek",
+                }
+          }
           events={events}
-          editable={true}
+          editable={!isMobile}
           selectable={true}
           selectMirror={true}
           dayMaxEvents={true}
+          eventMinHeight={isMobile ? 50 : 30}
           weekends={true}
           allDaySlot={false}
           slotMinTime="06:00:00"

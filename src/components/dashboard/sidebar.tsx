@@ -111,10 +111,12 @@ export function Sidebar({ lng }: SidebarProps) {
     </nav>
   )
 
+  const [mobileOpen, setMobileOpen] = useState(false)
+
   return (
     <>
       {/* Mobile Sidebar */}
-      <Sheet>
+      <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
         <SheetTrigger asChild>
           <Button variant="ghost" size="icon" className="md:hidden fixed top-4 left-4 z-40">
             <Menu className="h-6 w-6" />
@@ -124,7 +126,11 @@ export function Sidebar({ lng }: SidebarProps) {
           <div className="flex h-full flex-col">
             {/* Logo */}
             <div className="flex h-16 items-center border-b px-4 justify-center">
-              <Link href={`/${lng}/agenda`} className="flex items-center justify-center">
+              <Link
+                href={`/${lng}/agenda`}
+                className="flex items-center justify-center"
+                onClick={() => setMobileOpen(false)}
+              >
                 <div className="relative h-10 w-32 overflow-hidden">
                   <Image
                     src="/logo-horizontal.png"
@@ -136,7 +142,7 @@ export function Sidebar({ lng }: SidebarProps) {
               </Link>
             </div>
 
-            <NavLinks onItemClick={() => {}} />
+            <NavLinks onItemClick={() => setMobileOpen(false)} />
 
             {/* Logout */}
             <div className="border-t p-4">
