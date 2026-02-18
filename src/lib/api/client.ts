@@ -717,6 +717,7 @@ class ApiClient {
       require_confirmation?: boolean
       whatsapp_reminders_enabled?: boolean
       email_reminders_enabled?: boolean
+      ai_agent_enabled?: boolean
     }
   }) {
     const response = await this.client.put('/clinic', data)
