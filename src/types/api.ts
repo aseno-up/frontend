@@ -39,6 +39,7 @@ export interface ClinicSettings {
   require_confirmation?: boolean
   whatsapp_reminders_enabled?: boolean
   email_reminders_enabled?: boolean
+  ai_agent_enabled?: boolean
   ai_min_delay_between_messages?: number | null
   ai_min_delay_between_patients?: number | null
   ai_business_hours?: BusinessHoursConfig | null

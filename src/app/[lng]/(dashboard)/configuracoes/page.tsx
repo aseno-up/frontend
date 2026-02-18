@@ -105,6 +105,12 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
   )
   const [isSavingNotifications, setIsSavingNotifications] = useState(false)
 
+  // AI agent state
+  const [aiAgentEnabled, setAiAgentEnabled] = useState(
+    clinic?.settings?.ai_agent_enabled ?? false
+  )
+  const [isSavingAiAgent, setIsSavingAiAgent] = useState(false)
+
   // Online booking state
   const [allowOnlineBooking, setAllowOnlineBooking] = useState(
     clinic?.settings?.allow_online_booking ?? false
@@ -189,6 +195,7 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
     if (clinic?.settings) {
       setWhatsappReminders(clinic.settings.whatsapp_reminders_enabled ?? false)
       setEmailReminders(clinic.settings.email_reminders_enabled ?? false)
+      setAiAgentEnabled(clinic.settings.ai_agent_enabled ?? false)
       setAllowOnlineBooking(clinic.settings.allow_online_booking ?? false)
     }
   }, [clinic?.settings])
@@ -279,6 +286,28 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
       handleApiError(err)
     } finally {
       setIsSavingNotifications(false)
+    }
+  }
+
+  const handleToggleAIAgent = async (enabled: boolean) => {
+    if (!canEditClinic) return
+
+    try {
+      setIsSavingAiAgent(true)
+      setAiAgentEnabled(enabled)
+      const updatedClinic = await api.updateClinic({
+        settings: {
+          ...clinic?.settings,
+          ai_agent_enabled: enabled,
+        },
+      })
+      setClinic(updatedClinic)
+      showToast.success(enabled ? "Atendimento por IA ativado" : "Atendimento por IA desativado")
+    } catch (err) {
+      setAiAgentEnabled(!enabled)
+      handleApiError(err)
+    } finally {
+      setIsSavingAiAgent(false)
     }
   }
 
@@ -582,6 +611,20 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
                     <Label htmlFor="clinic_slug">Identificador</Label>
                     <Input id="clinic_slug" value={clinic?.slug || ""} disabled className="bg-muted" />
                     <p className="text-xs text-muted-foreground">O identificador nao pode ser alterado.</p>
+                  </div>
+
+                  <Separator />
+
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label>Atendimento por IA (WhatsApp)</Label>
+                      <p className="text-sm text-muted-foreground">Ativar o assistente virtual para responder pacientes via WhatsApp</p>
+                    </div>
+                    <Switch
+                      checked={aiAgentEnabled}
+                      onCheckedChange={handleToggleAIAgent}
+                      disabled={!canEditClinic || isSavingAiAgent}
+                    />
                   </div>
 
                   <Separator />
