@@ -10,7 +10,16 @@ interface AuthState {
 
   login: (email: string, password: string) => Promise<void>
   googleLogin: (idToken: string) => Promise<void>
-  register: (data: { clinic_name: string; name: string; email: string; password: string }) => Promise<void>
+  register: (data: {
+    clinic_name: string
+    name: string
+    email: string
+    password: string
+    phone?: string
+    document?: string
+    plan?: string
+    billing?: string
+  }) => Promise<void>
   logout: () => Promise<void>
   loadUser: () => Promise<void>
   setUser: (user: User, clinic: Clinic) => void
