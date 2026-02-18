@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useState, useEffect } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { useAuthStore } from "@/stores/auth-store"
 import { showToast, handleApiError } from "@/lib/toast"
+import { Badge } from "@/components/ui/badge"
 
 const registerSchema = z.object({
   clinic_name: z.string().min(2, "Nome da clinica deve ter no minimo 2 caracteres"),
@@ -22,6 +23,8 @@ const registerSchema = z.object({
   email: z.string().email("Email invalido"),
   password: z.string().min(8, "Senha deve ter no minimo 8 caracteres"),
   confirmPassword: z.string(),
+  document: z.string().optional(),
+  phone: z.string().optional(),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "As senhas nao conferem",
   path: ["confirmPassword"],
@@ -35,9 +38,14 @@ interface RegisterPageProps {
 
 export default function RegisterPage({ params }: RegisterPageProps) {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { register: registerUser, googleLogin } = useAuthStore()
   const [isLoading, setIsLoading] = useState(false)
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
+
+  // Capture plan and billing from URL
+  const selectedPlan = searchParams.get('plan') as 'trial' | 'basic' | 'professional' | 'advanced' | null
+  const selectedBilling = searchParams.get('billing') as 'monthly' | 'annually' | null
 
   const {
     register,
@@ -56,10 +64,29 @@ export default function RegisterPage({ params }: RegisterPageProps) {
         name: data.name,
         email: data.email,
         password: data.password,
+        phone: data.phone,
+        document: data.document,
+        plan: selectedPlan || undefined,
+        billing: selectedBilling || undefined,
       })
+
+      // Store selected plan and billing for later use
+      if (selectedPlan && selectedBilling) {
+        localStorage.setItem('pending_subscription', JSON.stringify({
+          plan: selectedPlan,
+          billing: selectedBilling
+        }))
+      }
+
       const { lng } = await params
       showToast.success("Conta criada com sucesso!")
-      router.push(`/${lng}/agenda`)
+
+      // If user selected a paid plan (anything except trial), redirect to billing setup
+      if (selectedPlan && selectedPlan !== 'trial') {
+        router.push(`/${lng}/configuracoes?tab=faturamento&setup=true`)
+      } else {
+        router.push(`/${lng}/agenda`)
+      }
     } catch (err) {
       handleApiError(err, "Erro ao criar conta")
     } finally {
@@ -91,6 +118,13 @@ export default function RegisterPage({ params }: RegisterPageProps) {
     showToast.error("Erro ao conectar com Google")
   }
 
+  const planNames = {
+    trial: 'Trial (14 dias grátis)',
+    basic: 'Básico',
+    professional: 'Profissional',
+    advanced: 'Avançado'
+  }
+
   return (
     <Card className="w-full max-w-md">
       <CardHeader className="space-y-1">
@@ -98,6 +132,14 @@ export default function RegisterPage({ params }: RegisterPageProps) {
         <CardDescription>
           Comece seu teste gratuito de 14 dias
         </CardDescription>
+        {selectedPlan && (
+          <div className="flex items-center gap-2 pt-2">
+            <span className="text-sm text-muted-foreground">Plano selecionado:</span>
+            <Badge variant="secondary">
+              {planNames[selectedPlan]} {selectedBilling === 'annually' && '(Anual)'}
+            </Badge>
+          </div>
+        )}
       </CardHeader>
       <form onSubmit={handleSubmit(onSubmit)}>
         <CardContent className="space-y-4">
@@ -142,6 +184,39 @@ export default function RegisterPage({ params }: RegisterPageProps) {
               <p className="text-sm text-destructive">{errors.email.message}</p>
             )}
           </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="phone">Telefone (opcional)</Label>
+            <Input
+              id="phone"
+              type="tel"
+              placeholder="(11) 99999-9999"
+              {...register("phone")}
+              disabled={isLoading}
+            />
+            {errors.phone && (
+              <p className="text-sm text-destructive">{errors.phone.message}</p>
+            )}
+          </div>
+
+          {selectedPlan && selectedPlan !== 'trial' && (
+            <div className="space-y-2">
+              <Label htmlFor="document">CPF ou CNPJ</Label>
+              <Input
+                id="document"
+                type="text"
+                placeholder="000.000.000-00 ou 00.000.000/0000-00"
+                {...register("document")}
+                disabled={isLoading}
+              />
+              {errors.document && (
+                <p className="text-sm text-destructive">{errors.document.message}</p>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Necessário para gerar cobranças e notas fiscais
+              </p>
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="password">Senha</Label>

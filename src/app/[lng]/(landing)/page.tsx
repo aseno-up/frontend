@@ -278,7 +278,12 @@ export default function LandingPage(props: PageProps) {
             </Button>
             <Button
               size="sm"
-              onClick={() => router.push(`/${params.lng}/register`)}
+              onClick={() => {
+                const url = new URL(`/${params.lng}/register`, window.location.origin)
+                url.searchParams.set('plan', 'trial')
+                url.searchParams.set('billing', 'monthly')
+                router.push(url.pathname + url.search)
+              }}
             >
               {getTrialCtaText()}
             </Button>
@@ -311,7 +316,12 @@ export default function LandingPage(props: PageProps) {
               <Button
                 size="lg"
                 className="text-lg px-8 h-14"
-                onClick={() => router.push(`/${params.lng}/register`)}
+                onClick={() => {
+                  const url = new URL(`/${params.lng}/register`, window.location.origin)
+                  url.searchParams.set('plan', 'trial')
+                  url.searchParams.set('billing', 'monthly')
+                  router.push(url.pathname + url.search)
+                }}
               >
                 {getTrialCtaText()}
                 <ArrowRight className="ml-2 h-5 w-5" />
@@ -690,10 +700,15 @@ export default function LandingPage(props: PageProps) {
                     </li>
                   ))}
                 </ul>
-                <Button 
+                <Button
                   className="w-full mt-auto"
                   size="lg"
-                  onClick={() => router.push(`/${params.lng}/register`)}
+                  onClick={() => {
+                    const url = new URL(`/${params.lng}/register`, window.location.origin)
+                    url.searchParams.set('plan', 'trial')
+                    url.searchParams.set('billing', 'monthly')
+                    router.push(url.pathname + url.search)
+                  }}
                 >
                   {t('pricing.cta_trial')}
                 </Button>
@@ -730,7 +745,12 @@ export default function LandingPage(props: PageProps) {
                 <Button
                   className="w-full"
                   variant="outline"
-                  onClick={() => router.push(`/${params.lng}/register?plan=basic&billing=${billingCycle}`)}
+                  onClick={() => {
+                    const url = new URL(`/${params.lng}/register`, window.location.origin)
+                    url.searchParams.set('plan', 'basic')
+                    url.searchParams.set('billing', billingCycle)
+                    router.push(url.pathname + url.search)
+                  }}
                 >
                   {t('pricing.cta_subscribe')}
                 </Button>
@@ -771,7 +791,12 @@ export default function LandingPage(props: PageProps) {
                 </ul>
                 <Button
                   className="w-full"
-                  onClick={() => router.push(`/${params.lng}/register?plan=professional&billing=${billingCycle}`)}
+                  onClick={() => {
+                    const url = new URL(`/${params.lng}/register`, window.location.origin)
+                    url.searchParams.set('plan', 'professional')
+                    url.searchParams.set('billing', billingCycle)
+                    router.push(url.pathname + url.search)
+                  }}
                 >
                   {t('pricing.cta_subscribe')}
                 </Button>
@@ -808,7 +833,12 @@ export default function LandingPage(props: PageProps) {
                 <Button
                   className="w-full"
                   variant="outline"
-                  onClick={() => router.push(`/${params.lng}/register?plan=advanced&billing=${billingCycle}`)}
+                  onClick={() => {
+                    const url = new URL(`/${params.lng}/register`, window.location.origin)
+                    url.searchParams.set('plan', 'advanced')
+                    url.searchParams.set('billing', billingCycle)
+                    router.push(url.pathname + url.search)
+                  }}
                 >
                   {t('pricing.cta_subscribe')}
                 </Button>
@@ -869,7 +899,12 @@ export default function LandingPage(props: PageProps) {
             <Button
               size="lg"
               className="text-lg px-8 h-14"
-              onClick={() => router.push(`/${params.lng}/register`)}
+              onClick={() => {
+                const url = new URL(`/${params.lng}/register`, window.location.origin)
+                url.searchParams.set('plan', 'trial')
+                url.searchParams.set('billing', 'monthly')
+                router.push(url.pathname + url.search)
+              }}
             >
               {getTrialCtaText()}
               <ArrowRight className="ml-2 h-5 w-5" />
