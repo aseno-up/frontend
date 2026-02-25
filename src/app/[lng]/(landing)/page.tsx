@@ -301,7 +301,7 @@ export default function LandingPage(props: PageProps) {
           <div className="text-center max-w-4xl mx-auto">
             <div className="inline-flex items-center gap-2 bg-primary/10 border border-primary/20 text-primary px-4 py-2 rounded-full text-sm mb-6">
               <Sparkles className="h-4 w-4" />
-              <span>Automatize seu consultório</span>
+              <span>Para estética e fisioterapia</span>
             </div>
 
             <h1 className="font-poppins text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight leading-tight text-foreground text-white">
@@ -425,7 +425,7 @@ export default function LandingPage(props: PageProps) {
               {t('benefits.title')}
             </h2>
             <p className="text-foreground/70 text-lg text-white/70">
-              Todas as ferramentas que você precisa para gerenciar sua clínica de forma eficiente
+              Agenda inteligente para clínicas de estética e fisioterapia
             </p>
           </div>
 
@@ -488,6 +488,8 @@ export default function LandingPage(props: PageProps) {
                   'Reagendamento em 1 clique pelo paciente',
                   'Relatórios de presença e faturamento',
                   'Integração com Google Calendar',
+                  'Campo de procedimento e região tratada por sessão',
+                  'Evolução clínica simplificada por sessão',
                   'Suporte técnico em português',
                   'Atualizações constantes gratuitas'
                 ].map((item, index) => (
@@ -573,17 +575,17 @@ export default function LandingPage(props: PageProps) {
           <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
             <div className="bg-card/50 border border-white/10 rounded-xl p-6 text-center">
               <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                <Users className="h-6 w-6 text-primary" />
+                <Sparkles className="h-6 w-6 text-primary" />
               </div>
-              <h3 className="font-semibold text-white mb-2">Clínicas pequenas e médias</h3>
-              <p className="text-sm text-white/70">De 1 a 20 profissionais que buscam eficiência</p>
+              <h3 className="font-semibold text-white mb-2">Clínicas de Estética</h3>
+              <p className="text-sm text-white/70">Procedimento, região tratada e sessões recorrentes organizados sem esforço</p>
             </div>
             <div className="bg-card/50 border border-white/10 rounded-xl p-6 text-center">
               <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center mx-auto mb-4">
                 <Calendar className="h-6 w-6 text-primary" />
               </div>
-              <h3 className="font-semibold text-white mb-2">Consultórios com agenda recorrente</h3>
-              <p className="text-sm text-white/70">Sessões, retornos e tratamentos contínuos</p>
+              <h3 className="font-semibold text-white mb-2">Clínicas de Fisioterapia</h3>
+              <p className="text-sm text-white/70">Tipo de sessão, evolução clínica e contador de sessões restantes</p>
             </div>
             <div className="bg-card/50 border border-white/10 rounded-xl p-6 text-center">
               <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center mx-auto mb-4">
