@@ -6,7 +6,7 @@ import dayGridPlugin from "@fullcalendar/daygrid"
 import timeGridPlugin from "@fullcalendar/timegrid"
 import interactionPlugin, { EventResizeDoneArg } from "@fullcalendar/interaction"
 import listPlugin from "@fullcalendar/list"
-import { EventClickArg, DateSelectArg, EventDropArg, EventContentArg } from "@fullcalendar/core"
+import { EventClickArg, DateSelectArg, EventDropArg, EventContentArg, EventHoveringArg } from "@fullcalendar/core"
 import ptBrLocale from "@fullcalendar/core/locales/pt-br"
 import { format } from "date-fns"
 import { Check, Clock, X, UserX, CheckCircle, RefreshCw } from "lucide-react"
@@ -22,12 +22,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger
-} from "@/components/ui/tooltip"
 import type { Appointment, Professional } from "@/types/api"
 
 // Status configuration with colors and icons
@@ -72,6 +66,8 @@ interface CalendarEvent {
   extendedProps: {
     appointment: Appointment
     professionalColor?: string
+    professionalName?: string
+    timeText?: string
   }
 }
 
@@ -80,6 +76,18 @@ interface CalendarProps {
   onDateSelect: (start: Date, end: Date, professionalId?: string) => void
   selectedProfessionalId?: string
   professionals: Professional[]
+}
+
+// Tooltip state type
+interface TooltipState {
+  visible: boolean
+  x: number
+  y: number
+  appointment: Appointment | null
+  professionalColor?: string
+  professionalName?: string
+  timeText: string
+  config: { bg: string; border: string; text: string; label: string }
 }
 
 export function Calendar({
@@ -96,6 +104,17 @@ export function Calendar({
     open: boolean
     info: EventDropArg | EventResizeDoneArg | null
   }>({ open: false, info: null })
+
+  // Custom tooltip state - rendered outside FullCalendar DOM
+  const [tooltip, setTooltip] = useState<TooltipState>({
+    visible: false,
+    x: 0,
+    y: 0,
+    appointment: null,
+    timeText: "",
+    config: statusConfig.pending,
+  })
+  const hideTooltipTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Detect mobile on mount
   useEffect(() => {
@@ -139,6 +158,7 @@ export function Calendar({
               extendedProps: {
                 appointment: apt,
                 professionalColor: professional?.color,
+                professionalName: professional?.name,
               },
             }
           }
@@ -167,6 +187,7 @@ export function Calendar({
   }
 
   const handleEventClick = (info: EventClickArg) => {
+    setTooltip((t) => ({ ...t, visible: false }))
     const appointment = info.event.extendedProps.appointment as Appointment
     onEventClick(appointment)
   }
@@ -233,19 +254,62 @@ export function Calendar({
     const info = recurringDialog.info
     const appointment = info.event.extendedProps.appointment as Appointment
     
-    // For dropped/resized events, the 'event' object in info contains the NEW values
-    // even though we reverted the UI. We can use info.event.start/end.
-    // Wait, if we called revert(), does info.event still hold new values?
-    // FullCalendar docs say revert() reverses the visual change.
-    // However, the 'info' object passed to the handler has the 'event' with new date, 
-    // and 'oldEvent' with old date.
-    // We should use info.event.start/end (the drop/resize destination).
-    
     await performUpdate(appointment.id, info.event.start, info.event.end, mode)
     setRecurringDialog({ open: false, info: null })
   }
 
-  // Custom event content renderer
+  // Show tooltip on mouse enter — rendered at page level with position:fixed
+  const handleEventMouseEnter = useCallback((info: EventHoveringArg) => {
+    if (hideTooltipTimer.current) {
+      clearTimeout(hideTooltipTimer.current)
+      hideTooltipTimer.current = null
+    }
+
+    const appointment = info.event.extendedProps?.appointment as Appointment | undefined
+    if (!appointment) return
+
+    const rect = (info.el as HTMLElement).getBoundingClientRect()
+    const status = appointment.status || "pending"
+    const config = statusConfig[status] || statusConfig.pending
+    const professionalColor = info.event.extendedProps?.professionalColor as string | undefined
+    const professionalName = info.event.extendedProps?.professionalName as string | undefined
+
+    // Format time
+    const start = info.event.start
+    const end = info.event.end
+    const timeText = start
+      ? `${format(start, "HH:mm")}${end ? ` – ${format(end, "HH:mm")}` : ""}`
+      : ""
+
+    // Position tooltip to the right of the event; adjust if near right edge
+    const TOOLTIP_WIDTH = 220
+    const MARGIN = 8
+    let x = rect.right + MARGIN
+    if (x + TOOLTIP_WIDTH > window.innerWidth) {
+      x = rect.left - TOOLTIP_WIDTH - MARGIN
+    }
+    const y = rect.top
+
+    setTooltip({
+      visible: true,
+      x,
+      y,
+      appointment,
+      professionalColor,
+      professionalName,
+      timeText,
+      config,
+    })
+  }, [])
+
+  // Hide tooltip on mouse leave (with small delay to avoid flicker)
+  const handleEventMouseLeave = useCallback(() => {
+    hideTooltipTimer.current = setTimeout(() => {
+      setTooltip((t) => ({ ...t, visible: false }))
+    }, 80)
+  }, [])
+
+  // Custom event content renderer — no Tooltip/portal here
   const renderEventContent = (eventInfo: EventContentArg) => {
     const appointment = eventInfo.event.extendedProps?.appointment as Appointment | undefined
     const professionalColor = eventInfo.event.extendedProps?.professionalColor as string | undefined
@@ -262,81 +326,89 @@ export function Calendar({
     const status = appointment.status || "pending"
     const config = statusConfig[status] || statusConfig.pending
 
-    // Find professional name if multiple professionals are shown
-    const professionalName = appointment.professional_id
-      ? professionals.find(p => p.id === appointment.professional_id)?.name
-      : undefined 
-
     return (
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <div className="flex flex-col h-full w-full p-1 relative overflow-hidden rounded-md cursor-pointer">
-            {/* Professional color indicator (left border) */}
-            {professionalColor && (
-              <div
-                className="absolute left-0 top-0 bottom-0 w-1 rounded-l"
-                style={{ backgroundColor: professionalColor }}
-              />
-            )}
+      <div className="flex flex-col h-full w-full p-1 relative overflow-hidden rounded-md cursor-pointer">
+        {/* Professional color indicator (left border) */}
+        {professionalColor && (
+          <div
+            className="absolute left-0 top-0 bottom-0 w-1 rounded-l"
+            style={{ backgroundColor: professionalColor }}
+          />
+        )}
 
-            {/* Main content */}
-            <div className={cn("flex flex-col h-full gap-0.5", professionalColor ? "pl-2" : "pl-1")}>
-              {/* Status badge with icon */}
-              <div className="flex items-center">
-                <span
-                  className="inline-flex items-center gap-1 px-1 py-0.5 rounded text-[8px] font-bold uppercase"
-                  style={{ backgroundColor: config.border, color: "#fff" }}
-                >
-                  <StatusIcon status={status} />
-                  <span className="hidden sm:inline-block">{config.label}</span>
-                </span>
-              </div>
+        {/* Main content */}
+        <div className={cn("flex flex-col h-full gap-0.5", professionalColor ? "pl-2" : "pl-1")}>
+          {/* Status badge with icon */}
+          <div className="flex items-center">
+            <span
+              className="inline-flex items-center gap-1 px-1 py-0.5 rounded text-[8px] font-bold uppercase"
+              style={{ backgroundColor: config.border, color: "#fff" }}
+            >
+              <StatusIcon status={status} />
+              <span className="hidden sm:inline-block">{config.label}</span>
+            </span>
+          </div>
 
-              {/* Time & Patient */}
-              <div className="flex flex-col flex-1 min-h-0">
-                <div className="text-[10px] font-bold text-foreground/70 truncate">
-                  {eventInfo.timeText}
-                </div>
+          {/* Time & Patient */}
+          <div className="flex flex-col flex-1 min-h-0">
+            <div className="text-[10px] font-bold text-foreground/70 truncate">
+              {eventInfo.timeText}
+            </div>
 
-                <div className="text-[11px] font-bold text-foreground leading-tight truncate">
-                  {eventInfo.event.title}
-                </div>
-              </div>
+            <div className="text-[11px] font-bold text-foreground leading-tight truncate">
+              {eventInfo.event.title}
             </div>
           </div>
-        </TooltipTrigger>
-        <TooltipContent side="right" className="p-3 min-w-[200px] bg-white text-foreground border shadow-lg z-[1000]">
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <>
+      {/* Custom tooltip — rendered at page root with position:fixed, always above everything */}
+      {tooltip.visible && tooltip.appointment && (
+        <div
+          className="fixed pointer-events-none bg-white text-foreground border border-border rounded-lg shadow-xl p-3 min-w-[220px]"
+          style={{
+            left: tooltip.x,
+            top: tooltip.y,
+            zIndex: 99999,
+          }}
+        >
           <div className="space-y-2">
             <div className="flex items-center justify-between gap-4 border-b pb-1">
               <span className="text-xs font-bold uppercase text-muted-foreground">Detalhes da Consulta</span>
               <span
                 className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase"
-                style={{ backgroundColor: config.bg, color: config.text, border: `1px solid ${config.border}` }}
+                style={{
+                  backgroundColor: tooltip.config.bg,
+                  color: tooltip.config.text,
+                  border: `1px solid ${tooltip.config.border}`,
+                }}
               >
-                <StatusIcon status={status} />
-                {config.label}
+                <StatusIcon status={tooltip.appointment.status || "pending"} />
+                {tooltip.config.label}
               </span>
             </div>
-            
+
             <div className="space-y-1">
-              <p className="text-sm font-bold text-primary">{eventInfo.event.title}</p>
+              <p className="text-sm font-bold text-primary">{tooltip.appointment.patient?.name || tooltip.appointment.title || "Agendamento"}</p>
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <Clock className="w-3.5 h-3.5" />
-                <span>{eventInfo.timeText}</span>
+                <span>{tooltip.timeText}</span>
               </div>
-              <div className="flex items-center gap-2 text-xs text-muted-foreground border-t pt-1 mt-1">
-                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: professionalColor }} />
-                <span>Prof: {professionalName}</span>
-              </div>
+              {tooltip.professionalName && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground border-t pt-1 mt-1">
+                  <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: tooltip.professionalColor }} />
+                  <span>Prof: {tooltip.professionalName}</span>
+                </div>
+              )}
             </div>
           </div>
-        </TooltipContent>
-      </Tooltip>
-    )
-  }
+        </div>
+      )}
 
-  return (
-    <TooltipProvider delayDuration={100}>
       <div className="relative h-full">
         {isLoading && events.length === 0 && (
           <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/50">
@@ -390,6 +462,8 @@ export function Calendar({
           eventDrop={handleEventDrop}
           eventResize={handleEventResize}
           eventContent={renderEventContent}
+          eventMouseEnter={handleEventMouseEnter}
+          eventMouseLeave={handleEventMouseLeave}
           nowIndicator={true}
           businessHours={{
             daysOfWeek: [1, 2, 3, 4, 5],
@@ -421,6 +495,6 @@ export function Calendar({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </TooltipProvider>
+    </>
   )
 }

@@ -175,6 +175,12 @@
   @apply rounded-md;
 }
 
+/* Guarantee tooltip portal z-index wins over any FC stacking context */
+[data-radix-popper-content-wrapper] {
+  z-index: 9999 !important;
+}
+
+
 .fc .fc-event-main {
   @apply p-1;
 }
