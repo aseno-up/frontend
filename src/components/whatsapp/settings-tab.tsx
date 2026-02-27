@@ -151,7 +151,7 @@ export function WhatsAppSettingsTab() {
       }
 
       if (clinic.settings.ai_business_hours) {
-        setValue('ai_business_hours', clinic.settings.ai_business_hours)
+        setValue('ai_business_hours', clinic.settings.ai_business_hours as any)
       }
     }
   }, [clinic, setValue])
@@ -162,6 +162,7 @@ export function WhatsAppSettingsTab() {
 
       const updatedClinic = await api.updateClinic({
         settings: {
+          ...clinic?.settings,
           ai_min_delay_between_messages: data.ai_min_delay_between_messages,
           ai_min_delay_between_patients: data.ai_min_delay_between_patients,
           ai_business_hours: data.ai_business_hours,

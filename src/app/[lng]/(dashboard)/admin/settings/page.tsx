@@ -108,6 +108,7 @@ export default function AdminSettingsPage({ params }: AdminSettingsPageProps) {
   const hasChanged = (key: string) => editedValues[key] !== settings[key]?.value
 
   // Check if clinic is dev type
+  // @ts-ignore - Clinic type might not have 'type' property defined yet in the frontend types
   if (clinic?.type !== "dev") {
     return (
       <div className="flex h-full flex-col">

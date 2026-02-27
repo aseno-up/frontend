@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { format } from "date-fns"
 import { Loader2, Trash2 } from "lucide-react"
+import type { MultiValue } from "react-select"
 
 import {
   Dialog,
@@ -33,6 +34,10 @@ const appointmentSchema = z.object({
   title: z.string().optional(),
   notes: z.string().optional(),
   price: z.number().min(0).optional(),
+  procedures: z.array(z.object({
+    procedure_id: z.string(),
+    price: z.number()
+  })).optional(),
 })
 
 type AppointmentFormData = z.infer<typeof appointmentSchema>
@@ -79,6 +84,10 @@ export function AppointmentDialog({
   const [isLoading, setIsLoading] = useState(false)
   const [patients, setPatients] = useState<Patient[]>([])
   const [patientsLoading, setPatientsLoading] = useState(false)
+  
+  // Procedures
+  const [procedures, setProcedures] = useState<any[]>([])
+  const [proceduresLoading, setProceduresLoading] = useState(false)
 
   const isEditing = !!appointment
 
@@ -105,6 +114,7 @@ export function AppointmentDialog({
       title: "",
       notes: "",
       price: 0,
+      procedures: [],
     },
   })
 
@@ -121,11 +131,25 @@ export function AppointmentDialog({
     }
   }, [])
 
+  // Fetch procedures
+  const fetchProcedures = useCallback(async () => {
+    setProceduresLoading(true)
+    try {
+      const response = await api.getProcedures(1, 100)
+      setProcedures(response.data || [])
+    } catch (error) {
+      console.error("Error fetching procedures:", error)
+    } finally {
+      setProceduresLoading(false)
+    }
+  }, [])
+
   useEffect(() => {
     if (open) {
       fetchPatients()
+      fetchProcedures()
     }
-  }, [open, fetchPatients])
+  }, [open, fetchPatients, fetchProcedures])
 
   // Convert patients to select options
   const patientOptions: SelectOption[] = useMemo(() => {
@@ -144,6 +168,14 @@ export function AppointmentDialog({
     }))
   }, [professionals])
 
+  const procedureOptions: SelectOption[] = useMemo(() => {
+    return procedures.map((proc) => ({
+      value: proc.id,
+      label: `${proc.name} (R$ ${proc.price.toFixed(2)})`,
+      basePrice: proc.price,
+    }))
+  }, [procedures])
+
   const watchedPatientId = watch("patient_id")
   const selectedPatientOption = useMemo(() => {
     if (!watchedPatientId) return null
@@ -155,6 +187,13 @@ export function AppointmentDialog({
     if (!watchedProfessionalId) return null
     return professionalOptions.find((opt) => opt.value === watchedProfessionalId) || null
   }, [watchedProfessionalId, professionalOptions])
+
+  const watchedProcedures = watch("procedures") || []
+  const selectedProcedureOptions = useMemo(() => {
+    return watchedProcedures
+      .map((p) => procedureOptions.find((opt) => opt.value === p.procedure_id))
+      .filter(Boolean) as SelectOption[]
+  }, [watchedProcedures, procedureOptions])
 
   useEffect(() => {
     if (appointment) {
@@ -170,6 +209,10 @@ export function AppointmentDialog({
         title: appointment.title,
         notes: appointment.notes,
         price: appointment.price,
+        procedures: appointment.procedures ? appointment.procedures.map((p: any) => ({
+           procedure_id: p.procedure_id,
+           price: p.price
+        })) : [],
       })
     } else {
       reset({
@@ -180,6 +223,7 @@ export function AppointmentDialog({
         title: "",
         notes: "",
         price: 0,
+        procedures: [],
       })
     }
   }, [appointment, defaultStart, defaultEnd, defaultProfessionalId, reset, defaultDuration])
@@ -263,7 +307,7 @@ export function AppointmentDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[600px] max-h-[95vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {isEditing ? "Editar Agendamento" : "Novo Agendamento"}
@@ -374,20 +418,86 @@ export function AppointmentDialog({
             />
           </div>
 
+          {/* Procedures */}
+          <div className="space-y-2">
+            <Label>Procedimentos Opcionais</Label>
+            <ReactSelect<true>
+              isMulti
+              value={selectedProcedureOptions}
+              onChange={(options) => {
+                const selected = (options as MultiValue<SelectOption>) || []
+                
+                // Keep the existing price if the procedure was already selected,
+                // otherwise assign the basePrice.
+                const newProcedures = selected.map((opt) => {
+                  const existing = watchedProcedures.find(p => p.procedure_id === opt.value)
+                  return {
+                    procedure_id: opt.value,
+                    price: existing !== undefined ? existing.price : (opt.basePrice || 0)
+                  }
+                })
+
+                setValue("procedures", newProcedures, { shouldValidate: true })
+
+                // Always calculate total from procedures safely wrapping in cents
+                const calculatedTotalCents = newProcedures.reduce((sum, p) => sum + Math.round((p.price || 0) * 100), 0)
+                setValue("price", calculatedTotalCents / 100, { shouldValidate: true })
+              }}
+              options={procedureOptions}
+              placeholder="Selecione um ou mais..."
+              isDisabled={isLoading}
+              isLoading={proceduresLoading}
+              isClearable
+            />
+            {watchedProcedures.length > 0 && (
+              <div className="mt-2 space-y-2 rounded-md border p-3 bg-slate-50">
+                <Label className="text-xs text-muted-foreground uppercase tracking-wider">
+                  Valores na Sessão
+                </Label>
+                {watchedProcedures.map((proc, index) => {
+                  const label = procedureOptions.find(o => o.value === proc.procedure_id)?.label || "Procedimento"
+                  /* Strip off the price suffix from label */
+                  const cleanLabel = label.replace(/\(R\$.+\)$/, '').trim()
+                  
+                  return (
+                    <div key={proc.procedure_id} className="flex items-center gap-3">
+                      <span className="flex-1 text-sm font-medium leading-none">{cleanLabel}</span>
+                      <div className="w-32">
+                        <Controller
+                          name={`procedures.${index}.price`}
+                          control={control}
+                          render={({ field }) => (
+                            <CurrencyInput
+                              autoFocus={false}
+                              value={field.value}
+                              onChange={(val) => {
+                                field.onChange(val)
+                                const proceduresCopy = [...watchedProcedures]
+                                proceduresCopy[index].price = val
+                                // Calculo seguro em centavos
+                                const sumCents = proceduresCopy.reduce((acc, p) => acc + Math.round((p.price || 0) * 100), 0)
+                                setValue("price", sumCents / 100, { shouldValidate: true })
+                              }}
+                              disabled={isLoading}
+                            />
+                          )}
+                        />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+
           {/* Price */}
           <div className="space-y-2">
-            <Label htmlFor="price">Valor</Label>
-            <Controller
-              name="price"
-              control={control}
-              render={({ field }) => (
-                <CurrencyInput
-                  id="price"
-                  value={field.value}
-                  onChange={field.onChange}
-                  disabled={isLoading}
-                />
-              )}
+            <Label htmlFor="price">Valor Total (Soma dos Procedimentos)</Label>
+            <CurrencyInput
+              id="price"
+              value={watch("price")}
+              onChange={() => {}}
+              disabled={true}
             />
           </div>
 

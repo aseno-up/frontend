@@ -181,6 +181,34 @@ class ApiClient {
     return response.data
   }
 
+  // Procedures endpoints
+  async getProcedures(page = 1, perPage = 20) {
+    const response = await this.client.get('/procedures', {
+      params: { page, per_page: perPage },
+    })
+    return response.data
+  }
+
+  async getProcedure(id: string) {
+    const response = await this.client.get(`/procedures/${id}`)
+    return response.data
+  }
+
+  async createProcedure(data: Record<string, unknown>) {
+    const response = await this.client.post('/procedures', data)
+    return response.data
+  }
+
+  async updateProcedure(id: string, data: Record<string, unknown>) {
+    const response = await this.client.put(`/procedures/${id}`, data)
+    return response.data
+  }
+
+  async deleteProcedure(id: string) {
+    const response = await this.client.delete(`/procedures/${id}`)
+    return response.data
+  }
+
   // Appointments endpoints
   async getAppointments(params: {
     page?: number
@@ -718,6 +746,9 @@ class ApiClient {
       whatsapp_reminders_enabled?: boolean
       email_reminders_enabled?: boolean
       ai_agent_enabled?: boolean
+      ai_min_delay_between_messages?: number | null
+      ai_min_delay_between_patients?: number | null
+      ai_business_hours?: any
     }
   }) {
     const response = await this.client.put('/clinic', data)
