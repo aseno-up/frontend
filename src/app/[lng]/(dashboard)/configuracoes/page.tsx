@@ -650,8 +650,10 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
                           size="icon"
                           variant="outline"
                           onClick={() => {
-                            navigator.clipboard.writeText(clinic.booking_url)
-                            showToast.success("Link copiado!")
+                            if (clinic.booking_url) {
+                              navigator.clipboard.writeText(clinic.booking_url)
+                              showToast.success("Link copiado!")
+                            }
                           }}
                           title="Copiar link"
                         >

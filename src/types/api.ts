@@ -107,6 +107,24 @@ export interface Patient {
   created_at: string
 }
 
+export interface Procedure {
+  id: string
+  clinic_id: string
+  name: string
+  description: string
+  price: number
+  duration_minutes: number
+  created_at: string
+  updated_at: string
+}
+
+export interface AppointmentProcedure {
+  appointment_id: string
+  procedure_id: string
+  price: number
+  procedure?: Procedure
+}
+
 export interface Appointment {
   id: string
   clinic_id: string
@@ -120,6 +138,7 @@ export interface Appointment {
   notes: string
   patient_notes: string
   price: number
+  procedures: AppointmentProcedure[]
   confirmed_at?: string
   canceled_at?: string
   cancel_reason?: string
@@ -165,6 +184,11 @@ export interface RegisterRequest {
   password: string
 }
 
+export interface AppointmentProcedureInput {
+  procedure_id: string
+  price?: number
+}
+
 export interface CreateAppointmentRequest {
   patient_id: string
   professional_id: string
@@ -174,6 +198,7 @@ export interface CreateAppointmentRequest {
   notes?: string
   price?: number
   type?: AppointmentType
+  procedures?: AppointmentProcedureInput[]
 }
 
 export interface UpdateAppointmentRequest {
@@ -187,6 +212,7 @@ export interface UpdateAppointmentRequest {
   patient_notes?: string
   price?: number
   cancel_reason?: string
+  procedures?: AppointmentProcedureInput[]
 }
 
 export interface CreatePatientRequest {

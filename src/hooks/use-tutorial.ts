@@ -17,6 +17,7 @@ export type TutorialPage =
   | "faturamento"
   | "configuracoes"
   | "planos-sessao"
+  | "procedimentos"
 
 interface UseTutorialOptions {
   page?: TutorialPage
@@ -414,6 +415,14 @@ const tutorialSteps: Record<TutorialPage, DriveStep[]> = {
         align: "center",
       },
     },
+  ],
+  procedimentos: [
+    {
+      popover: {
+        title: "Procedimentos",
+        description: "Gerencie os procedimentos disponíveis para agendamentos na sua clínica.",
+      },
+    }
   ],
 }
 

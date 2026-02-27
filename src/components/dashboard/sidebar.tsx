@@ -16,6 +16,7 @@ import {
   CalendarRange,
   UserPlus,
   BarChart3,
+  Stethoscope,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -39,6 +40,7 @@ const navItems: NavItem[] = [
   { href: "/agenda", label: "Agenda", icon: Calendar, permission: "agenda:view", tutorialId: "agenda" },
   { href: "/pacientes", label: "Pacientes", icon: Users, permission: "patients:view", tutorialId: "pacientes" },
   { href: "/profissionais", label: "Profissionais", icon: UserCog, permission: "professionals:view", tutorialId: "profissionais" },
+  { href: "/procedimentos", label: "Procedimentos", icon: Stethoscope, permission: "professionals:view", tutorialId: "procedimentos" },
   { href: "/planos-sessao", label: "Planos de Sessao", icon: CalendarRange, permission: "session-plans:view", tutorialId: "planos-sessao" },
   { href: "/whatsapp", label: "WhatsApp", icon: MessageCircle, permission: "whatsapp:access", tutorialId: "whatsapp" },
   { href: "/relatorios", label: "Relatorios", icon: BarChart3, permission: "billing:access", tutorialId: "relatorios" },

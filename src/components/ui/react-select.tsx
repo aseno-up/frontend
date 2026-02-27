@@ -6,9 +6,10 @@ export interface SelectOption {
   value: string
   label: string
   color?: string
+  basePrice?: number
 }
 
-const customStyles: StylesConfig<SelectOption, false, GroupBase<SelectOption>> = {
+const customStyles: StylesConfig<SelectOption, boolean, GroupBase<SelectOption>> = {
   control: (base, state) => ({
     ...base,
     minHeight: "40px",
@@ -83,7 +84,7 @@ const customStyles: StylesConfig<SelectOption, false, GroupBase<SelectOption>> =
 }
 
 // Custom styles for option with color indicator
-const colorOptionStyles: StylesConfig<SelectOption, false, GroupBase<SelectOption>> = {
+const colorOptionStyles: StylesConfig<SelectOption, boolean, GroupBase<SelectOption>> = {
   ...customStyles,
   option: (base, state) => ({
     ...base,
@@ -105,11 +106,11 @@ const colorOptionStyles: StylesConfig<SelectOption, false, GroupBase<SelectOptio
   }),
 }
 
-interface ReactSelectProps extends Omit<Props<SelectOption, false, GroupBase<SelectOption>>, "styles"> {
+interface ReactSelectProps<IsMulti extends boolean = false> extends Omit<Props<SelectOption, IsMulti, GroupBase<SelectOption>>, "styles"> {
   showColorIndicator?: boolean
 }
 
-export function ReactSelect({ showColorIndicator, ...props }: ReactSelectProps) {
+export function ReactSelect<IsMulti extends boolean = false>({ showColorIndicator, ...props }: ReactSelectProps<IsMulti>) {
   const styles = showColorIndicator ? colorOptionStyles : customStyles
 
   const formatOptionLabel = showColorIndicator
