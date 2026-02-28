@@ -271,6 +271,7 @@ export type WhatsAppConnectionState =
 export interface WhatsAppConnectionStatus {
   state: WhatsAppConnectionState
   instance: string
+  provider?: string
   phone_connected?: string
   owner?: string
   profile_name?: string

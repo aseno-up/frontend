@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   MessageSquare,
   Wifi,
@@ -32,6 +33,13 @@ const testMessageSchema = z.object({
 
 type TestMessageFormData = z.infer<typeof testMessageSchema>
 
+const officialApiSchema = z.object({
+  waba_id: z.string().min(1, 'WABA ID é obrigatório'),
+  phone_number_id: z.string().min(1, 'Phone Number ID é obrigatório'),
+  token: z.string().min(1, 'Token é obrigatório'),
+})
+type OfficialApiFormData = z.infer<typeof officialApiSchema>
+
 export function WhatsAppConnectionTab() {
   const [status, setStatus] = useState<WhatsAppConnectionStatus | null>(null)
   const [qrCode, setQRCode] = useState<WhatsAppQRCode | null>(null)
@@ -42,6 +50,11 @@ export function WhatsAppConnectionTab() {
   const [isSending, setIsSending] = useState(false)
   const [pollingStartTime, setPollingStartTime] = useState<number | null>(null)
   const MAX_POLLING_TIME_MS = 1 * 60 * 1000
+
+  const officialForm = useForm<OfficialApiFormData>({
+    resolver: zodResolver(officialApiSchema),
+    defaultValues: { waba_id: '', phone_number_id: '', token: '' },
+  })
 
   const {
     register,
@@ -81,6 +94,8 @@ export function WhatsAppConnectionTab() {
     try {
       setIsConnecting(true)
       setError(undefined)
+      
+      await api.updateWhatsAppConfig({ provider: 'EVOLUTION' })
       const data = await api.connectWhatsApp()
 
       if (data?.base64) {
@@ -88,11 +103,33 @@ export function WhatsAppConnectionTab() {
         setPollingStartTime(Date.now())
         fetchStatus(false)
       } else {
+        // Se a resposta da API for state open (em caso de webhook tardio)
+        if (data?.state === 'open') {
+           fetchStatus(false)
+           return
+        }
         setError('Não foi possível obter o QR Code. Por favor, tente novamente em alguns instantes.')
         setQRCode(null)
       }
     } catch (err) {
       handleApiError(err, 'Erro ao conectar WhatsApp')
+    } finally {
+      setIsConnecting(false)
+    }
+  }
+
+  const handleSaveOfficial = async (data: OfficialApiFormData) => {
+    try {
+      setIsConnecting(true)
+      setError(undefined)
+      await api.updateWhatsAppConfig({
+        provider: 'GUPSHUP_OFFICIAL',
+        ...data
+      })
+      showToast.success('Configuração da API Oficial salva com sucesso!')
+      fetchStatus(false)
+    } catch (err) {
+      handleApiError(err, 'Erro ao salvar configuração da API Oficial')
     } finally {
       setIsConnecting(false)
     }
@@ -249,32 +286,105 @@ export function WhatsAppConnectionTab() {
 
                 <div className="pt-4 border-t">
                   {isConnected ? (
-                    <Button
-                      variant="destructive"
-                      className="w-full"
-                      onClick={handleDisconnect}
-                      disabled={isDisconnecting}
-                    >
-                      {isDisconnecting ? (
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      ) : (
-                        <XCircle className="h-4 w-4 mr-2" />
+                    <div className="space-y-4">
+                      {status?.provider && (
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="font-medium">Provedor</span>
+                          <span className="text-muted-foreground">{status.provider === 'EVOLUTION' ? 'QR Code (Não Oficial)' : 'API Oficial'}</span>
+                        </div>
                       )}
-                      Desconectar WhatsApp
-                    </Button>
+                      
+                      <Button
+                        variant="destructive"
+                        className="w-full"
+                        onClick={handleDisconnect}
+                        disabled={isDisconnecting}
+                      >
+                        {isDisconnecting ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <XCircle className="h-4 w-4 mr-2" />
+                        )}
+                        Desconectar WhatsApp
+                      </Button>
+                    </div>
                   ) : (
-                    <Button
-                      className="w-full"
-                      onClick={handleConnect}
-                      disabled={isConnecting}
-                    >
-                      {isConnecting ? (
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      ) : (
-                        <QrCode className="h-4 w-4 mr-2" />
-                      )}
-                      Conectar WhatsApp
-                    </Button>
+                    <Tabs defaultValue="evolution" className="w-full">
+                      <TabsList className="w-full grid grid-cols-2 mb-4">
+                        <TabsTrigger value="evolution">QR Code</TabsTrigger>
+                        <TabsTrigger value="official">API Oficial</TabsTrigger>
+                      </TabsList>
+                      <TabsContent value="evolution" className="space-y-4">
+                        <p className="text-sm text-muted-foreground mb-4">
+                          Conecte rapidamente escaneando um QR Code, ideal para testes e números já existentes.
+                        </p>
+                        <Button
+                          className="w-full"
+                          onClick={handleConnect}
+                          disabled={isConnecting}
+                        >
+                          {isConnecting ? (
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          ) : (
+                            <QrCode className="h-4 w-4 mr-2" />
+                          )}
+                          Gerar QR Code
+                        </Button>
+                      </TabsContent>
+                      <TabsContent value="official" className="space-y-4">
+                        <p className="text-sm text-muted-foreground">
+                          Conexão de alta estabilidade usando Meta Cloud API (Gupshup). Insira suas credenciais abaixo:
+                        </p>
+                        <form onSubmit={officialForm.handleSubmit(handleSaveOfficial)} className="space-y-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="waba_id">WABA ID</Label>
+                            <Input
+                              id="waba_id"
+                              placeholder="ID da sua WhatsApp Business Account"
+                              {...officialForm.register('waba_id')}
+                            />
+                            {officialForm.formState.errors.waba_id && (
+                              <p className="text-sm text-destructive">{officialForm.formState.errors.waba_id.message}</p>
+                            )}
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="phone_number_id">Phone Number ID</Label>
+                            <Input
+                              id="phone_number_id"
+                              placeholder="ID do Número de Telefone"
+                              {...officialForm.register('phone_number_id')}
+                            />
+                            {officialForm.formState.errors.phone_number_id && (
+                              <p className="text-sm text-destructive">{officialForm.formState.errors.phone_number_id.message}</p>
+                            )}
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="token">Token de Acesso</Label>
+                            <Input
+                              id="token"
+                              type="password"
+                              placeholder="System User Token ou Token Definitivo"
+                              {...officialForm.register('token')}
+                            />
+                            {officialForm.formState.errors.token && (
+                              <p className="text-sm text-destructive">{officialForm.formState.errors.token.message}</p>
+                            )}
+                          </div>
+                          <Button
+                            type="submit"
+                            className="w-full"
+                            disabled={isConnecting}
+                          >
+                            {isConnecting ? (
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            ) : (
+                              <Wifi className="h-4 w-4 mr-2" />
+                            )}
+                            Salvar e Conectar API Oficial
+                          </Button>
+                        </form>
+                      </TabsContent>
+                    </Tabs>
                   )}
                 </div>
               </>
