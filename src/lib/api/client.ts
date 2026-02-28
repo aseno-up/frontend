@@ -292,6 +292,17 @@ class ApiClient {
     return response.data
   }
 
+  async updateWhatsAppConfig(data: {
+    provider: string
+    waba_id?: string
+    phone_number_id?: string
+    token?: string
+    instance?: string
+  }) {
+    const response = await this.client.post('/whatsapp/config', data)
+    return response.data
+  }
+
   async disconnectWhatsApp() {
     const response = await this.client.post('/whatsapp/disconnect')
     return response.data
