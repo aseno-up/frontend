@@ -32,7 +32,7 @@ export default function AgendaPage({ params }: AgendaPageProps) {
   useEffect(() => {
     const fetchProfessionals = async () => {
       try {
-        const response = await api.getProfessionals(1, 100)
+        const response = await api.getProfessionals({ page: 1, limit: 100 })
         setProfessionals(response.data)
       } catch (error) {
         console.error("Error fetching professionals:", error)

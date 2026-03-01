@@ -126,10 +126,8 @@ class ApiClient {
   }
 
   // Professionals endpoints
-  async getProfessionals(page = 1, perPage = 20) {
-    const response = await this.client.get('/professionals', {
-      params: { page, per_page: perPage },
-    })
+  async getProfessionals(params?: { page?: number; limit?: number; search?: string; status?: string; sort_by?: string }) {
+    const response = await this.client.get('/professionals', { params })
     return response.data
   }
 
@@ -154,9 +152,15 @@ class ApiClient {
   }
 
   // Patients endpoints
-  async getPatients(page = 1, perPage = 20, query?: string) {
+  async getPatients(params?: { page?: number, limit?: number, search?: string, status?: string, sort_by?: string }) {
+    const page = params?.page || 1
+    const limit = params?.limit || 20
+    const search = params?.search
+    const status = params?.status
+    const sort_by = params?.sort_by
+
     const response = await this.client.get('/patients', {
-      params: { page, per_page: perPage, q: query },
+      params: { page, limit, search, status, sort_by },
     })
     return response.data
   }
@@ -182,10 +186,8 @@ class ApiClient {
   }
 
   // Procedures endpoints
-  async getProcedures(page = 1, perPage = 20) {
-    const response = await this.client.get('/procedures', {
-      params: { page, per_page: perPage },
-    })
+  async getProcedures(params?: { page?: number; limit?: number; search?: string; status?: string; sort_by?: string }) {
+    const response = await this.client.get('/procedures', { params })
     return response.data
   }
 
@@ -445,10 +447,8 @@ class ApiClient {
   }
 
   // Session Plan endpoints
-  async getSessionPlans(page = 1, perPage = 20, status?: string) {
-    const response = await this.client.get('/session-plans', {
-      params: { page, per_page: perPage, status },
-    })
+  async getSessionPlans(params?: { page?: number; limit?: number; status?: string; search?: string; sort_by?: string }) {
+    const response = await this.client.get('/session-plans', { params })
     return response.data
   }
 
@@ -569,10 +569,8 @@ class ApiClient {
   }
 
   // User Management endpoints
-  async getUsers(page = 1, perPage = 20) {
-    const response = await this.client.get('/users', {
-      params: { page, per_page: perPage },
-    })
+  async getUsers(params: Record<string, any>) {
+    const response = await this.client.get('/users', { params })
     return response.data
   }
 

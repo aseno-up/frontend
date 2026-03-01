@@ -12,7 +12,6 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   MessageSquare,
   Wifi,
@@ -23,7 +22,9 @@ import {
   Smartphone,
   CheckCircle2,
   XCircle,
-  AlertCircle
+  AlertCircle,
+  Circle,
+  Lock
 } from 'lucide-react'
 
 const testMessageSchema = z.object({
@@ -49,6 +50,7 @@ export function WhatsAppConnectionTab() {
   const [error, setError] = useState<string>()
   const [isSending, setIsSending] = useState(false)
   const [pollingStartTime, setPollingStartTime] = useState<number | null>(null)
+  const [connectionMethod, setConnectionMethod] = useState<'evolution' | 'official'>('evolution')
   const MAX_POLLING_TIME_MS = 1 * 60 * 1000
 
   const officialForm = useForm<OfficialApiFormData>({
@@ -221,329 +223,354 @@ export function WhatsAppConnectionTab() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-4xl mx-auto">
       {error && (
         <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-lg flex items-center gap-2">
-          <AlertCircle className="h-4 w-4" />
+          <AlertCircle className="h-4 w-4 shrink-0" />
           {error}
         </div>
       )}
 
-      <div className="grid gap-6 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
+      {/* Main Connection Card */}
+      <Card className="overflow-hidden">
+        <CardContent className="p-6 sm:p-8">
+          {/* Header Area */}
+          <div className="flex items-start gap-4 mb-8">
+            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 border border-primary/20">
+              <Smartphone className="h-6 w-6 text-primary" />
+            </div>
+            <div>
+              <h2 className="text-xl font-semibold tracking-tight">Conexão com WhatsApp</h2>
+              <p className="text-muted-foreground text-sm">Vincule o número da sua clínica para enviar mensagens</p>
+            </div>
+          </div>
+
+          {/* Connected Status Banner */}
+          <div className={`p-4 rounded-xl border flex items-center justify-between transition-colors ${isConnected ? 'bg-green-500/10 border-green-500/20' : 'bg-amber-500/10 border-amber-500/20'}`}>
+            <div className="flex items-center gap-3">
+              <div className={`w-2.5 h-2.5 rounded-full ${isConnected ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]' : 'bg-amber-500'}`} />
               <div>
-                <CardTitle className="flex items-center gap-2">
-                  <Smartphone className="h-5 w-5" />
-                  Status da Conexão
-                </CardTitle>
-                <CardDescription>
-                  Status atual do WhatsApp da sua clínica
-                </CardDescription>
+                <p className={`font-medium text-sm ${isConnected ? 'text-green-700 dark:text-green-400' : 'text-amber-700 dark:text-amber-400'}`}>
+                  {isConnected ? 'Conectado' : 'Desconectado'}
+                </p>
+                <p className={`text-xs ${isConnected ? 'text-green-600/80 dark:text-green-500/80' : 'text-amber-600/80 dark:text-amber-500/80'}`}>
+                  {isConnected ? (status?.provider === 'EVOLUTION' ? 'Conectado via QR Code' : 'Conectado via API Oficial') : 'Nenhum número vinculado ainda'}
+                </p>
               </div>
+            </div>
+            
+            <div className="flex gap-2">
               <Button
-                variant="ghost"
+                variant="outline"
                 size="sm"
                 onClick={() => fetchStatus(false)}
                 disabled={isLoadingStatus}
-                className="h-8 w-8 p-0"
+                className={`bg-white/50 backdrop-blur-sm hover:bg-white/80 dark:bg-black/20 dark:hover:bg-black/40 ${isConnected ? 'border-green-500/20 text-green-700 dark:text-green-400' : 'border-amber-500/20 text-amber-700 dark:text-amber-400'}`}
               >
-                <RefreshCw className={`h-4 w-4 ${isLoadingStatus ? 'animate-spin' : ''}`} />
+                <RefreshCw className={`h-3 w-3 mr-2 ${isLoadingStatus ? 'animate-spin' : ''}`} />
+                Verificar status
               </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {isLoadingStatus ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-              </div>
-            ) : (
-              <>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Status</span>
-                  {isConnected ? (
-                    <Badge className="bg-green-500/10 text-green-500 border-green-500/20">
-                      <Wifi className="h-3 w-3 mr-1" />
-                      Conectado
-                    </Badge>
+              {isConnected && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleDisconnect}
+                  disabled={isDisconnecting}
+                  className="bg-white/50 backdrop-blur-sm hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 dark:bg-black/20 text-destructive border-destructive/20"
+                >
+                  {isDisconnecting ? (
+                    <Loader2 className="h-3 w-3 mr-2 animate-spin" />
                   ) : (
-                    <Badge variant="secondary" className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20">
-                      <WifiOff className="h-3 w-3 mr-1" />
-                      Desconectado
-                    </Badge>
+                    <XCircle className="h-3 w-3 mr-2" />
                   )}
+                  Desconectar
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {!isConnected && (
+            <div className="mt-8 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              
+              {/* HOW TO CONNECT LIST */}
+              <div>
+                <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-6">Como Conectar</h3>
+                <div className="relative space-y-6">
+                  <div className="absolute left-4 top-4 bottom-4 w-px bg-border/40 -z-10" />
+                  
+                  <div className="flex gap-4">
+                    <div className="w-8 h-8 rounded-full bg-background border-2 border-primary/30 flex items-center justify-center shrink-0">
+                      <span className="text-sm font-semibold text-primary">1</span>
+                    </div>
+                    <div className="pt-1.5">
+                      <h4 className="font-medium text-sm">Escolha o método de conexão</h4>
+                      <p className="text-sm text-muted-foreground">QR Code para números existentes; API Oficial para novos números com maior estabilidade.</p>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-4">
+                    <div className="w-8 h-8 rounded-full bg-background border-2 border-primary/30 flex items-center justify-center shrink-0">
+                      <span className="text-sm font-semibold text-primary">2</span>
+                    </div>
+                    <div className="pt-1.5">
+                      <h4 className="font-medium text-sm">Escaneie ou insira suas credenciais</h4>
+                      <p className="text-sm text-muted-foreground">Abra o WhatsApp no celular → Dispositivos vinculados → Vincular um dispositivo (se Evolution).</p>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-4">
+                    <div className="w-8 h-8 rounded-full bg-background border-2 border-primary/30 flex items-center justify-center shrink-0">
+                      <span className="text-sm font-semibold text-primary">3</span>
+                    </div>
+                    <div className="pt-1.5">
+                      <h4 className="font-medium text-sm">Pronto! Envios automáticos ativados</h4>
+                      <p className="text-sm text-muted-foreground">Confirmações e lembretes serão enviados automaticamente para seus pacientes.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* METHOD SELECTION */}
+              <div>
+                <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-4">Método de Conexão</h3>
+                <div className="grid gap-4 md:grid-cols-2">
+                  {/* Option: Evolution QR Code */}
+                  <div 
+                    onClick={() => setConnectionMethod('evolution')}
+                    className={`relative p-4 rounded-xl border-2 cursor-pointer transition-all ${connectionMethod === 'evolution' ? 'border-primary bg-background shadow-sm' : 'border-border/50 hover:border-border hover:bg-muted/30'}`}
+                  >
+                    <div className="flex justify-between items-start mb-2">
+                      <h4 className="font-semibold text-sm">QR Code</h4>
+                      {connectionMethod === 'evolution' ? (
+                        <CheckCircle2 className="h-5 w-5 text-primary" />
+                      ) : (
+                        <Circle className="h-5 w-5 text-muted-foreground/30" />
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground mb-3 leading-relaxed">Escaneie com o WhatsApp já instalado no celular</p>
+                    <Badge variant="secondary" className="bg-primary/10 text-primary hover:bg-primary/10 hover:text-primary font-normal text-[10px] px-2 py-0.5">Mais rápido</Badge>
+                  </div>
+
+                  {/* Option: Official API */}
+                  <div 
+                    onClick={() => setConnectionMethod('official')}
+                    className={`relative p-4 rounded-xl border-2 cursor-pointer transition-all ${connectionMethod === 'official' ? 'border-primary bg-background shadow-sm' : 'border-border/50 hover:border-border hover:bg-muted/30'}`}
+                  >
+                    <div className="flex justify-between items-start mb-2">
+                      <h4 className="font-semibold text-sm">API Oficial</h4>
+                      {connectionMethod === 'official' ? (
+                        <CheckCircle2 className="h-5 w-5 text-primary" />
+                      ) : (
+                        <Circle className="h-5 w-5 text-muted-foreground/30" />
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground mb-3 leading-relaxed">Número dedicado via Meta Business, mais estável</p>
+                    <Badge variant="secondary" className="font-normal text-[10px] px-2 py-0.5 text-muted-foreground">Mais estável</Badge>
+                  </div>
                 </div>
 
-                {status?.instance && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">Instância</span>
-                    <span className="text-sm text-muted-foreground font-mono">
-                      {status.instance}
-                    </span>
-                  </div>
-                )}
-
-                <div className="pt-4 border-t">
-                  {isConnected ? (
-                    <div className="space-y-4">
-                      {status?.provider && (
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="font-medium">Provedor</span>
-                          <span className="text-muted-foreground">{status.provider === 'EVOLUTION' ? 'QR Code (Não Oficial)' : 'API Oficial'}</span>
-                        </div>
-                      )}
-                      
-                      <Button
-                        variant="destructive"
-                        className="w-full"
-                        onClick={handleDisconnect}
-                        disabled={isDisconnecting}
-                      >
-                        {isDisconnecting ? (
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        ) : (
-                          <XCircle className="h-4 w-4 mr-2" />
-                        )}
-                        Desconectar WhatsApp
-                      </Button>
-                    </div>
-                  ) : (
-                    <Tabs defaultValue="evolution" className="w-full">
-                      <TabsList className="w-full grid grid-cols-2 mb-4">
-                        <TabsTrigger value="evolution">QR Code</TabsTrigger>
-                        <TabsTrigger value="official">API Oficial</TabsTrigger>
-                      </TabsList>
-                      <TabsContent value="evolution" className="space-y-4">
-                        <p className="text-sm text-muted-foreground mb-4">
-                          Conecte rapidamente escaneando um QR Code, ideal para testes e números já existentes.
-                        </p>
+                {/* THE ACTION AREA */}
+                <div className="mt-8">
+                  {connectionMethod === 'evolution' ? (
+                    <div className="space-y-6">
+                      {!qrCode ? (
                         <Button
-                          className="w-full"
+                          className="w-full py-6 text-sm font-medium transition-all shadow-md hover:shadow-lg"
                           onClick={handleConnect}
                           disabled={isConnecting}
                         >
                           {isConnecting ? (
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            <Loader2 className="h-5 w-5 mr-3 animate-spin" />
                           ) : (
-                            <QrCode className="h-4 w-4 mr-2" />
+                            <QrCode className="h-5 w-5 mr-3" />
                           )}
                           Gerar QR Code
                         </Button>
-                      </TabsContent>
-                      <TabsContent value="official" className="space-y-4">
-                        <p className="text-sm text-muted-foreground">
-                          Conexão de alta estabilidade usando Meta Cloud API (Gupshup). Insira suas credenciais abaixo:
-                        </p>
-                        <form onSubmit={officialForm.handleSubmit(handleSaveOfficial)} className="space-y-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="waba_id">WABA ID</Label>
-                            <Input
-                              id="waba_id"
-                              placeholder="ID da sua WhatsApp Business Account"
-                              {...officialForm.register('waba_id')}
-                            />
-                            {officialForm.formState.errors.waba_id && (
-                              <p className="text-sm text-destructive">{officialForm.formState.errors.waba_id.message}</p>
-                            )}
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="phone_number_id">Phone Number ID</Label>
-                            <Input
-                              id="phone_number_id"
-                              placeholder="ID do Número de Telefone"
-                              {...officialForm.register('phone_number_id')}
-                            />
-                            {officialForm.formState.errors.phone_number_id && (
-                              <p className="text-sm text-destructive">{officialForm.formState.errors.phone_number_id.message}</p>
-                            )}
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="token">Token de Acesso</Label>
-                            <Input
-                              id="token"
-                              type="password"
-                              placeholder="System User Token ou Token Definitivo"
-                              {...officialForm.register('token')}
-                            />
-                            {officialForm.formState.errors.token && (
-                              <p className="text-sm text-destructive">{officialForm.formState.errors.token.message}</p>
+                      ) : (
+                        <div className="border border-border/50 rounded-xl p-6 bg-muted/10 flex flex-col items-center animate-in zoom-in-95 duration-300">
+                          <h4 className="font-medium mb-1">Aponte sua câmera</h4>
+                          <p className="text-xs text-muted-foreground mb-4 text-center max-w-xs">Use o WhatsApp no seu celular para escanear este código e conectar.</p>
+                          <div className="bg-white p-3 rounded-xl shadow-sm mb-4">
+                            {qrCode.base64 ? (
+                              <img
+                                src={qrCode.base64.startsWith('data:') ? qrCode.base64 : `data:image/png;base64,${qrCode.base64}`}
+                                alt="QR Code WhatsApp"
+                                className="w-48 h-48"
+                              />
+                            ) : (
+                              <div className="w-48 h-48 flex items-center justify-center text-muted-foreground">
+                                <Loader2 className="h-8 w-8 animate-spin" />
+                              </div>
                             )}
                           </div>
                           <Button
-                            type="submit"
-                            className="w-full"
+                            variant="ghost"
+                            size="sm"
+                            className="text-muted-foreground"
+                            onClick={handleRefreshQR}
                             disabled={isConnecting}
                           >
-                            {isConnecting ? (
-                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            ) : (
-                              <Wifi className="h-4 w-4 mr-2" />
-                            )}
-                            Salvar e Conectar API Oficial
+                            <RefreshCw className={`h-3 w-3 mr-2 ${isConnecting ? 'animate-spin' : ''}`} />
+                            Atualizar código
                           </Button>
-                        </form>
-                      </TabsContent>
-                    </Tabs>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="border border-border/50 rounded-xl p-6 bg-muted/10 animate-in fade-in slide-in-from-top-4 duration-300">
+                      <form onSubmit={officialForm.handleSubmit(handleSaveOfficial)} className="space-y-4">
+                        <div className="space-y-1.5">
+                          <Label htmlFor="waba_id" className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">WABA ID</Label>
+                          <Input
+                            id="waba_id"
+                            placeholder="Ex: 1234567890"
+                            className="bg-background"
+                            {...officialForm.register('waba_id')}
+                          />
+                          {officialForm.formState.errors.waba_id && (
+                            <p className="text-[10px] text-destructive">{officialForm.formState.errors.waba_id.message}</p>
+                          )}
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="phone_number_id" className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Phone Number ID</Label>
+                          <Input
+                            id="phone_number_id"
+                            placeholder="Ex: 0987654321"
+                            className="bg-background"
+                            {...officialForm.register('phone_number_id')}
+                          />
+                          {officialForm.formState.errors.phone_number_id && (
+                            <p className="text-[10px] text-destructive">{officialForm.formState.errors.phone_number_id.message}</p>
+                          )}
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="token" className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Token de Acesso</Label>
+                          <Input
+                            id="token"
+                            type="password"
+                            placeholder="Cole seu token permanente aqui"
+                            className="bg-background font-mono text-sm"
+                            {...officialForm.register('token')}
+                          />
+                          {officialForm.formState.errors.token && (
+                            <p className="text-[10px] text-destructive">{officialForm.formState.errors.token.message}</p>
+                          )}
+                        </div>
+                        <Button
+                          type="submit"
+                          className="w-full mt-2 py-6 text-sm font-medium shadow-md hover:shadow-lg"
+                          disabled={isConnecting}
+                        >
+                          {isConnecting ? (
+                            <Loader2 className="h-5 w-5 mr-3 animate-spin" />
+                          ) : (
+                            <Wifi className="h-5 w-5 mr-3" />
+                          )}
+                          Salvar e Conectar API Oficial
+                        </Button>
+                      </form>
+                    </div>
                   )}
                 </div>
-              </>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Benefits / Info Cards below */}
+      <div className="pt-2">
+        <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-4 flex items-center gap-4">
+          O que será ativado após conectar
+          <div className="h-px bg-border flex-1" />
+        </h3>
+        <div className="grid gap-4 md:grid-cols-3 items-stretch">
+          <Card className="bg-white/50 dark:bg-black/20 border-border/40 shadow-sm relative overflow-hidden">
+            <Lock className="absolute top-3 right-3 h-3 w-3 text-amber-500/40" />
+            <CardContent className="p-5">
+              <div className="w-8 h-8 rounded-lg bg-green-500/10 flex items-center justify-center mb-3">
+                <CheckCircle2 className="h-4 w-4 text-green-500" />
+              </div>
+              <h4 className="font-medium text-sm mb-1.5">Confirmação Automática</h4>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Mensagens enviadas automaticamente quando um agendamento é criado no sistema.
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white/50 dark:bg-black/20 border-border/40 shadow-sm relative overflow-hidden">
+            <Lock className="absolute top-3 right-3 h-3 w-3 text-amber-500/40" />
+            <CardContent className="p-5">
+              <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center mb-3">
+                <RefreshCw className="h-4 w-4 text-blue-500" />
+              </div>
+              <h4 className="font-medium text-sm mb-1.5">Confirmação e Lembretes</h4>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Avisos enviados 48h, 24h e 2h antes com opção interativa para o cliente.
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white/50 dark:bg-black/20 border-border/40 shadow-sm relative overflow-hidden">
+            <Lock className="absolute top-3 right-3 h-3 w-3 text-amber-500/40" />
+            <CardContent className="p-5">
+              <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center mb-3">
+                <MessageSquare className="h-4 w-4 text-purple-500" />
+              </div>
+              <h4 className="font-medium text-sm mb-1.5">Respostas Inteligentes</h4>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                O agente entende respostas humanas e gerencia a alteração de status na agenda.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* Test Message Module (Displays only if Connected) */}
+      {isConnected && (
+        <Card className="border-border/50 bg-background mt-8 max-w-xl mx-auto shadow-sm">
+          <CardHeader className="py-4 border-b">
+            <CardTitle className="text-base flex items-center gap-2">
+              <MessageSquare className="h-4 w-4 text-primary" />
+              Enviar Mensagem de Teste
+            </CardTitle>
+            <CardDescription className="text-xs">
+              Valide se a integração está totalmente funcional enviando uma mensagem.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pt-4">
+            <form onSubmit={handleSubmit(onSubmitTestMessage)} className="flex items-end gap-3 flex-col sm:flex-row">
+              <div className="space-y-1.5 flex-1 w-full">
+                <Label htmlFor="phone" className="text-xs text-muted-foreground">Telefone</Label>
+                <Input
+                  id="phone"
+                  placeholder="5511999999999"
+                  {...register('phone')}
+                  className={`bg-background ${errors.phone ? 'border-destructive' : ''}`}
+                />
+              </div>
+              <div className="space-y-1.5 flex-1 w-full">
+                <Label htmlFor="message" className="text-xs text-muted-foreground">Mensagem</Label>
+                <Input
+                  id="message"
+                  placeholder="Oi, teste!"
+                  {...register('message')}
+                  className={`bg-background ${errors.message ? 'border-destructive' : ''}`}
+                />
+              </div>
+              <Button type="submit" className="w-full sm:w-auto" disabled={isSending}>
+                {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Enviar'}
+              </Button>
+            </form>
+            {(errors.phone || errors.message) && (
+              <div className="mt-2 text-[10px] text-destructive flex flex-col gap-0.5">
+                {errors.phone && <span>• {errors.phone.message}</span>}
+                {errors.message && <span>• {errors.message.message}</span>}
+              </div>
             )}
           </CardContent>
         </Card>
-
-        {qrCode && !isConnected && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <QrCode className="h-5 w-5" />
-                Escaneie o QR Code
-              </CardTitle>
-              <CardDescription>
-                Abra o WhatsApp no seu celular e escaneie o código
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="bg-white p-4 rounded-lg flex items-center justify-center">
-                {qrCode.base64 ? (
-                  <img
-                    src={qrCode.base64.startsWith('data:') ? qrCode.base64 : `data:image/png;base64,${qrCode.base64}`}
-                    alt="QR Code WhatsApp"
-                    className="w-48 h-48"
-                  />
-                ) : (
-                  <div className="w-48 h-48 flex items-center justify-center text-muted-foreground">
-                    <Loader2 className="h-8 w-8 animate-spin" />
-                  </div>
-                )}
-              </div>
-
-              <div className="text-sm text-muted-foreground space-y-2">
-                <p className="font-medium">Como conectar:</p>
-                <ol className="list-decimal list-inside space-y-1">
-                  <li>Abra o WhatsApp no seu celular</li>
-                  <li>Toque em Menu ou Configurações</li>
-                  <li>Selecione &quot;Aparelhos conectados&quot;</li>
-                  <li>Toque em &quot;Conectar um aparelho&quot;</li>
-                  <li>Aponte a câmera para o QR Code</li>
-                </ol>
-              </div>
-
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={handleRefreshQR}
-                disabled={isConnecting}
-              >
-                {isConnecting ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                )}
-                Atualizar QR Code
-              </Button>
-            </CardContent>
-          </Card>
-        )}
-
-        {isConnected && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <MessageSquare className="h-5 w-5" />
-                Enviar Mensagem de Teste
-              </CardTitle>
-              <CardDescription>
-                Envie uma mensagem para testar a conexão
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit(onSubmitTestMessage)} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="phone">
-                    Telefone (com DDD) <span className="text-destructive">*</span>
-                  </Label>
-                  <Input
-                    id="phone"
-                    placeholder="5511999999999"
-                    {...register('phone')}
-                    className={errors.phone ? 'border-destructive' : ''}
-                  />
-                  {errors.phone && (
-                    <p className="text-sm text-destructive">{errors.phone.message}</p>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="message">
-                    Mensagem <span className="text-destructive">*</span>
-                  </Label>
-                  <Input
-                    id="message"
-                    placeholder="Digite sua mensagem..."
-                    {...register('message')}
-                    className={errors.message ? 'border-destructive' : ''}
-                  />
-                  {errors.message && (
-                    <p className="text-sm text-destructive">{errors.message.message}</p>
-                  )}
-                </div>
-                <Button type="submit" className="w-full" disabled={isSending}>
-                  {isSending ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <MessageSquare className="h-4 w-4 mr-2" />
-                  )}
-                  Enviar Mensagem
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-        )}
-      </div>
-
-      <div className="grid gap-6 md:grid-cols-3">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <CheckCircle2 className="h-5 w-5 text-green-500" />
-              Confirmação Automática
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
-              Mensagens de confirmação são enviadas automaticamente quando um agendamento é criado.
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <RefreshCw className="h-5 w-5 text-blue-500" />
-              Confirmação e Lembretes
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
-              Confirmações são enviadas 48h, 24h e 2h antes do agendamento. O não retorno do paciente na primeira tentativa move o status para 'Não Respondido', e na terceira, para 'Ausente'.
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <MessageSquare className="h-5 w-5 text-purple-500" />
-              Respostas Inteligentes
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
-              O sistema analisa a resposta do paciente para entender a intenção de confirmar ou cancelar, atualizando o agendamento de forma automática.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+      )}
     </div>
   )
 }
