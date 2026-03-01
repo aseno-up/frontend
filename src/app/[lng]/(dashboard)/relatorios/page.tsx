@@ -97,7 +97,7 @@ export default function RelatoriosPage(props: ReportPageProps) {
 
   // Fetch professionals on mount
   useEffect(() => {
-    api.getProfessionals(1, 100).then(res => {
+    api.getProfessionals({ page: 1, limit: 100 }).then(res => {
       setProfessionals(res.data || [])
     }).catch(() => {
       // Silently fail - professionals filter is optional

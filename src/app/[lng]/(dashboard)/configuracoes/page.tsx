@@ -550,34 +550,52 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
     <div className="flex h-full flex-col">
       <Header lng={lng} title="Configuracoes" tutorialPage="configuracoes" />
 
-      <div className="flex-1 overflow-auto p-4 md:p-6">
-        <div className="mx-auto max-w-4xl">
-          <Tabs defaultValue="clinica" className="w-full">
-            <TabsList className="grid w-full grid-cols-5 mb-6">
-              <TabsTrigger value="clinica" className="flex items-center gap-2">
-                <Building2 className="h-4 w-4" />
-                <span className="hidden sm:inline">Clinica</span>
-              </TabsTrigger>
-              <TabsTrigger value="notificacoes" className="flex items-center gap-2">
-                <Bell className="h-4 w-4" />
-                <span className="hidden sm:inline">Notificacoes</span>
-              </TabsTrigger>
-              <TabsTrigger value="integracoes" className="flex items-center gap-2">
-                <Link2 className="h-4 w-4" />
-                <span className="hidden sm:inline">Integracoes</span>
-              </TabsTrigger>
-              <TabsTrigger value="assinatura" className="flex items-center gap-2">
-                <CreditCard className="h-4 w-4" />
-                <span className="hidden sm:inline">Assinatura</span>
-              </TabsTrigger>
-              <TabsTrigger value="conta" className="flex items-center gap-2">
-                <Users className="h-4 w-4" />
-                <span className="hidden sm:inline">Conta</span>
-              </TabsTrigger>
-            </TabsList>
+      <div className="flex-1 overflow-hidden min-h-0 bg-muted/10">
+        <div className="mx-auto h-full flex flex-col min-h-0">
+          <Tabs defaultValue="clinica" className="w-full flex-1 flex flex-col overflow-hidden min-h-0">
+            <div className="bg-background px-4 md:px-8 pt-2 border-b border-border/40 shrink-0">
+              <TabsList className="flex h-12 w-full justify-start gap-4 md:gap-6 bg-transparent p-0 overflow-x-auto no-scrollbar">
+                <TabsTrigger 
+                  value="clinica" 
+                  className="relative h-12 rounded-none border-b-2 border-transparent bg-transparent px-2 md:px-4 pb-3 pt-3 font-medium text-muted-foreground shadow-none transition-none data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none hover:text-primary flex items-center gap-2 whitespace-nowrap"
+                >
+                  <Building2 className="h-4 w-4" />
+                  <span className="hidden sm:inline">Clinica</span>
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="notificacoes" 
+                  className="relative h-12 rounded-none border-b-2 border-transparent bg-transparent px-2 md:px-4 pb-3 pt-3 font-medium text-muted-foreground shadow-none transition-none data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none hover:text-primary flex items-center gap-2 whitespace-nowrap"
+                >
+                  <Bell className="h-4 w-4" />
+                  <span className="hidden sm:inline">Notificacoes</span>
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="integracoes" 
+                  className="relative h-12 rounded-none border-b-2 border-transparent bg-transparent px-2 md:px-4 pb-3 pt-3 font-medium text-muted-foreground shadow-none transition-none data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none hover:text-primary flex items-center gap-2 whitespace-nowrap"
+                >
+                  <Link2 className="h-4 w-4" />
+                  <span className="hidden sm:inline">Integracoes</span>
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="assinatura" 
+                  className="relative h-12 rounded-none border-b-2 border-transparent bg-transparent px-2 md:px-4 pb-3 pt-3 font-medium text-muted-foreground shadow-none transition-none data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none hover:text-primary flex items-center gap-2 whitespace-nowrap"
+                >
+                  <CreditCard className="h-4 w-4" />
+                  <span className="hidden sm:inline">Assinatura</span>
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="conta" 
+                  className="relative h-12 rounded-none border-b-2 border-transparent bg-transparent px-2 md:px-4 pb-3 pt-3 font-medium text-muted-foreground shadow-none transition-none data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none hover:text-primary flex items-center gap-2 whitespace-nowrap"
+                >
+                  <Users className="h-4 w-4" />
+                  <span className="hidden sm:inline">Conta</span>
+                </TabsTrigger>
+              </TabsList>
+            </div>
 
-            {/* Tab: Clinica */}
-            <TabsContent value="clinica" className="space-y-6">
+            <div className="flex-1 overflow-y-auto w-full max-w-4xl mx-auto p-4 md:p-8 mt-0 min-h-0">
+              {/* Tab: Clinica */}
+              <TabsContent value="clinica" className="mt-0 outline-none space-y-6">
               <Card>
                 <CardHeader>
                   <CardTitle>Dados da Clinica</CardTitle>
@@ -676,7 +694,7 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
             </TabsContent>
 
             {/* Tab: Notificacoes */}
-            <TabsContent value="notificacoes" className="space-y-6">
+            <TabsContent value="notificacoes" className="mt-0 outline-none space-y-6">
               <Card>
                 <CardHeader>
                   <CardTitle>Notificacoes</CardTitle>
@@ -723,7 +741,7 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
             </TabsContent>
 
             {/* Tab: Integracoes */}
-            <TabsContent value="integracoes" className="space-y-6">
+            <TabsContent value="integracoes" className="mt-0 outline-none space-y-6">
               <Card>
                 <CardHeader>
                   <div className="flex items-center gap-2">
@@ -804,7 +822,7 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
             </TabsContent>
 
             {/* Tab: Assinatura */}
-            <TabsContent value="assinatura" className="space-y-6">
+            <TabsContent value="assinatura" className="mt-0 outline-none space-y-6">
               {/* Status da Assinatura */}
               <Card>
                 <CardHeader>
@@ -1122,7 +1140,7 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
             </TabsContent>
 
             {/* Tab: Conta */}
-            <TabsContent value="conta" className="space-y-6">
+            <TabsContent value="conta" className="mt-0 outline-none space-y-6">
               <Card>
                 <CardHeader>
                   <CardTitle>Sua Conta</CardTitle>
@@ -1187,6 +1205,7 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
                 </CardContent>
               </Card>
             </TabsContent>
+            </div>
           </Tabs>
         </div>
       </div>

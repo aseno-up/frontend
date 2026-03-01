@@ -1,7 +1,8 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { Plus, Play, Pause, X, Calendar, Clock, User, Briefcase, RefreshCw, Check, ArrowRight, ArrowLeft } from "lucide-react"
+import { Plus, Play, Pause, X, Calendar, Clock, User, Briefcase, RefreshCw, Check, ArrowRight, ArrowLeft, Search, Activity } from "lucide-react"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -20,7 +21,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { SortableTableHead } from "@/components/ui/sortable-table-head"
+import { DataTablePagination } from "@/components/ui/data-table-pagination"
+import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import {
@@ -48,7 +51,7 @@ import { api } from "@/lib/api/client"
 import { showToast, handleApiError } from "@/lib/toast"
 import { SessionPlan, Professional, Patient, PlanStatus, Frequency } from "@/types/api"
 
-// Schema Validation
+// Schema
 const sessionPlanSchema = z.object({
   patient_id: z.string().min(1, "Paciente é obrigatório"),
   professional_id: z.string().optional(),
@@ -100,12 +103,12 @@ const statusVariants: Record<PlanStatus, "default" | "secondary" | "destructive"
 
 const frequencyLabels: Record<Frequency, string> = {
   daily: "Diário",
-  weekly: "1x por semana",
-  biweekly: "2x por semana",
-  triweekly: "3x por semana",
+  weekly: "1x p/sem.",
+  biweekly: "2x p/sem.",
+  triweekly: "3x p/sem.",
   bimonthly: "Quinzenal",
   monthly: "Mensal",
-  custom: "Personalizado",
+  custom: "Custom.",
 }
 
 const steps = [
@@ -117,13 +120,33 @@ const steps = [
 ]
 
 export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+
   const [lng, setLng] = useState("pt-BR")
   const [plans, setPlans] = useState<SessionPlan[]>([])
   const [professionals, setProfessionals] = useState<Professional[]>([])
   const [patients, setPatients] = useState<Patient[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [statusFilter, setStatusFilter] = useState<string>("all")
   
+  // Meta and Pagination
+  const [isLoading, setIsLoading] = useState(true)
+  const [total, setTotal] = useState(0)
+  const [totalPages, setTotalPages] = useState(0)
+  
+  // Dashboard mock metrics
+  const [activeCount, setActiveCount] = useState(0)
+  const [completedCount, setCompletedCount] = useState(0)
+  
+  // URL Params read
+  const page = parseInt(searchParams.get("page") || "1", 10)
+  const limit = parseInt(searchParams.get("limit") || "10", 10)
+  const search = searchParams.get("search") || ""
+  const statusParam = searchParams.get("status") || "all"
+  const sortBy = searchParams.get("sort_by") || "created_desc"
+
+  const [searchInput, setSearchInput] = useState(search)
+
   // Wizard State
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [currentStep, setCurrentStep] = useState(1)
@@ -165,23 +188,36 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
     params.then(({ lng }) => setLng(lng))
   }, [params])
 
-  // Convert patients and professionals to select options
+  const updateQueryParams = useCallback((updates: Record<string, string | null>) => {
+    const params = new URLSearchParams(searchParams.toString())
+    Object.entries(updates).forEach(([key, value]) => {
+      if (value === null || value === "") {
+        params.delete(key)
+      } else {
+        params.set(key, value)
+      }
+    })
+    if (!updates.page) params.set("page", "1")
+    router.push(pathname + "?" + params.toString(), { scroll: false })
+  }, [searchParams, pathname, router])
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      if (searchInput !== search) {
+        updateQueryParams({ search: searchInput })
+      }
+    }, 500)
+    return () => clearTimeout(handler)
+  }, [searchInput, search, updateQueryParams])
+
   const patientOptions: SelectOption[] = useMemo(() => {
-    return patients.map((patient) => ({
-      value: patient.id,
-      label: patient.name,
-    }))
+    return patients.map((patient) => ({ value: patient.id, label: patient.name }))
   }, [patients])
 
   const professionalOptions: SelectOption[] = useMemo(() => {
-    return professionals.map((prof) => ({
-      value: prof.id,
-      label: `${prof.name} - ${prof.specialty}`,
-      color: prof.color,
-    }))
+    return professionals.map((prof) => ({ value: prof.id, label: `${prof.name} - ${prof.specialty}`, color: prof.color }))
   }, [professionals])
 
-  // Watch fields for logic
   const watchedPatientId = watch("patient_id")
   const watchedProfessionalId = watch("professional_id")
   const watchedIsIndeterminate = watch("is_indeterminate")
@@ -201,36 +237,44 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
     return professionalOptions.find((opt) => opt.value === watchedProfessionalId) || null
   }, [watchedProfessionalId, professionalOptions])
 
-  // Fetch Data
   const fetchPlans = useCallback(async () => {
+    setIsLoading(true)
     try {
-      setIsLoading(true)
-      const status = statusFilter === "all" ? undefined : statusFilter
-      const data = await api.getSessionPlans(1, 50, status)
-      setPlans(data.data || [])
+      const resp: any = await api.getSessionPlans({
+        page,
+        limit,
+        search: search || undefined,
+        status: statusParam !== "all" ? statusParam : undefined,
+        sort_by: sortBy
+      })
+      setPlans(resp.data || [])
+      setTotal(resp.meta?.total || 0)
+      setTotalPages(resp.meta?.total_pages || 1)
+      
+      const activeList = (resp.data || []).filter((p: any) => p.status === 'active')
+      const completedList = (resp.data || []).filter((p: any) => p.status === 'completed')
+      
+      setActiveCount(activeList.length)
+      setCompletedCount(completedList.length)
     } catch (err) {
       handleApiError(err, "Erro ao carregar planos")
     } finally {
       setIsLoading(false)
     }
-  }, [statusFilter])
+  }, [page, limit, search, statusParam, sortBy])
 
   const fetchProfessionals = useCallback(async () => {
     try {
-      const data = await api.getProfessionals(1, 100)
+      const data = await api.getProfessionals({ page: 1, limit: 100 })
       setProfessionals(data.data || [])
-    } catch (err) {
-      handleApiError(err, "Erro ao carregar profissionais")
-    }
+    } catch {}
   }, [])
 
   const fetchPatients = useCallback(async () => {
     try {
-      const data = await api.getPatients(1, 100)
+      const data = await api.getPatients({ limit: 100 })
       setPatients(data.data || [])
-    } catch (err) {
-      handleApiError(err, "Erro ao carregar pacientes")
-    }
+    } catch {}
   }, [])
 
   useEffect(() => {
@@ -239,42 +283,26 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
     fetchPatients()
   }, [fetchPlans, fetchProfessionals, fetchPatients])
 
-  // Form Logic
   const handleNext = async () => {
     let fieldsToValidate: (keyof SessionPlanFormData)[] = []
-    
     switch (currentStep) {
-      case 1:
-        fieldsToValidate = ["patient_id"]
-        break
-      case 2:
-        fieldsToValidate = ["title", "frequency", "preferred_time", "duration_mins", "start_date", "total_sessions"]
-        break
+      case 1: fieldsToValidate = ["patient_id"]; break
+      case 2: fieldsToValidate = ["title", "frequency", "preferred_time", "duration_mins", "start_date", "total_sessions"]; break
       case 3:
         fieldsToValidate = ["professional_mode"]
-        if (watchedProfessionalMode === "fixed") {
-          fieldsToValidate.push("professional_id")
-        }
+        if (watchedProfessionalMode === "fixed") fieldsToValidate.push("professional_id")
         break
-      case 4:
-        fieldsToValidate = ["generation_mode"]
-        break
+      case 4: fieldsToValidate = ["generation_mode"]; break
     }
-
     const isValid = await trigger(fieldsToValidate)
-    if (isValid) {
-      setCurrentStep((prev) => prev + 1)
-    }
+    if (isValid) setCurrentStep((prev) => prev + 1)
   }
 
-  const handleBack = () => {
-    setCurrentStep((prev) => prev - 1)
-  }
+  const handleBack = () => setCurrentStep((prev) => prev - 1)
 
   const onSubmit = async (data: SessionPlanFormData) => {
     try {
       setIsSubmitting(true)
-      
       const payload = {
         patient_id: data.patient_id,
         professional_id: data.professional_mode === "fixed" ? data.professional_id : undefined,
@@ -289,7 +317,6 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
         notes: data.notes,
         generate_all: data.generate_all,
       }
-
       await api.createSessionPlan(payload)
       showToast.success("Plano criado com sucesso!")
       setIsDialogOpen(false)
@@ -305,57 +332,30 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
 
   const handleOpenDialog = () => {
     reset({
-      patient_id: "",
-      professional_id: "",
-      title: "",
-      description: "",
-      frequency: "weekly",
-      preferred_time: "09:00",
-      duration_mins: 50,
-      total_sessions: 10,
-      is_indeterminate: false,
-      start_date: new Date().toISOString().split("T")[0],
-      session_price: 0,
-      notes: "",
-      professional_mode: "fixed",
-      generation_mode: "auto",
-      generate_all: false,
-      whatsapp_confirmation: true,
+      patient_id: "", professional_id: "", title: "", description: "",
+      frequency: "weekly", preferred_time: "09:00", duration_mins: 50,
+      total_sessions: 10, is_indeterminate: false, start_date: new Date().toISOString().split("T")[0],
+      session_price: 0, notes: "", professional_mode: "fixed", generation_mode: "auto",
+      generate_all: false, whatsapp_confirmation: true,
     })
     setCurrentStep(1)
     setIsDialogOpen(true)
   }
 
-  // Plan actions
   const handlePause = async (id: string) => {
-    try {
-      await api.pauseSessionPlan(id)
-      showToast.success("Plano pausado!")
-      fetchPlans()
-    } catch (err) {
-      handleApiError(err, "Erro ao pausar plano")
-    }
+    try { await api.pauseSessionPlan(id); showToast.success("Plano pausado!"); fetchPlans() } 
+    catch (err) { handleApiError(err, "Erro ao pausar plano") }
   }
 
   const handleResume = async (id: string) => {
-    try {
-      await api.resumeSessionPlan(id)
-      showToast.success("Plano retomado!")
-      fetchPlans()
-    } catch (err) {
-      handleApiError(err, "Erro ao retomar plano")
-    }
+    try { await api.resumeSessionPlan(id); showToast.success("Plano retomado!"); fetchPlans() } 
+    catch (err) { handleApiError(err, "Erro ao retomar plano") }
   }
 
   const handleCancel = async (id: string) => {
     if (!confirm("Tem certeza que deseja cancelar este plano?")) return
-    try {
-      await api.cancelSessionPlan(id)
-      showToast.success("Plano cancelado!")
-      fetchPlans()
-    } catch (err) {
-      handleApiError(err, "Erro ao cancelar plano")
-    }
+    try { await api.cancelSessionPlan(id); showToast.success("Plano cancelado!"); fetchPlans() } 
+    catch (err) { handleApiError(err, "Erro ao cancelar plano") }
   }
 
   const handleGenerate = async (id: string) => {
@@ -363,21 +363,16 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
       const result = await api.generateSessionPlanAppointments(id, 2)
       showToast.success(`${result.appointments_created} agendamentos criados!`)
       fetchPlans()
-    } catch (err) {
-      handleApiError(err, "Erro ao gerar agendamentos")
-    }
+    } catch (err) { handleApiError(err, "Erro ao gerar agendamentos") }
   }
 
-  // Render Wizard Content
   const renderStepContent = () => {
     switch (currentStep) {
       case 1: // Patient
         return (
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="patient">
-                Selecione o Paciente <span className="text-destructive">*</span>
-              </Label>
+              <Label htmlFor="patient">Selecione o Paciente <span className="text-destructive">*</span></Label>
               <ReactSelect
                 value={selectedPatientOption}
                 onChange={(option) => setValue("patient_id", option?.value || "")}
@@ -385,195 +380,112 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
                 placeholder="Buscar paciente..."
                 isClearable
               />
-              {errors.patient_id && (
-                <p className="text-sm text-destructive">{errors.patient_id.message}</p>
-              )}
+              {errors.patient_id && <p className="text-sm text-destructive">{errors.patient_id.message}</p>}
             </div>
-            
-            {/* Quick Create Patient (Placeholder for now) */}
             <div className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
               Não encontrou? <Button variant="link" className="h-auto p-0">Cadastrar novo paciente</Button>
             </div>
           </div>
         )
-
       case 2: // Package
         return (
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="title">Nome do Pacote <span className="text-destructive">*</span></Label>
-              <Input
-                id="title"
-                {...register("title")}
-                placeholder="Ex: Fisio - 10 sessões"
-                className={errors.title ? "border-destructive" : ""}
-              />
+              <Input id="title" {...register("title")} placeholder="Ex: Fisio - 10 sessões" className={errors.title ? "border-destructive" : ""} />
               {errors.title && <p className="text-sm text-destructive">{errors.title.message}</p>}
             </div>
-
             <div className="grid grid-cols-2 gap-4">
                <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="total_sessions">Qtd. Sessões <span className="text-destructive">*</span></Label>
                   <div className="flex items-center gap-2">
-                    <Switch 
-                      id="is_indeterminate" 
-                      checked={watchedIsIndeterminate}
-                      onCheckedChange={(checked) => setValue("is_indeterminate", checked)}
-                    />
+                    <Switch id="is_indeterminate" checked={watchedIsIndeterminate} onCheckedChange={(checked) => setValue("is_indeterminate", checked)} />
                     <Label htmlFor="is_indeterminate" className="text-xs font-normal">Indeterminado</Label>
                   </div>
                 </div>
-                
-                <Input
-                  id="total_sessions"
-                  type="number"
-                  disabled={watchedIsIndeterminate}
-                  {...register("total_sessions", { valueAsNumber: true })}
-                  className={errors.total_sessions ? "border-destructive" : ""}
-                  placeholder={watchedIsIndeterminate ? "∞" : "10"}
-                />
+                <Input id="total_sessions" type="number" disabled={watchedIsIndeterminate} {...register("total_sessions", { valueAsNumber: true })} className={errors.total_sessions ? "border-destructive" : ""} placeholder={watchedIsIndeterminate ? "∞" : "10"} />
                 {errors.total_sessions && <p className="text-sm text-destructive">{errors.total_sessions.message}</p>}
               </div>
-
               <div className="space-y-2">
                 <Label htmlFor="frequency">Frequência <span className="text-destructive">*</span></Label>
                 <Controller
-                  name="frequency"
-                  control={control}
+                  name="frequency" control={control}
                   render={({ field }) => (
                     <Select value={field.value} onValueChange={field.onChange}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="weekly">1x por semana</SelectItem>
                         <SelectItem value="biweekly">2x por semana</SelectItem>
                         <SelectItem value="triweekly">3x por semana</SelectItem>
                         <SelectItem value="bimonthly">Quinzenal</SelectItem>
                         <SelectItem value="monthly">Mensal</SelectItem>
-                        {/* <SelectItem value="custom">Personalizado</SelectItem> */}
                       </SelectContent>
                     </Select>
                   )}
                 />
               </div>
             </div>
-
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="start_date">Início <span className="text-destructive">*</span></Label>
-                <Input
-                  id="start_date"
-                  type="date"
-                  {...register("start_date")}
-                  className={errors.start_date ? "border-destructive" : ""}
-                />
+                <Input id="start_date" type="date" {...register("start_date")} className={errors.start_date ? "border-destructive" : ""} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="preferred_time">Horário <span className="text-destructive">*</span></Label>
-                <Input
-                  id="preferred_time"
-                  type="time"
-                  {...register("preferred_time")}
-                  className={errors.preferred_time ? "border-destructive" : ""}
-                />
+                <Input id="preferred_time" type="time" {...register("preferred_time")} className={errors.preferred_time ? "border-destructive" : ""} />
               </div>
             </div>
-
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="duration">Duração (min)</Label>
-                <Input
-                  id="duration"
-                  type="number"
-                  {...register("duration_mins", { valueAsNumber: true })}
-                />
+                <Input id="duration" type="number" {...register("duration_mins", { valueAsNumber: true })} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="session_price">Valor por Sessão</Label>
-                <Controller
-                  name="session_price"
-                  control={control}
-                  render={({ field }) => (
-                    <CurrencyInput
-                      id="session_price"
-                      value={field.value}
-                      onChange={field.onChange}
-                    />
-                  )}
-                />
+                <Controller name="session_price" control={control} render={({ field }) => <CurrencyInput id="session_price" value={field.value} onChange={field.onChange} />} />
               </div>
             </div>
           </div>
         )
-
       case 3: // Professional
         return (
           <div className="space-y-6 py-4">
             <div className="space-y-3">
               <Label>Responsável pelo Pacote</Label>
-              <RadioGroup
-                value={watchedProfessionalMode}
-                onValueChange={(val) => setValue("professional_mode", val as "fixed" | "flexible")}
-                className="grid gap-4 sm:grid-cols-2"
-              >
+              <RadioGroup value={watchedProfessionalMode} onValueChange={(val) => setValue("professional_mode", val as "fixed" | "flexible")} className="grid gap-4 sm:grid-cols-2">
                 <div>
                   <RadioGroupItem value="fixed" id="fixed" className="peer sr-only" />
-                  <Label
-                    htmlFor="fixed"
-                    className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
-                  >
+                  <Label htmlFor="fixed" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
                     <User className="mb-3 h-6 w-6" />
                     <span className="font-semibold">Profissional Fixo</span>
-                    <span className="text-center text-xs text-muted-foreground mt-1">
-                      Sessões vinculadas a um profissional específico
-                    </span>
+                    <span className="text-center text-xs text-muted-foreground mt-1">Sessões vinculadas a um profissional específico</span>
                   </Label>
                 </div>
                 <div>
                   <RadioGroupItem value="flexible" id="flexible" className="peer sr-only" />
-                  <Label
-                    htmlFor="flexible"
-                    className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
-                  >
+                  <Label htmlFor="flexible" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
                     <Briefcase className="mb-3 h-6 w-6" />
                     <span className="font-semibold">Qualquer Profissional</span>
-                    <span className="text-center text-xs text-muted-foreground mt-1">
-                      Definido sessão a sessão (Agenda flexível)
-                    </span>
+                    <span className="text-center text-xs text-muted-foreground mt-1">Definido sessão a sessão (Agenda flexível)</span>
                   </Label>
                 </div>
               </RadioGroup>
             </div>
-
             {watchedProfessionalMode === "fixed" && (
               <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
-                <Label htmlFor="professional">
-                  Selecione o Profissional <span className="text-destructive">*</span>
-                </Label>
-                <ReactSelect
-                  value={selectedProfessionalOption}
-                  onChange={(option) => setValue("professional_id", option?.value || "")}
-                  options={professionalOptions}
-                  placeholder="Buscar profissional..."
-                  showColorIndicator
-                  isClearable
-                />
-                {errors.professional_id && (
-                  <p className="text-sm text-destructive">{errors.professional_id.message}</p>
-                )}
+                <Label htmlFor="professional">Selecione o Profissional <span className="text-destructive">*</span></Label>
+                <ReactSelect value={selectedProfessionalOption} onChange={(option) => setValue("professional_id", option?.value || "")} options={professionalOptions} placeholder="Buscar profissional..." showColorIndicator isClearable />
+                {errors.professional_id && <p className="text-sm text-destructive">{errors.professional_id.message}</p>}
               </div>
             )}
           </div>
         )
-
       case 4: // Generation
         return (
           <div className="space-y-6 py-4">
             <div className="space-y-3">
               <Label>Geração de Sessões</Label>
-              
               {watchedIsIndeterminate || watchedProfessionalMode === "flexible" ? (
                 <div className="rounded-md bg-muted p-4">
                   <div className="flex items-center gap-2 mb-2">
@@ -581,278 +493,181 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
                     <span className="font-medium">Geração Automática Limitada</span>
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    {watchedIsIndeterminate 
-                      ? "Como a quantidade de sessões é indeterminada, o sistema gerará sessões para as próximas 2 semanas automaticamente." 
-                      : "Para pacotes com profissional flexível, as sessões devem ser agendadas manualmente para garantir a disponibilidade."}
+                    {watchedIsIndeterminate ? "Como a quantidade de sessões é indeterminada, o sistema gerará sessões para as próximas 2 semanas automaticamente." : "Para pacotes com profissional flexível, as sessões devem ser agendadas manualmente para garantir a disponibilidade."}
                   </p>
                 </div>
               ) : (
-                <RadioGroup
-                  value={watchedTotalSessions > 0 ? (getValues("generate_all") ? "all" : "auto") : "auto"}
-                  onValueChange={(val) => setValue("generate_all", val === "all")}
-                  className="grid gap-4"
-                >
+                <RadioGroup value={watchedTotalSessions > 0 ? (getValues("generate_all") ? "all" : "auto") : "auto"} onValueChange={(val) => setValue("generate_all", val === "all")} className="grid gap-4">
                   <div className="flex items-start space-x-3 space-y-0 rounded-md border p-4">
                     <RadioGroupItem value="all" id="gen-all" />
                     <div className="space-y-1">
-                      <Label htmlFor="gen-all" className="font-medium">
-                        Gerar todas as {watchedTotalSessions} sessões agora
-                      </Label>
-                      <p className="text-sm text-muted-foreground">
-                        Reserva todos os horários na agenda do profissional.
-                      </p>
+                      <Label htmlFor="gen-all" className="font-medium">Gerar todas as {watchedTotalSessions} sessões agora</Label>
+                      <p className="text-sm text-muted-foreground">Reserva todos os horários na agenda do profissional.</p>
                     </div>
                   </div>
                   <div className="flex items-start space-x-3 space-y-0 rounded-md border p-4">
                     <RadioGroupItem value="auto" id="gen-auto" />
                     <div className="space-y-1">
-                      <Label htmlFor="gen-auto" className="font-medium">
-                        Gerar aos poucos (Automático)
-                      </Label>
-                      <p className="text-sm text-muted-foreground">
-                        O sistema mantém a agenda preenchida para as próximas 2 semanas.
-                      </p>
+                      <Label htmlFor="gen-auto" className="font-medium">Gerar aos poucos (Automático)</Label>
+                      <p className="text-sm text-muted-foreground">O sistema mantém a agenda preenchida para as próximas 2 semanas.</p>
                     </div>
                   </div>
                 </RadioGroup>
               )}
             </div>
-
             <div className="space-y-3 pt-4 border-t">
               <Label>Comunicação</Label>
               <div className="flex items-center justify-between rounded-lg border p-4">
                 <div className="space-y-0.5">
                   <Label className="text-base">Confirmação via WhatsApp</Label>
-                  <DialogDescription>
-                    Enviar lembretes e solicitar confirmação automática
-                  </DialogDescription>
+                  <DialogDescription>Enviar lembretes e solicitar confirmação automática</DialogDescription>
                 </div>
-                <Switch
-                  checked={watch("whatsapp_confirmation")}
-                  onCheckedChange={(checked) => setValue("whatsapp_confirmation", checked)}
-                />
+                <Switch checked={watch("whatsapp_confirmation")} onCheckedChange={(checked) => setValue("whatsapp_confirmation", checked)} />
               </div>
             </div>
           </div>
         )
-
       case 5: // Review
         return (
           <div className="space-y-6 py-4">
             <Card className="bg-muted/50">
               <CardContent className="pt-6 space-y-4">
                 <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span className="text-muted-foreground block mb-1">Paciente</span>
-                    <span className="font-medium">{selectedPatientOption?.label}</span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground block mb-1">Profissional</span>
-                    <span className="font-medium">
-                      {watchedProfessionalMode === "fixed" ? selectedProfessionalOption?.label : "Qualquer (Flexível)"}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground block mb-1">Pacote</span>
-                    <span className="font-medium">{watch("title")}</span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground block mb-1">Sessões</span>
-                    <span className="font-medium">
-                      {watchedIsIndeterminate ? "Indeterminado (Contínuo)" : `${watchedTotalSessions} sessões`}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground block mb-1">Frequência</span>
-                    <span className="font-medium">
-                      {frequencyLabels[watchedFrequency as Frequency]} às {watchedPreferredTime}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground block mb-1">Início</span>
-                    <span className="font-medium">
-                      {format(new Date(watchedStartDate), "dd/MM/yyyy", { locale: ptBR })}
-                    </span>
-                  </div>
+                  <div><span className="text-muted-foreground block mb-1">Paciente</span><span className="font-medium">{selectedPatientOption?.label}</span></div>
+                  <div><span className="text-muted-foreground block mb-1">Profissional</span><span className="font-medium">{watchedProfessionalMode === "fixed" ? selectedProfessionalOption?.label : "Qualquer (Flexível)"}</span></div>
+                  <div><span className="text-muted-foreground block mb-1">Pacote</span><span className="font-medium">{watch("title")}</span></div>
+                  <div><span className="text-muted-foreground block mb-1">Sessões</span><span className="font-medium">{watchedIsIndeterminate ? "Indeterminado (Contínuo)" : `${watchedTotalSessions} sessões`}</span></div>
+                  <div><span className="text-muted-foreground block mb-1">Frequência</span><span className="font-medium">{frequencyLabels[watchedFrequency as Frequency]} às {watchedPreferredTime}</span></div>
+                  <div><span className="text-muted-foreground block mb-1">Início</span><span className="font-medium">{format(new Date(watchedStartDate), "dd/MM/yyyy", { locale: ptBR })}</span></div>
                 </div>
               </CardContent>
             </Card>
-            
             <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-800 dark:border-yellow-900/50 dark:bg-yellow-950/20 dark:text-yellow-200">
               <p className="font-semibold mb-1">Resumo da Ação</p>
               <ul className="list-disc pl-4 space-y-1">
                 <li>O plano será criado imediatamente.</li>
-                {watchedProfessionalMode === "flexible" ? (
-                  <li>As sessões <strong>não serão geradas</strong> automaticamente (requer agendamento manual).</li>
-                ) : getValues("generate_all") && !watchedIsIndeterminate ? (
-                  <li>Serão gerados <strong>{watchedTotalSessions} agendamentos</strong> na agenda.</li>
-                ) : (
-                  <li>O sistema gerará agendamentos para as <strong>próximas 2 semanas</strong>.</li>
-                )}
-                {watch("whatsapp_confirmation") && (
-                  <li>O paciente receberá confirmações via WhatsApp antes de cada sessão.</li>
-                )}
+                {watchedProfessionalMode === "flexible" ? <li>As sessões <strong>não serão geradas</strong> automaticamente (requer agendamento manual).</li> : getValues("generate_all") && !watchedIsIndeterminate ? <li>Serão gerados <strong>{watchedTotalSessions} agendamentos</strong> na agenda.</li> : <li>O sistema gerará agendamentos para as <strong>próximas 2 semanas</strong>.</li>}
+                {watch("whatsapp_confirmation") && <li>O paciente receberá confirmações via WhatsApp antes de cada sessão.</li>}
               </ul>
             </div>
           </div>
         )
-        
-      default:
-        return null
+      default: return null
     }
   }
+
+  const sortOptions: SelectOption[] = [
+    { value: "created_desc", label: "Mais Recente" },
+    { value: "created_asc", label: "Mais Antigo" },
+    { value: "title_asc", label: "Ordenar: A-Z" },
+    { value: "title_desc", label: "Ordenar: Z-A" },
+  ]
 
   return (
     <div className="flex h-full flex-col">
       <Header lng={lng} title="Planos de Sessão" tutorialPage="planos-sessao" />
-
-      <div className="flex-1 overflow-auto p-4 md:p-6">
-        <div className="space-y-6">
-          {/* Actions bar */}
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-2">
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Filtrar por status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  <SelectItem value="active">Ativos</SelectItem>
-                  <SelectItem value="paused">Pausados</SelectItem>
-                  <SelectItem value="completed">Concluídos</SelectItem>
-                  <SelectItem value="cancelled">Cancelados</SelectItem>
-                </SelectContent>
-              </Select>
+      <div className="flex-1 p-4 md:p-6 space-y-6 overflow-auto">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-card rounded-xl border border-border shadow-sm p-4 flex items-center gap-4">
+            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0"><Calendar className="w-6 h-6" /></div>
+            <div>
+              <div className="text-2xl font-bold">{total}</div>
+              <div className="text-sm text-muted-foreground whitespace-nowrap">Total de planos</div>
             </div>
-
-            <Button onClick={handleOpenDialog}>
-              <Plus className="mr-2 h-4 w-4" />
-              Novo Plano
-            </Button>
           </div>
-
-          {/* Plans list */}
-          {isLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          <div className="bg-card rounded-xl border border-border shadow-sm p-4 flex items-center gap-4">
+            <div className="w-12 h-12 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500 shrink-0"><Activity className="w-6 h-6" /></div>
+            <div>
+              <div className="text-2xl font-bold">{statusParam === "all" ? activeCount : (statusParam === "active" ? total : 0)}</div>
+              <div className="text-sm text-muted-foreground whitespace-nowrap">Planos ativos</div>
             </div>
-          ) : plans.length === 0 ? (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <Calendar className="mb-4 h-12 w-12 text-muted-foreground" />
-                <p className="text-lg font-medium">Nenhum plano encontrado</p>
-                <p className="text-sm text-muted-foreground">
-                  Crie um plano de sessão para gerar agendamentos automaticamente
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="rounded-md border bg-card shadow-sm">
-              <Table className="text-base">
+          </div>
+          <div className="bg-card rounded-xl border border-border shadow-sm p-4 flex items-center gap-4">
+            <div className="w-12 h-12 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-500 shrink-0"><Check className="w-6 h-6" /></div>
+            <div>
+              <div className="text-2xl font-bold">{statusParam === "all" ? completedCount : (statusParam === "completed" ? total : 0)}</div>
+              <div className="text-sm text-muted-foreground whitespace-nowrap">Planos concluídos</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-card rounded-xl border border-border shadow-sm p-3 flex flex-wrap items-center justify-between gap-4">
+          <div className="relative flex-1 min-w-[300px] max-w-sm">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input placeholder="Buscar planos..." value={searchInput} onChange={(e) => setSearchInput(e.target.value)} className="pl-10 h-10 border-none shadow-none bg-muted/50 rounded-lg focus-visible:ring-1" />
+          </div>
+          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+            <div className="flex p-1 gap-1 items-center">
+              <Button variant="outline" size="sm" className={`rounded-full h-8 px-4 text-xs font-semibold ${statusParam === "all" ? "border-primary text-primary" : "border-border text-muted-foreground"}`} onClick={() => updateQueryParams({ status: "all" })}>Todos</Button>
+              <Button variant="outline" size="sm" className={`rounded-full h-8 px-4 text-xs font-semibold ${statusParam === "active" ? "border-emerald-500 text-emerald-500" : "border-border text-muted-foreground"}`} onClick={() => updateQueryParams({ status: "active" })}><div className={`w-1.5 h-1.5 rounded-full mr-2 ${statusParam === "active" ? "bg-emerald-500" : "bg-emerald-500/50"}`} />Ativos</Button>
+              <Button variant="outline" size="sm" className={`rounded-full h-8 px-4 text-xs font-semibold ${statusParam === "paused" ? "border-yellow-500 text-yellow-500" : "border-border text-muted-foreground"}`} onClick={() => updateQueryParams({ status: "paused" })}><div className={`w-1.5 h-1.5 rounded-full mr-2 ${statusParam === "paused" ? "bg-yellow-500" : "bg-yellow-500/50"}`} />Pausados</Button>
+            </div>
+            <div className="w-[180px] border-l border-border/50 pl-2">
+              <ReactSelect value={sortOptions.find((opt) => opt.value === sortBy) || sortOptions[0]} onChange={(option) => updateQueryParams({ sort_by: option?.value || "created_desc" })} options={sortOptions} isSearchable={false} placeholder="Ordenar..." />
+            </div>
+            <Button className="h-10 px-5 font-semibold bg-primary hover:bg-primary/90 rounded-lg ml-2" onClick={handleOpenDialog}><Plus className="mr-2 h-4 w-4" />Novo Plano</Button>
+          </div>
+        </div>
+
+        {isLoading ? (
+          <div className="flex items-center justify-center py-20 bg-card rounded-xl border border-border shadow-sm"><div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" /></div>
+        ) : plans.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 bg-card rounded-xl border border-border shadow-sm text-center">
+            <Calendar className="h-12 w-12 text-muted-foreground/30 mb-4" />
+            <p className="text-muted-foreground text-lg font-medium">{search || statusParam !== "all" ? "Nenhum plano encontrado" : "Nenhum plano cadastrado"}</p>
+          </div>
+        ) : (
+          <div className="rounded-xl border border-border/80 bg-card shadow-sm overflow-hidden flex flex-col pt-2 pb-6">
+            <div className="overflow-x-auto">
+              <Table className="text-sm">
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Título</TableHead>
-                    <TableHead>Paciente</TableHead>
-                    <TableHead>Profissional</TableHead>
-                    <TableHead>Frequência</TableHead>
-                    <TableHead>Progresso</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Ações</TableHead>
+                     <SortableTableHead sortKey="title" title="PLANO" className="w-[280px]" />
+                     <TableHead className="font-bold text-xs uppercase tracking-wider text-muted-foreground/70">PACIENTE</TableHead>
+                     <TableHead className="font-bold text-xs uppercase tracking-wider text-muted-foreground/70">FREQUÊNCIA</TableHead>
+                     <TableHead className="font-bold text-xs uppercase tracking-wider text-muted-foreground/70">PROGRESSO</TableHead>
+                     <TableHead className="font-bold text-xs uppercase tracking-wider text-muted-foreground/70">STATUS</TableHead>
+                     <TableHead className="text-right font-bold text-xs uppercase tracking-wider text-muted-foreground/70">AÇÕES</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {plans.map((plan) => (
-                    <TableRow key={plan.id}>
-                      <TableCell className="font-medium">
-                        <div>
-                          <div>{plan.title}</div>
-                          <div className="text-sm text-muted-foreground line-clamp-1">
-                            {plan.description}
-                          </div>
-                        </div>
+                    <TableRow key={plan.id} className="group">
+                      <TableCell>
+                        <div className="font-bold text-foreground text-base truncate">{plan.title}</div>
+                        <div className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{plan.description || "—"}</div>
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-2">
-                          <User className="h-3 w-3 text-muted-foreground" />
-                          {plan.patient_name}
-                        </div>
+                        <div className="flex items-center gap-2"><User className="h-3 w-3 text-muted-foreground" />{plan.patient_name}</div>
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Briefcase className="h-3 w-3 text-muted-foreground" />
-                          {plan.professional_name || "Qualquer (Flexível)"}
-                        </div>
+                        <div className="flex items-center gap-2 text-muted-foreground"><Clock className="h-3 w-3" /><span>{frequencyLabels[plan.frequency]} às {plan.preferred_time}</span></div>
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Clock className="h-3 w-3 text-muted-foreground" />
-                          <span>
-                            {frequencyLabels[plan.frequency]} às {plan.preferred_time}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="w-[120px] space-y-1">
-                          <div className="flex justify-between text-xs">
-                            <span>
-                              {plan.sessions_done}/{plan.total_sessions === -1 ? "∞" : plan.total_sessions}
-                            </span>
+                        <div className="w-[100px] space-y-1.5">
+                          <div className="flex justify-between text-[11px] font-medium text-muted-foreground">
+                            <span>{plan.sessions_done}/{plan.total_sessions === -1 ? "∞" : plan.total_sessions}</span>
                             <span>{plan.progress}%</span>
                           </div>
-                          <Progress value={plan.progress} className="h-1" />
+                          <Progress value={plan.progress} className="h-1.5" />
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge variant={statusVariants[plan.status]} className="text-xs">
-                          {statusLabels[plan.status]}
-                        </Badge>
+                         <Badge variant={statusVariants[plan.status]} className="font-medium px-2 py-0.5">{statusLabels[plan.status]}</Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex justify-end gap-1">
+                        <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           {plan.status === "active" && (
                             <>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8"
-                                onClick={() => handlePause(plan.id)}
-                                title="Pausar"
-                              >
-                                <Pause className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8"
-                                onClick={() => handleGenerate(plan.id)}
-                                disabled={!plan.professional_id}
-                                title={!plan.professional_id ? "Requer agendamento manual" : "Gerar próximas sessões"}
-                              >
-                                <RefreshCw className="h-4 w-4" />
-                              </Button>
+                              <Button variant="outline" size="icon" className="h-8 w-8 text-muted-foreground hover:text-green-500 hover:bg-green-500/10" title="Gerar Sessões" onClick={() => handleGenerate(plan.id)}><RefreshCw className="h-3 w-3" /></Button>
+                              <Button variant="outline" size="icon" className="h-8 w-8 text-muted-foreground hover:text-yellow-500 hover:bg-yellow-500/10" title="Pausar" onClick={() => handlePause(plan.id)}><Pause className="h-3 w-3" /></Button>
                             </>
                           )}
                           {plan.status === "paused" && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8"
-                              onClick={() => handleResume(plan.id)}
-                              title="Retomar"
-                            >
-                              <Play className="h-4 w-4" />
-                            </Button>
+                            <Button variant="outline" size="icon" className="h-8 w-8 text-muted-foreground hover:text-emerald-500 hover:bg-emerald-500/10" title="Retomar" onClick={() => handleResume(plan.id)}><Play className="h-3 w-3 ml-0.5" /></Button>
                           )}
-                          {(plan.status === "active" || plan.status === "paused") && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-destructive"
-                              onClick={() => handleCancel(plan.id)}
-                              title="Cancelar"
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
+                          {plan.status !== "cancelled" && plan.status !== "completed" && (
+                            <Button variant="outline" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10" title="Cancelar" onClick={() => handleCancel(plan.id)}><X className="h-4 w-4" /></Button>
                           )}
                         </div>
                       </TableCell>
@@ -861,71 +676,46 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
                 </TableBody>
               </Table>
             </div>
-          )}
-        </div>
+            <DataTablePagination meta={{ page, limit, total, total_pages: totalPages }} entityName="planos" />
+          </div>
+        )}
       </div>
 
-      {/* Create Plan Dialog (Wizard) */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-xl">
-          <DialogHeader>
-            <DialogTitle>Novo Plano de Sessão</DialogTitle>
-            <DialogDescription>
-              Configure o pacote de sessões em 5 passos simples
-            </DialogDescription>
-          </DialogHeader>
-
-          {/* Stepper */}
-          <div className="relative flex items-center justify-between px-2 py-4">
-            <div className="absolute left-0 top-1/2 h-0.5 w-full -translate-y-1/2 bg-muted" />
-            {steps.map((step) => {
-              const isActive = step.id === currentStep
-              const isCompleted = step.id < currentStep
-              return (
-                <div key={step.id} className="relative z-10 flex flex-col items-center gap-1 bg-background px-2">
-                  <div
-                    className={cn(
-                      "flex h-8 w-8 items-center justify-center rounded-full border-2 transition-colors",
-                      isActive && "border-primary bg-primary text-primary-foreground",
-                      isCompleted && "border-primary bg-primary text-primary-foreground",
-                      !isActive && !isCompleted && "border-muted-foreground bg-background text-muted-foreground"
-                    )}
-                  >
-                    {isCompleted ? <Check className="h-4 w-4" /> : <span className="text-xs">{step.id}</span>}
+        <DialogContent className="sm:max-w-[600px] p-0 overflow-hidden">
+          <div className="p-6 pb-0">
+            <DialogHeader>
+              <DialogTitle>Novo Plano de Sessão</DialogTitle>
+              <DialogDescription>Crie um plano recorrente para facilitar o agendamento</DialogDescription>
+            </DialogHeader>
+            <div className="mt-6 flex items-center justify-between px-2 text-sm text-muted-foreground">
+              {steps.map((step, index) => (
+                <div key={step.id} className="flex flex-col items-center">
+                  <div className={`flex h-8 w-8 items-center justify-center rounded-full border-2 ${currentStep === step.id ? "border-primary bg-primary text-primary-foreground text-xs" : currentStep > step.id ? "border-primary bg-primary/20 text-primary text-xs" : "border-muted text-muted-foreground text-xs"}`}>
+                    {currentStep > step.id ? <Check className="h-4 w-4" /> : step.id}
                   </div>
-                  <span className={cn("text-[10px] font-medium uppercase", isActive ? "text-primary" : "text-muted-foreground")}>
-                    {step.title}
-                  </span>
+                  <span className={`mt-2 hidden sm:block text-[10px] font-medium ${currentStep === step.id ? "text-foreground" : ""}`}>{step.title}</span>
                 </div>
-              )
-            })}
+              ))}
+            </div>
           </div>
-
-          <form onSubmit={handleSubmit(onSubmit)}>
-            <div className="min-h-[300px]">
+          <form className="p-6">
+            <div className="min-h-[300px] max-h-[50vh] overflow-y-auto">
               {renderStepContent()}
             </div>
-
-            <DialogFooter className="flex justify-between sm:justify-between">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={currentStep === 1 ? () => setIsDialogOpen(false) : handleBack}
-              >
-                {currentStep === 1 ? "Cancelar" : <><ArrowLeft className="mr-2 h-4 w-4" /> Voltar</>}
-              </Button>
-              
-              {currentStep < 5 ? (
-                <Button type="button" onClick={handleNext}>
-                  Próximo <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              ) : (
-                <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? "Criando..." : "Criar Plano"}
-                </Button>
-              )}
-            </DialogFooter>
           </form>
+          <div className="p-6 pt-0 border-t bg-muted/20 flex justify-between mt-4 border-t-2 border-dashed border-border/50 items-center">
+             <div className="pt-4 flex w-full justify-between">
+                <Button type="button" variant="outline" onClick={currentStep === 1 ? () => setIsDialogOpen(false) : handleBack} disabled={isSubmitting}>
+                  {currentStep === 1 ? "Cancelar" : <><ArrowLeft className="mr-2 h-4 w-4" /> Voltar</>}
+                </Button>
+                {currentStep < steps.length ? (
+                  <Button type="button" onClick={handleNext}>Próximo <ArrowRight className="ml-2 h-4 w-4" /></Button>
+                ) : (
+                  <Button type="button" onClick={handleSubmit(onSubmit)} disabled={isSubmitting}>{isSubmitting ? "Criando..." : "Criar Plano"}</Button>
+                )}
+             </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

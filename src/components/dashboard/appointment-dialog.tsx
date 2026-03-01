@@ -122,7 +122,7 @@ export function AppointmentDialog({
   const fetchPatients = useCallback(async () => {
     setPatientsLoading(true)
     try {
-      const response = await api.getPatients(1, 200)
+      const response = await api.getPatients({ limit: 200 })
       setPatients(response.data || [])
     } catch (error) {
       console.error("Error fetching patients:", error)
@@ -135,7 +135,7 @@ export function AppointmentDialog({
   const fetchProcedures = useCallback(async () => {
     setProceduresLoading(true)
     try {
-      const response = await api.getProcedures(1, 100)
+      const response = await api.getProcedures({ page: 1, limit: 100 })
       setProcedures(response.data || [])
     } catch (error) {
       console.error("Error fetching procedures:", error)
