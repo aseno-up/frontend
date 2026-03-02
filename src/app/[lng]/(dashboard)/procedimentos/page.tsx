@@ -30,6 +30,8 @@ import {
 import { Label } from "@/components/ui/label"
 import { CurrencyInput } from "@/components/ui/currency-input"
 import { ReactSelect, SelectOption } from "@/components/ui/react-select"
+import { Checkbox } from "@/components/ui/checkbox"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { api } from "@/lib/api/client"
 import { showToast, handleApiError } from "@/lib/toast"
 import type { Procedure, PaginatedResponse } from "@/types/api"
@@ -77,6 +79,28 @@ export default function ProcedimentosPage({ params }: ProcedimentosPageProps) {
   const [isSaving, setIsSaving] = useState(false)
   
   const [searchInput, setSearchInput] = useState(search)
+
+  // Bulk Actions & Delete state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false)
+  const [procedureToDelete, setProcedureToDelete] = useState<Procedure | null>(null)
+  const [bulkDeleteModalOpen, setBulkDeleteModalOpen] = useState(false)
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      const allIds = new Set(procedures.map(p => p.id))
+      setSelectedIds(allIds)
+    } else {
+      setSelectedIds(new Set())
+    }
+  }
+
+  const handleSelectOne = (checked: boolean, id: string) => {
+    const newSet = new Set(selectedIds)
+    if (checked) newSet.add(id)
+    else newSet.delete(id)
+    setSelectedIds(newSet)
+  }
 
   const {
     register,
@@ -129,6 +153,7 @@ export default function ProcedimentosPage({ params }: ProcedimentosPageProps) {
       setProcedures(response.data || [])
       setTotal(response.meta?.total || 0)
       setTotalPages(response.meta?.total_pages || 1)
+      setSelectedIds(new Set()) // Reset selection on page change/fetch
       
       // Calculate local actives/inactives (Mock para fins de UI ja que na lista tudo e ativo, exceto talvez uns excluidos logicos)
       // Assuming `is_active` might exist, otherwise pretend it is 100% active.
@@ -183,15 +208,26 @@ export default function ProcedimentosPage({ params }: ProcedimentosPageProps) {
     }
   }
 
-  const handleDelete = async (procedure: Procedure) => {
-    if (!confirm(`Tem certeza que deseja excluir ${procedure.name}?`)) return
-
+  const confirmDelete = async () => {
+    if (!procedureToDelete) return
     try {
-      await api.deleteProcedure(procedure.id)
+      await api.deleteProcedure(procedureToDelete.id)
       showToast.success("Procedimento excluído com sucesso!")
       fetchProcedures()
     } catch (error) {
       handleApiError(error, "Erro ao excluir procedimento")
+    }
+  }
+
+  const confirmBulkDelete = async () => {
+    if (selectedIds.size === 0) return
+    try {
+      await api.bulkDeleteProcedures(Array.from(selectedIds))
+      showToast.success(`${selectedIds.size} procedimentos excluídos com sucesso!`)
+      setSelectedIds(new Set())
+      fetchProcedures()
+    } catch (error) {
+      handleApiError(error, "Erro ao excluir procedimentos em massa")
     }
   }
 
@@ -206,9 +242,9 @@ export default function ProcedimentosPage({ params }: ProcedimentosPageProps) {
     <div className="flex h-full flex-col">
       <Header lng={lng} title="Procedimentos" tutorialPage="procedimentos" />
 
-      <div className="flex-1 p-4 md:p-6 space-y-6">
+      <div className="flex-1 p-4 md:p-6 flex flex-col gap-6 overflow-hidden">
         {/* Status Cards Container */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 shrink-0">
           <div className="bg-card rounded-xl border border-border shadow-sm p-4 flex items-center gap-4">
             <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
                <Activity className="w-6 h-6" />
@@ -239,7 +275,7 @@ export default function ProcedimentosPage({ params }: ProcedimentosPageProps) {
         </div>
 
         {/* Filter Toolbar */}
-        <div className="bg-card rounded-xl border border-border shadow-sm p-3 flex flex-wrap items-center justify-between gap-4">
+        <div className="bg-card rounded-xl border border-border shadow-sm p-3 flex flex-wrap items-center justify-between gap-4 shrink-0">
           <div className="relative flex-1 min-w-[300px] max-w-sm">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -251,6 +287,16 @@ export default function ProcedimentosPage({ params }: ProcedimentosPageProps) {
           </div>
 
           <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+            {selectedIds.size > 0 && (
+              <Button 
+                variant="destructive" 
+                className="h-9 px-4 font-semibold mr-2 animate-in fade-in"
+                onClick={() => setBulkDeleteModalOpen(true)}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Excluir ({selectedIds.size})
+              </Button>
+            )}
             <div className="flex p-1 gap-1 items-center">
               <Button 
                 variant="outline" 
@@ -290,7 +336,7 @@ export default function ProcedimentosPage({ params }: ProcedimentosPageProps) {
               />
             </div>
 
-            <Button className="h-10 px-5 font-semibold bg-emerald-500 hover:bg-emerald-600 rounded-lg ml-2" onClick={() => handleOpenDialog()}>
+            <Button className="h-10 px-5 font-semibold bg-primary hover:bg-primary/90 rounded-lg ml-2" onClick={() => handleOpenDialog()}>
               <Plus className="mr-2 h-4 w-4" />
               Novo Procedimento
             </Button>
@@ -312,11 +358,17 @@ export default function ProcedimentosPage({ params }: ProcedimentosPageProps) {
             </p>
           </div>
         ) : (
-          <div className="rounded-xl border border-border/80 bg-card shadow-sm overflow-hidden flex flex-col pt-2 pb-6">
-            <div className="overflow-x-auto">
-              <Table className="text-sm">
-                <TableHeader>
+          <div className="rounded-xl border border-border/80 bg-card shadow-sm overflow-hidden flex flex-col flex-1">
+            <Table className="text-sm" wrapperClassName="flex-1 overflow-auto">
+              <TableHeader className="sticky top-0 bg-slate-50 z-20 shadow-sm dark:bg-slate-900 border-b">
                   <TableRow>
+                    <TableHead className="w-[40px] px-4">
+                      <Checkbox 
+                        checked={procedures.length > 0 && selectedIds.size === procedures.length}
+                        onCheckedChange={handleSelectAll}
+                        aria-label="Selecionar todos"
+                      />
+                    </TableHead>
                      <SortableTableHead sortKey="name" title="PROCEDIMENTO" className="w-[350px]" />
                      <TableHead className="font-bold text-xs uppercase tracking-wider text-muted-foreground/70">DESCRIÇÃO</TableHead>
                      <TableHead className="font-bold text-xs uppercase tracking-wider text-muted-foreground/70">DURAÇÃO</TableHead>
@@ -325,8 +377,17 @@ export default function ProcedimentosPage({ params }: ProcedimentosPageProps) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {procedures.map((procedure) => (
-                    <TableRow key={procedure.id} className="group">
+                  {procedures.map((procedure) => {
+                    const isSelected = selectedIds.has(procedure.id)
+                    return (
+                    <TableRow key={procedure.id} className="group" data-state={isSelected ? "selected" : undefined}>
+                      <TableCell className="px-4">
+                        <Checkbox 
+                          checked={isSelected}
+                          onCheckedChange={(checked) => handleSelectOne(!!checked, procedure.id)}
+                          aria-label={`Selecionar ${procedure.name}`}
+                        />
+                      </TableCell>
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-3">
                           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary shrink-0 transition-transform group-hover:scale-105">
@@ -355,7 +416,7 @@ export default function ProcedimentosPage({ params }: ProcedimentosPageProps) {
                         </span>
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex justify-end gap-1">
                           <Button
                             variant="outline"
                             size="icon"
@@ -370,19 +431,24 @@ export default function ProcedimentosPage({ params }: ProcedimentosPageProps) {
                             size="icon"
                             className="h-8 w-8 rounded-md bg-transparent border-border text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                             title="Excluir"
-                            onClick={() => handleDelete(procedure)}
+                            onClick={() => {
+                              setProcedureToDelete(procedure)
+                              setDeleteModalOpen(true)
+                            }}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
                       </TableCell>
                     </TableRow>
-                  ))}
+                    )
+                  })}
                 </TableBody>
               </Table>
-            </div>
             
-            <DataTablePagination meta={{ page, limit, total, total_pages: totalPages }} entityName="procedimentos" />
+            <div className="border-t p-4 shrink-0 bg-card">
+              <DataTablePagination meta={{ page, limit, total, total_pages: totalPages }} entityName="procedimentos" />
+            </div>
           </div>
         )}
       </div>
@@ -478,6 +544,22 @@ export default function ProcedimentosPage({ params }: ProcedimentosPageProps) {
           </form>
         </DialogContent>
       </Dialog>
+      
+      <ConfirmDialog 
+        open={deleteModalOpen}
+        onOpenChange={setDeleteModalOpen}
+        onConfirm={confirmDelete}
+        title="Excluir Procedimento"
+        description={`Tem certeza que deseja excluir o procedimento ${procedureToDelete?.name}? Esta ação não pode ser desfeita.`}
+      />
+
+      <ConfirmDialog 
+        open={bulkDeleteModalOpen}
+        onOpenChange={setBulkDeleteModalOpen}
+        onConfirm={confirmBulkDelete}
+        title="Excluir Procedimentos"
+        description={`Tem certeza que deseja excluir ${selectedIds.size} procedimentos selecionados? Esta ação não pode ser desfeita e todos os dados associados poderão ser perdidos.`}
+      />
     </div>
   )
 }

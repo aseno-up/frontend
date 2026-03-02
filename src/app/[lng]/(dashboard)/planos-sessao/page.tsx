@@ -44,6 +44,8 @@ import {
 import { Textarea } from "@/components/ui/textarea"
 import { CurrencyInput } from "@/components/ui/currency-input"
 import { ReactSelect, SelectOption } from "@/components/ui/react-select"
+import { Checkbox } from "@/components/ui/checkbox"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { Switch } from "@/components/ui/switch"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { cn } from "@/lib/utils"
@@ -152,6 +154,28 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
   const [currentStep, setCurrentStep] = useState(1)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  // Bulk Actions & Cancel state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [cancelModalOpen, setCancelModalOpen] = useState(false)
+  const [planToCancel, setPlanToCancel] = useState<SessionPlan | null>(null)
+  const [bulkCancelModalOpen, setBulkCancelModalOpen] = useState(false)
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      const allIds = new Set(plans.map(p => p.id))
+      setSelectedIds(allIds)
+    } else {
+      setSelectedIds(new Set())
+    }
+  }
+
+  const handleSelectOne = (checked: boolean, id: string) => {
+    const newSet = new Set(selectedIds)
+    if (checked) newSet.add(id)
+    else newSet.delete(id)
+    setSelectedIds(newSet)
+  }
+
   const {
     register,
     handleSubmit,
@@ -250,6 +274,7 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
       setPlans(resp.data || [])
       setTotal(resp.meta?.total || 0)
       setTotalPages(resp.meta?.total_pages || 1)
+      setSelectedIds(new Set())
       
       const activeList = (resp.data || []).filter((p: any) => p.status === 'active')
       const completedList = (resp.data || []).filter((p: any) => p.status === 'completed')
@@ -352,10 +377,25 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
     catch (err) { handleApiError(err, "Erro ao retomar plano") }
   }
 
-  const handleCancel = async (id: string) => {
-    if (!confirm("Tem certeza que deseja cancelar este plano?")) return
-    try { await api.cancelSessionPlan(id); showToast.success("Plano cancelado!"); fetchPlans() } 
-    catch (err) { handleApiError(err, "Erro ao cancelar plano") }
+  const confirmCancel = async () => {
+    if (!planToCancel) return
+    try { 
+      await api.cancelSessionPlan(planToCancel.id)
+      showToast.success("Plano cancelado com sucesso!")
+      fetchPlans() 
+    } catch (err) { handleApiError(err, "Erro ao cancelar plano") }
+  }
+
+  const confirmBulkCancel = async () => {
+    if (selectedIds.size === 0) return
+    try {
+      await api.bulkCancelSessionPlans(Array.from(selectedIds))
+      showToast.success(`${selectedIds.size} planos cancelados com sucesso!`)
+      setSelectedIds(new Set())
+      fetchPlans()
+    } catch (error) {
+      handleApiError(error, "Erro ao cancelar planos em massa")
+    }
   }
 
   const handleGenerate = async (id: string) => {
@@ -566,8 +606,8 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
   return (
     <div className="flex h-full flex-col">
       <Header lng={lng} title="Planos de Sessão" tutorialPage="planos-sessao" />
-      <div className="flex-1 p-4 md:p-6 space-y-6 overflow-auto">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="flex-1 p-4 md:p-6 flex flex-col gap-6 overflow-hidden">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 shrink-0">
           <div className="bg-card rounded-xl border border-border shadow-sm p-4 flex items-center gap-4">
             <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0"><Calendar className="w-6 h-6" /></div>
             <div>
@@ -591,12 +631,22 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
           </div>
         </div>
 
-        <div className="bg-card rounded-xl border border-border shadow-sm p-3 flex flex-wrap items-center justify-between gap-4">
+        <div className="bg-card rounded-xl border border-border shadow-sm p-3 flex flex-wrap items-center justify-between gap-4 shrink-0">
           <div className="relative flex-1 min-w-[300px] max-w-sm">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input placeholder="Buscar planos..." value={searchInput} onChange={(e) => setSearchInput(e.target.value)} className="pl-10 h-10 border-none shadow-none bg-muted/50 rounded-lg focus-visible:ring-1" />
           </div>
           <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+            {selectedIds.size > 0 && (
+              <Button 
+                variant="destructive" 
+                className="h-9 px-4 font-semibold mr-2 animate-in fade-in"
+                onClick={() => setBulkCancelModalOpen(true)}
+              >
+                <X className="mr-2 h-4 w-4" />
+                Cancelar ({selectedIds.size})
+              </Button>
+            )}
             <div className="flex p-1 gap-1 items-center">
               <Button variant="outline" size="sm" className={`rounded-full h-8 px-4 text-xs font-semibold ${statusParam === "all" ? "border-primary text-primary" : "border-border text-muted-foreground"}`} onClick={() => updateQueryParams({ status: "all" })}>Todos</Button>
               <Button variant="outline" size="sm" className={`rounded-full h-8 px-4 text-xs font-semibold ${statusParam === "active" ? "border-emerald-500 text-emerald-500" : "border-border text-muted-foreground"}`} onClick={() => updateQueryParams({ status: "active" })}><div className={`w-1.5 h-1.5 rounded-full mr-2 ${statusParam === "active" ? "bg-emerald-500" : "bg-emerald-500/50"}`} />Ativos</Button>
@@ -617,11 +667,17 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
             <p className="text-muted-foreground text-lg font-medium">{search || statusParam !== "all" ? "Nenhum plano encontrado" : "Nenhum plano cadastrado"}</p>
           </div>
         ) : (
-          <div className="rounded-xl border border-border/80 bg-card shadow-sm overflow-hidden flex flex-col pt-2 pb-6">
-            <div className="overflow-x-auto">
-              <Table className="text-sm">
-                <TableHeader>
+          <div className="rounded-xl border border-border/80 bg-card shadow-sm overflow-hidden flex flex-col flex-1">
+            <Table className="text-sm" wrapperClassName="flex-1 overflow-auto">
+              <TableHeader className="sticky top-0 bg-slate-50 z-20 shadow-sm dark:bg-slate-900 border-b">
                   <TableRow>
+                     <TableHead className="w-[40px] px-4">
+                      <Checkbox 
+                        checked={plans.length > 0 && selectedIds.size === plans.length}
+                        onCheckedChange={handleSelectAll}
+                        aria-label="Selecionar todos"
+                      />
+                    </TableHead>
                      <SortableTableHead sortKey="title" title="PLANO" className="w-[280px]" />
                      <TableHead className="font-bold text-xs uppercase tracking-wider text-muted-foreground/70">PACIENTE</TableHead>
                      <TableHead className="font-bold text-xs uppercase tracking-wider text-muted-foreground/70">FREQUÊNCIA</TableHead>
@@ -631,8 +687,17 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {plans.map((plan) => (
-                    <TableRow key={plan.id} className="group">
+                  {plans.map((plan) => {
+                    const isSelected = selectedIds.has(plan.id)
+                    return (
+                    <TableRow key={plan.id} className="group" data-state={isSelected ? "selected" : undefined}>
+                      <TableCell className="px-4">
+                        <Checkbox 
+                          checked={isSelected}
+                          onCheckedChange={(checked) => handleSelectOne(!!checked, plan.id)}
+                          aria-label={`Selecionar plano ${plan.title}`}
+                        />
+                      </TableCell>
                       <TableCell>
                         <div className="font-bold text-foreground text-base truncate">{plan.title}</div>
                         <div className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{plan.description || "—"}</div>
@@ -656,7 +721,7 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
                          <Badge variant={statusVariants[plan.status]} className="font-medium px-2 py-0.5">{statusLabels[plan.status]}</Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex justify-end gap-1">
                           {plan.status === "active" && (
                             <>
                               <Button variant="outline" size="icon" className="h-8 w-8 text-muted-foreground hover:text-green-500 hover:bg-green-500/10" title="Gerar Sessões" onClick={() => handleGenerate(plan.id)}><RefreshCw className="h-3 w-3" /></Button>
@@ -666,17 +731,19 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
                           {plan.status === "paused" && (
                             <Button variant="outline" size="icon" className="h-8 w-8 text-muted-foreground hover:text-emerald-500 hover:bg-emerald-500/10" title="Retomar" onClick={() => handleResume(plan.id)}><Play className="h-3 w-3 ml-0.5" /></Button>
                           )}
-                          {plan.status !== "cancelled" && plan.status !== "completed" && (
-                            <Button variant="outline" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10" title="Cancelar" onClick={() => handleCancel(plan.id)}><X className="h-4 w-4" /></Button>
+                           {plan.status !== "cancelled" && plan.status !== "completed" && (
+                            <Button variant="outline" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10" title="Cancelar" onClick={() => { setPlanToCancel(plan); setCancelModalOpen(true); }}><X className="h-4 w-4" /></Button>
                           )}
                         </div>
                       </TableCell>
                     </TableRow>
-                  ))}
+                    )
+                  })}
                 </TableBody>
               </Table>
+            <div className="border-t p-4 shrink-0 bg-card">
+              <DataTablePagination meta={{ page, limit, total, total_pages: totalPages }} entityName="planos" />
             </div>
-            <DataTablePagination meta={{ page, limit, total, total_pages: totalPages }} entityName="planos" />
           </div>
         )}
       </div>
@@ -718,6 +785,22 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
           </div>
         </DialogContent>
       </Dialog>
+      
+      <ConfirmDialog 
+        open={cancelModalOpen}
+        onOpenChange={setCancelModalOpen}
+        onConfirm={confirmCancel}
+        title="Cancelar Plano de Sessão"
+        description={`Tem certeza que deseja cancelar o plano ${planToCancel?.title}? Esta ação não pode ser desfeita e novas sessões não serão geradas.`}
+      />
+
+      <ConfirmDialog 
+        open={bulkCancelModalOpen}
+        onOpenChange={setBulkCancelModalOpen}
+        onConfirm={confirmBulkCancel}
+        title="Cancelar Planos de Sessão"
+        description={`Tem certeza que deseja cancelar ${selectedIds.size} planos selecionados? Esta ação não pode ser desfeita.`}
+      />
     </div>
   )
 }

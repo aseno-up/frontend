@@ -30,6 +30,8 @@ import {
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ReactSelect, SelectOption } from "@/components/ui/react-select"
+import { Checkbox } from "@/components/ui/checkbox"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { api } from "@/lib/api/client"
 import { showToast, handleApiError } from "@/lib/toast"
 import { WorkingHoursEditor } from "@/components/professionals/working-hours-editor"
@@ -103,6 +105,28 @@ export default function ProfissionaisPage({ params }: ProfissionaisPageProps) {
 
   const [searchInput, setSearchInput] = useState(search)
 
+  // Bulk Actions & Delete state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false)
+  const [professionalToDelete, setProfessionalToDelete] = useState<Professional | null>(null)
+  const [bulkDeleteModalOpen, setBulkDeleteModalOpen] = useState(false)
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      const allIds = new Set(professionals.map(p => p.id))
+      setSelectedIds(allIds)
+    } else {
+      setSelectedIds(new Set())
+    }
+  }
+
+  const handleSelectOne = (checked: boolean, id: string) => {
+    const newSet = new Set(selectedIds)
+    if (checked) newSet.add(id)
+    else newSet.delete(id)
+    setSelectedIds(newSet)
+  }
+
   const {
     register,
     handleSubmit,
@@ -154,6 +178,7 @@ export default function ProfissionaisPage({ params }: ProfissionaisPageProps) {
       setProfessionals(response.data || [])
       setTotal(response.meta?.total || 0)
       setTotalPages(response.meta?.total_pages || 1)
+      setSelectedIds(new Set()) // Reset selection on page change/fetch
       
       // Calculate local actives/inactives and specialties as mock 
       const activeList = (response.data || []).filter((p: Professional) => p.is_active)
@@ -231,15 +256,26 @@ export default function ProfissionaisPage({ params }: ProfissionaisPageProps) {
     }
   }
 
-  const handleDelete = async (professional: Professional) => {
-    if (!confirm(`Tem certeza que deseja excluir ${professional.name}?`)) return
-
+  const confirmDelete = async () => {
+    if (!professionalToDelete) return
     try {
-      await api.deleteProfessional(professional.id)
-      showToast.success("Profissional excluido com sucesso!")
+      await api.deleteProfessional(professionalToDelete.id)
+      showToast.success("Profissional excluído com sucesso!")
       fetchProfessionals()
     } catch (error) {
       handleApiError(error, "Erro ao excluir profissional")
+    }
+  }
+
+  const confirmBulkDelete = async () => {
+    if (selectedIds.size === 0) return
+    try {
+      await api.bulkDeleteProfessionals(Array.from(selectedIds))
+      showToast.success(`${selectedIds.size} profissionais excluídos com sucesso!`)
+      setSelectedIds(new Set())
+      fetchProfessionals()
+    } catch (error) {
+      handleApiError(error, "Erro ao excluir profissionais em massa")
     }
   }
 
@@ -259,9 +295,9 @@ export default function ProfissionaisPage({ params }: ProfissionaisPageProps) {
     <div className="flex h-full flex-col">
       <Header lng={lng} title="Profissionais" tutorialPage="profissionais" />
 
-      <div className="flex-1 p-4 md:p-6 space-y-6">
+      <div className="flex-1 p-4 md:p-6 flex flex-col gap-6 overflow-hidden">
         {/* Status Cards Container */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 shrink-0">
           <div className="bg-card rounded-xl border border-border shadow-sm p-4 flex items-center gap-4">
             <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
                <Users className="w-6 h-6" />
@@ -301,7 +337,7 @@ export default function ProfissionaisPage({ params }: ProfissionaisPageProps) {
         </div>
 
         {/* Filter Toolbar */}
-        <div className="bg-card rounded-xl border border-border shadow-sm p-3 flex flex-wrap items-center justify-between gap-4">
+        <div className="bg-card rounded-xl border border-border shadow-sm p-3 flex flex-wrap items-center justify-between gap-4 shrink-0">
           <div className="relative flex-1 min-w-[300px] max-w-sm">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -313,6 +349,16 @@ export default function ProfissionaisPage({ params }: ProfissionaisPageProps) {
           </div>
 
           <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+            {selectedIds.size > 0 && (
+              <Button 
+                variant="destructive" 
+                className="h-9 px-4 font-semibold mr-2 animate-in fade-in"
+                onClick={() => setBulkDeleteModalOpen(true)}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Excluir ({selectedIds.size})
+              </Button>
+            )}
             <div className="flex p-1 gap-1 items-center">
               <Button 
                 variant="outline" 
@@ -352,7 +398,7 @@ export default function ProfissionaisPage({ params }: ProfissionaisPageProps) {
               />
             </div>
 
-            <Button className="h-10 px-5 font-semibold bg-emerald-500 hover:bg-emerald-600 rounded-lg ml-2" onClick={() => handleOpenDialog()}>
+            <Button className="h-10 px-5 font-semibold bg-primary hover:bg-primary/90 rounded-lg ml-2" onClick={() => handleOpenDialog()}>
               <Plus className="mr-2 h-4 w-4" />
               Novo Profissional
             </Button>
@@ -374,11 +420,17 @@ export default function ProfissionaisPage({ params }: ProfissionaisPageProps) {
             </p>
           </div>
         ) : (
-          <div className="rounded-xl border border-border/80 bg-card shadow-sm overflow-hidden flex flex-col pt-2 pb-6">
-            <div className="overflow-x-auto">
-              <Table className="text-sm">
-                <TableHeader>
+          <div className="rounded-xl border border-border/80 bg-card shadow-sm overflow-hidden flex flex-col flex-1">
+            <Table className="text-sm" wrapperClassName="flex-1 overflow-auto">
+              <TableHeader className="sticky top-0 bg-slate-50 z-20 shadow-sm dark:bg-slate-900 border-b">
                   <TableRow>
+                    <TableHead className="w-[40px] px-4">
+                      <Checkbox 
+                        checked={professionals.length > 0 && selectedIds.size === professionals.length}
+                        onCheckedChange={handleSelectAll}
+                        aria-label="Selecionar todos"
+                      />
+                    </TableHead>
                      <SortableTableHead sortKey="name" title="PROFISSIONAL" className="w-[350px]" />
                      <SortableTableHead sortKey="specialty" title="ESPECIALIDADE" />
                     <TableHead className="font-bold text-xs uppercase tracking-wider text-muted-foreground/70">CONTATO</TableHead>
@@ -387,8 +439,17 @@ export default function ProfissionaisPage({ params }: ProfissionaisPageProps) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {professionals.map((professional) => (
-                    <TableRow key={professional.id} className="group">
+                  {professionals.map((professional) => {
+                    const isSelected = selectedIds.has(professional.id)
+                    return (
+                    <TableRow key={professional.id} className="group" data-state={isSelected ? "selected" : undefined}>
+                      <TableCell className="px-4">
+                        <Checkbox 
+                          checked={isSelected}
+                          onCheckedChange={(checked) => handleSelectOne(!!checked, professional.id)}
+                          aria-label={`Selecionar ${professional.name}`}
+                        />
+                      </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-3">
                           <div 
@@ -445,7 +506,7 @@ export default function ProfissionaisPage({ params }: ProfissionaisPageProps) {
                         )}
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex justify-end gap-1">
                           <Button
                             variant="outline"
                             size="icon"
@@ -460,19 +521,24 @@ export default function ProfissionaisPage({ params }: ProfissionaisPageProps) {
                             size="icon"
                             className="h-8 w-8 rounded-md bg-transparent border-border text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                             title="Excluir"
-                            onClick={() => handleDelete(professional)}
+                            onClick={() => {
+                              setProfessionalToDelete(professional)
+                              setDeleteModalOpen(true)
+                            }}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
                       </TableCell>
                     </TableRow>
-                  ))}
+                    )
+                  })}
                 </TableBody>
               </Table>
-            </div>
             
-            <DataTablePagination meta={{ page, limit, total, total_pages: totalPages }} entityName="profissionais" />
+            <div className="border-t p-4 shrink-0 bg-card">
+              <DataTablePagination meta={{ page, limit, total, total_pages: totalPages }} entityName="profissionais" />
+            </div>
           </div>
         )}
       </div>
@@ -613,6 +679,22 @@ export default function ProfissionaisPage({ params }: ProfissionaisPageProps) {
           </form>
         </DialogContent>
       </Dialog>
+      
+      <ConfirmDialog 
+        open={deleteModalOpen}
+        onOpenChange={setDeleteModalOpen}
+        onConfirm={confirmDelete}
+        title="Excluir Profissional"
+        description={`Tem certeza que deseja excluir o profissional ${professionalToDelete?.name}? Esta ação não pode ser desfeita.`}
+      />
+
+      <ConfirmDialog 
+        open={bulkDeleteModalOpen}
+        onOpenChange={setBulkDeleteModalOpen}
+        onConfirm={confirmBulkDelete}
+        title="Excluir Profissionais"
+        description={`Tem certeza que deseja excluir ${selectedIds.size} profissionais selecionados? Esta ação não pode ser desfeita e todos os dados relacionados serão perdidos.`}
+      />
     </div>
   )
 }

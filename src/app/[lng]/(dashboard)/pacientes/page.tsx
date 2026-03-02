@@ -29,6 +29,8 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { ReactSelect, SelectOption } from "@/components/ui/react-select"
+import { Checkbox } from "@/components/ui/checkbox"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { api } from "@/lib/api/client"
 import { showToast, handleApiError } from "@/lib/toast"
 import type { Patient, PaginatedResponse } from "@/types/api"
@@ -109,6 +111,28 @@ export default function PacientesPage({ params }: PacientesPageProps) {
 
   const [searchInput, setSearchInput] = useState(search)
 
+  // Bulk Actions & Delete state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false)
+  const [patientToDelete, setPatientToDelete] = useState<Patient | null>(null)
+  const [bulkDeleteModalOpen, setBulkDeleteModalOpen] = useState(false)
+  
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      const allIds = new Set(patients.map(p => p.id))
+      setSelectedIds(allIds)
+    } else {
+      setSelectedIds(new Set())
+    }
+  }
+
+  const handleSelectOne = (checked: boolean, id: string) => {
+    const newSet = new Set(selectedIds)
+    if (checked) newSet.add(id)
+    else newSet.delete(id)
+    setSelectedIds(newSet)
+  }
+
   const {
     register,
     handleSubmit,
@@ -163,6 +187,7 @@ export default function PacientesPage({ params }: PacientesPageProps) {
       setPatients(response.data || [])
       setTotal(response.meta?.total || 0)
       setTotalPages(response.meta?.total_pages || 1)
+      setSelectedIds(new Set()) // Reset selection on page change/fetch
       
       // Calculate local completes / incompletes as mock for now, 
       // ideally backend would return this in meta!
@@ -229,15 +254,26 @@ export default function PacientesPage({ params }: PacientesPageProps) {
     }
   }
 
-  const handleDelete = async (patient: Patient) => {
-    if (!confirm(`Tem certeza que deseja excluir ${patient.name}?`)) return
-
+  const confirmDelete = async () => {
+    if (!patientToDelete) return
     try {
-      await api.deletePatient(patient.id)
-      showToast.success("Paciente excluido com sucesso!")
+      await api.deletePatient(patientToDelete.id)
+      showToast.success("Paciente excluído com sucesso!")
       fetchPatients()
     } catch (error) {
       handleApiError(error, "Erro ao excluir paciente")
+    }
+  }
+
+  const confirmBulkDelete = async () => {
+    if (selectedIds.size === 0) return
+    try {
+      await api.bulkDeletePatients(Array.from(selectedIds))
+      showToast.success(`${selectedIds.size} pacientes excluídos com sucesso!`)
+      setSelectedIds(new Set())
+      fetchPatients()
+    } catch (error) {
+      handleApiError(error, "Erro ao excluir pacientes em massa")
     }
   }
   
@@ -252,9 +288,9 @@ export default function PacientesPage({ params }: PacientesPageProps) {
     <div className="flex h-full flex-col">
       <Header lng={lng} title="Pacientes" tutorialPage="pacientes" />
 
-      <div className="flex-1 p-4 md:p-6 space-y-6">
+      <div className="flex-1 p-4 md:p-6 flex flex-col gap-6 overflow-hidden">
         {/* Status Cards Container */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 shrink-0">
           <div className="bg-card rounded-xl border border-border shadow-sm p-4 flex items-center gap-4">
             <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
                <Users className="w-6 h-6" />
@@ -294,8 +330,8 @@ export default function PacientesPage({ params }: PacientesPageProps) {
         </div>
 
         {/* Filter Toolbar */}
-        <div className="bg-card rounded-xl border border-border shadow-sm p-3 flex flex-wrap items-center justify-between gap-4">
-          <div className="relative flex-1 min-w-[300px] max-w-sm">
+        <div className="bg-card rounded-xl border border-border shadow-sm p-3 flex flex-wrap items-center justify-between gap-4 shrink-0">
+          <div className="relative flex-1 min-w-[200px] max-w-sm">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Buscar por nome, telefone ou email..."
@@ -306,6 +342,16 @@ export default function PacientesPage({ params }: PacientesPageProps) {
           </div>
 
           <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+            {selectedIds.size > 0 && (
+              <Button 
+                variant="destructive" 
+                className="h-9 px-4 font-semibold mr-2 animate-in fade-in"
+                onClick={() => setBulkDeleteModalOpen(true)}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Excluir ({selectedIds.size})
+              </Button>
+            )}
             <div className="flex p-1 gap-1 items-center">
               <Button 
                 variant="outline" 
@@ -345,7 +391,7 @@ export default function PacientesPage({ params }: PacientesPageProps) {
               />
             </div>
 
-            <Button className="h-10 px-5 font-semibold bg-emerald-500 hover:bg-emerald-600 rounded-lg ml-2" onClick={() => handleOpenDialog()}>
+            <Button className="h-10 px-5 font-semibold bg-primary hover:bg-primary/90 rounded-lg ml-2" onClick={() => handleOpenDialog()}>
               <Plus className="mr-2 h-4 w-4" />
               Novo Paciente
             </Button>
@@ -367,11 +413,17 @@ export default function PacientesPage({ params }: PacientesPageProps) {
             </p>
           </div>
         ) : (
-          <div className="rounded-xl border border-border/80 bg-card shadow-sm overflow-hidden flex flex-col pt-2 pb-6">
-            <div className="overflow-x-auto">
-              <Table className="text-sm">
-                <TableHeader>
+          <div className="rounded-xl border border-border/80 bg-card shadow-sm overflow-hidden flex flex-col flex-1">
+            <Table className="text-sm" wrapperClassName="flex-1 overflow-auto">
+              <TableHeader className="sticky top-0 bg-slate-50 z-20 shadow-sm dark:bg-slate-900 border-b">
                   <TableRow>
+                    <TableHead className="w-[40px] px-4">
+                      <Checkbox 
+                        checked={patients.length > 0 && selectedIds.size === patients.length}
+                        onCheckedChange={handleSelectAll}
+                        aria-label="Selecionar todos"
+                      />
+                    </TableHead>
                     <SortableTableHead sortKey="name" title="PACIENTE" className="w-[350px]" />
                     <SortableTableHead sortKey="contact" title="CONTATO" />
                     <SortableTableHead sortKey="document" title="DOCUMENTO" />
@@ -382,9 +434,17 @@ export default function PacientesPage({ params }: PacientesPageProps) {
                 <TableBody>
                   {patients.map((patient) => {
                     const isComplete = patient.email && patient.phone && patient.document
+                    const isSelected = selectedIds.has(patient.id)
                     
                     return (
-                      <TableRow key={patient.id} className="group">
+                      <TableRow key={patient.id} className="group" data-state={isSelected ? "selected" : undefined}>
+                        <TableCell className="px-4">
+                          <Checkbox 
+                            checked={isSelected}
+                            onCheckedChange={(checked) => handleSelectOne(!!checked, patient.id)}
+                            aria-label={`Selecionar ${patient.name}`}
+                          />
+                        </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-3">
                             <div className={`flex items-center justify-center w-10 h-10 shrink-0 text-white font-bold rounded-full text-xs shadow-sm ${getAvatarColor(patient.name)}`}>
@@ -438,11 +498,11 @@ export default function PacientesPage({ params }: PacientesPageProps) {
                           )}
                         </TableCell>
                         <TableCell className="text-right">
-                          <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="flex justify-end gap-1">
                             <Button
                               variant="outline"
                               size="icon"
-                              className="h-8 w-8 rounded-md bg-transparent border-border text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-500/10"
+                              className="h-8 w-8 rounded-md bg-transparent border-border text-muted-foreground hover:text-primary hover:bg-primary/10"
                               title="Ver Ficha"
                               onClick={() => router.push(`/${lng}/pacientes/${patient.id}`)}
                             >
@@ -462,7 +522,10 @@ export default function PacientesPage({ params }: PacientesPageProps) {
                               size="icon"
                               className="h-8 w-8 rounded-md bg-transparent border-border text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                               title="Excluir"
-                              onClick={() => handleDelete(patient)}
+                              onClick={() => {
+                                setPatientToDelete(patient)
+                                setDeleteModalOpen(true)
+                              }}
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
@@ -473,9 +536,10 @@ export default function PacientesPage({ params }: PacientesPageProps) {
                   })}
                 </TableBody>
               </Table>
-            </div>
             
-            <DataTablePagination meta={{ page, limit, total, total_pages: totalPages }} entityName="pacientes" />
+            <div className="border-t p-4 shrink-0 bg-card">
+              <DataTablePagination meta={{ page, limit, total, total_pages: totalPages }} entityName="pacientes" />
+            </div>
           </div>
         )}
       </div>
@@ -602,6 +666,22 @@ export default function PacientesPage({ params }: PacientesPageProps) {
           </form>
         </DialogContent>
       </Dialog>
+      
+      <ConfirmDialog 
+        open={deleteModalOpen}
+        onOpenChange={setDeleteModalOpen}
+        onConfirm={confirmDelete}
+        title="Excluir Paciente"
+        description={`Tem certeza que deseja excluir o paciente ${patientToDelete?.name}? Esta ação não pode ser desfeita.`}
+      />
+
+      <ConfirmDialog 
+        open={bulkDeleteModalOpen}
+        onOpenChange={setBulkDeleteModalOpen}
+        onConfirm={confirmBulkDelete}
+        title="Excluir Pacientes"
+        description={`Tem certeza que deseja excluir ${selectedIds.size} pacientes selecionados? Esta ação não pode ser desfeita e todos os dados relacionados serão perdidos.`}
+      />
     </div>
   )
 }

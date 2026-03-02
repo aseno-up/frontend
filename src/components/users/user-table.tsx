@@ -21,6 +21,7 @@ import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { SortableTableHead } from '@/components/ui/sortable-table-head'
 import { DataTablePagination } from '@/components/ui/data-table-pagination'
+import { Checkbox } from '@/components/ui/checkbox'
 
 const roleLabels: Record<string, string> = {
   owner: 'Proprietário',
@@ -42,10 +43,13 @@ interface UserTableProps {
   onEditRole: (user: User) => void
   onDeactivate: (id: string) => void
   onReactivate: (id: string) => void
-  onRemove: (id: string) => void
+  onRemove: (user: User) => void
   page: number
   total: number
   limit: number
+  selectedIds: Set<string>
+  onSelectAll: (checked: boolean) => void
+  onSelectOne: (checked: boolean, id: string) => void
 }
 
 export function UserTable({
@@ -58,6 +62,9 @@ export function UserTable({
   page,
   total,
   limit,
+  selectedIds,
+  onSelectAll,
+  onSelectOne,
 }: UserTableProps) {
   if (users.length === 0) {
     return (
@@ -72,11 +79,18 @@ export function UserTable({
   }
 
   return (
-    <div className="flex flex-col w-full">
-      <div className="overflow-x-auto">
+    <div className="flex flex-col flex-1 overflow-hidden w-full">
+      <div className="overflow-auto flex-1">
         <Table>
-          <thead>
-            <TableRow className="bg-slate-50 hover:bg-slate-50">
+          <thead className="sticky top-0 bg-slate-50 z-10 shadow-sm dark:bg-slate-900">
+            <TableRow className="hover:bg-slate-50 border-b">
+              <th className="w-[40px] px-4">
+                <Checkbox 
+                  checked={users.length > 0 && selectedIds.size === users.filter(u => u.id !== currentUserId).length}
+                  onCheckedChange={onSelectAll}
+                  aria-label="Selecionar todos"
+                />
+              </th>
               <SortableTableHead sortKey="name" title="Nome do Usuário" />
               <SortableTableHead sortKey="email" title="E-mail" />
               <SortableTableHead sortKey="role" title="Função" />
@@ -89,9 +103,18 @@ export function UserTable({
             {users.map((user) => {
               const isCurrentUser = user.id === currentUserId
               const isOwner = user.role === 'owner'
+              const isSelected = selectedIds.has(user.id)
 
               return (
-                <TableRow key={user.id} className="hover:bg-slate-50/80 transition-colors">
+                <TableRow key={user.id} className="hover:bg-slate-50/80 transition-colors" data-state={isSelected ? "selected" : undefined}>
+                  <TableCell className="px-4">
+                    <Checkbox 
+                      checked={isSelected}
+                      onCheckedChange={(checked) => onSelectOne(!!checked, user.id)}
+                      aria-label={`Selecionar ${user.name}`}
+                      disabled={isCurrentUser}
+                    />
+                  </TableCell>
                   <TableCell className="font-medium align-middle">
                     <div className="flex items-center gap-2">
                       <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary uppercase text-xs font-bold">
@@ -160,7 +183,7 @@ export function UserTable({
                         )}
                         <DropdownMenuItem
                           className="text-destructive focus:text-destructive"
-                          onClick={() => onRemove(user.id)}
+                          onClick={() => onRemove(user)}
                         >
                           <Trash2 className="mr-2 h-4 w-4" />
                           Remover
@@ -174,7 +197,7 @@ export function UserTable({
           </TableBody>
         </Table>
       </div>
-      <div className="border-t p-4">
+      <div className="border-t p-4 shrink-0 bg-white">
         <DataTablePagination
           meta={{
             page,
