@@ -151,6 +151,11 @@ class ApiClient {
     return response.data
   }
 
+  async bulkDeleteProfessionals(ids: string[]) {
+    const response = await this.client.post('/professionals/bulk-delete', { ids })
+    return response.data
+  }
+
   // Patients endpoints
   async getPatients(params?: { page?: number, limit?: number, search?: string, status?: string, sort_by?: string }) {
     const page = params?.page || 1
@@ -185,6 +190,11 @@ class ApiClient {
     return response.data
   }
 
+  async bulkDeletePatients(ids: string[]) {
+    const response = await this.client.post('/patients/bulk-delete', { ids })
+    return response.data
+  }
+
   // Procedures endpoints
   async getProcedures(params?: { page?: number; limit?: number; search?: string; status?: string; sort_by?: string }) {
     const response = await this.client.get('/procedures', { params })
@@ -208,6 +218,11 @@ class ApiClient {
 
   async deleteProcedure(id: string) {
     const response = await this.client.delete(`/procedures/${id}`)
+    return response.data
+  }
+
+  async bulkDeleteProcedures(ids: string[]) {
+    const response = await this.client.post('/procedures/bulk-delete', { ids })
     return response.data
   }
 
@@ -505,6 +520,11 @@ class ApiClient {
     return response.data
   }
 
+  async bulkCancelSessionPlans(ids: string[]) {
+    const response = await this.client.post('/session-plans/bulk-cancel', { ids })
+    return response.data
+  }
+
   async generateSessionPlanAppointments(id: string, weeksAhead = 2) {
     const response = await this.client.post(`/session-plans/${id}/generate`, {
       weeks_ahead: weeksAhead,
@@ -601,6 +621,11 @@ class ApiClient {
 
   async removeUser(id: string) {
     const response = await this.client.delete(`/users/${id}`)
+    return response.data
+  }
+
+  async bulkRemoveUsers(ids: string[]) {
+    const response = await this.client.post('/users/bulk-delete', { ids })
     return response.data
   }
 

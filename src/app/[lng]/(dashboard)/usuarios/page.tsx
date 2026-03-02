@@ -3,9 +3,9 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
-import { UserPlus, Users, Mail, Loader2, Search, X } from 'lucide-react'
+import { UserPlus, Users, Mail, Loader2, Search, X, Trash2 } from 'lucide-react'
 import { api } from '@/lib/api/client'
-import { showToast } from '@/lib/toast'
+import { showToast, handleApiError } from '@/lib/toast'
 import type { User, Invite, InviteListResponse } from '@/types/api'
 import { Header } from '@/components/dashboard/header'
 import { UserTable } from '@/components/users/user-table'
@@ -16,6 +16,7 @@ import { useAuthStore } from '@/stores/auth-store'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 
 interface UsuariosPageProps {
   params: Promise<{ lng: string }>
@@ -57,6 +58,29 @@ export default function UsuariosPage({ params }: UsuariosPageProps) {
   // Local state for search debounce
   const [searchTerm, setSearchTerm] = useState(searchUrl)
 
+  // Bulk Actions & Delete state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [removeModalOpen, setRemoveModalOpen] = useState(false)
+  const [userToRemove, setUserToRemove] = useState<User | null>(null)
+  const [bulkRemoveModalOpen, setBulkRemoveModalOpen] = useState(false)
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      // Not selecting current user
+      const allIds = new Set(users.filter(u => u.id !== currentUser?.id).map(p => p.id))
+      setSelectedIds(allIds)
+    } else {
+      setSelectedIds(new Set())
+    }
+  }
+
+  const handleSelectOne = (checked: boolean, id: string) => {
+    const newSet = new Set(selectedIds)
+    if (checked) newSet.add(id)
+    else newSet.delete(id)
+    setSelectedIds(newSet)
+  }
+
   const updateFilters = useCallback((updates: Record<string, string | null>) => {
     const params = new URLSearchParams(searchParams.toString())
     Object.entries(updates).forEach(([key, value]) => {
@@ -97,6 +121,7 @@ export default function UsuariosPage({ params }: UsuariosPageProps) {
       })
       setUsers(response.data || [])
       setUserTotal(response.meta?.total || 0)
+      setSelectedIds(new Set())
     } catch (error) {
       showToast.error('Erro ao carregar usuários')
       console.error(error)
@@ -177,17 +202,27 @@ export default function UsuariosPage({ params }: UsuariosPageProps) {
     }
   }
 
-  const handleRemoveUser = async (id: string) => {
-    if (!window.confirm('Tem certeza que deseja remover este usuário? Esta ação não pode ser desfeita.')) {
-      return
-    }
+  const confirmRemoveUser = async () => {
+    if (!userToRemove) return
     try {
-      await api.removeUser(id)
+      await api.removeUser(userToRemove.id)
       showToast.success('Usuário removido')
       loadUsers()
     } catch (error) {
       showToast.error('Erro ao remover usuário')
       console.error(error)
+    }
+  }
+
+  const confirmBulkRemove = async () => {
+    if (selectedIds.size === 0) return
+    try {
+      await api.bulkRemoveUsers(Array.from(selectedIds))
+      showToast.success(`${selectedIds.size} usuários removidos com sucesso!`)
+      setSelectedIds(new Set())
+      loadUsers()
+    } catch (error) {
+      handleApiError(error, "Erro ao remover usuários em massa")
     }
   }
 
@@ -208,10 +243,10 @@ export default function UsuariosPage({ params }: UsuariosPageProps) {
         </Button>
       </Header>
 
-      <div className="flex-1 overflow-auto p-4 md:p-6 space-y-6 max-w-[1600px] mx-auto w-full">
-        <Tabs defaultValue="users" className="space-y-4">
+      <div className="flex-1 p-4 md:p-6 flex flex-col max-w-[1600px] mx-auto w-full overflow-hidden">
+        <Tabs defaultValue="users" className="flex flex-col flex-1 overflow-hidden gap-4">
         
-        <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
+        <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center shrink-0">
           <TabsList className="bg-white border shadow-sm h-11">
             <TabsTrigger value="users" className="flex items-center gap-2 data-[state=active]:bg-slate-100 px-6">
               <Users className="h-4 w-4" />
@@ -225,9 +260,9 @@ export default function UsuariosPage({ params }: UsuariosPageProps) {
           </TabsList>
         </div>
 
-        <TabsContent value="users" className="space-y-4 m-0">
+        <TabsContent value="users" className="flex flex-col flex-1 overflow-hidden gap-4 m-0">
           
-          <div className="flex flex-col sm:flex-row gap-4 items-center bg-white p-4 rounded-xl border shadow-sm">
+          <div className="flex flex-col sm:flex-row gap-4 items-center bg-white p-4 rounded-xl border shadow-sm shrink-0">
             <div className="relative w-full sm:max-w-[400px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -249,6 +284,16 @@ export default function UsuariosPage({ params }: UsuariosPageProps) {
             </div>
             
             <div className="flex w-full sm:w-auto items-center gap-2 ml-auto">
+              {selectedIds.size > 0 && (
+                <Button 
+                  variant="destructive" 
+                  className="h-10 px-4 font-semibold mr-2 animate-in fade-in"
+                  onClick={() => setBulkRemoveModalOpen(true)}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Remover ({selectedIds.size})
+                </Button>
+              )}
               <Select
                 value={roleUrl}
                 onValueChange={(val) => updateFilters({ status: val })}
@@ -267,7 +312,7 @@ export default function UsuariosPage({ params }: UsuariosPageProps) {
             </div>
           </div>
 
-          <div className="bg-white border rounded-xl shadow-sm overflow-hidden">
+          <div className="bg-white border rounded-xl shadow-sm overflow-hidden flex flex-col flex-1">
             {isLoadingUsers ? (
               <div className="flex items-center justify-center py-20">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -279,18 +324,24 @@ export default function UsuariosPage({ params }: UsuariosPageProps) {
                 onEditRole={(user) => setEditRoleUser(user)}
                 onDeactivate={handleDeactivateUser}
                 onReactivate={handleReactivateUser}
-                onRemove={handleRemoveUser}
+                onRemove={(user) => {
+                  setUserToRemove(user)
+                  setRemoveModalOpen(true)
+                }}
                 page={page}
                 total={userTotal}
                 limit={limit}
+                selectedIds={selectedIds}
+                onSelectAll={handleSelectAll}
+                onSelectOne={handleSelectOne}
               />
             )}
           </div>
         </TabsContent>
 
-        <TabsContent value="invites" className="space-y-4 m-0 pt-2">
-          <div className="bg-white border rounded-xl shadow-sm overflow-hidden p-0">
-             <div className="p-4 border-b bg-slate-50/50">
+        <TabsContent value="invites" className="flex flex-col flex-1 overflow-hidden gap-4 m-0 pt-2">
+          <div className="bg-white border rounded-xl shadow-sm overflow-hidden flex flex-col flex-1">
+             <div className="p-4 border-b bg-slate-50/50 shrink-0">
                <h3 className="font-medium">Gerenciar Convites</h3>
                <p className="text-sm text-muted-foreground">Reenvie ou cancele convites em andamento.</p>
              </div>
@@ -323,6 +374,22 @@ export default function UsuariosPage({ params }: UsuariosPageProps) {
           open={!!editRoleUser}
           onOpenChange={(open) => !open && setEditRoleUser(null)}
           onSuccess={handleRoleUpdated}
+        />
+
+        <ConfirmDialog 
+          open={removeModalOpen}
+          onOpenChange={setRemoveModalOpen}
+          onConfirm={confirmRemoveUser}
+          title="Remover Usuário"
+          description={`Tem certeza que deseja remover o usuário ${userToRemove?.name}? Esta ação não pode ser desfeita.`}
+        />
+
+        <ConfirmDialog 
+          open={bulkRemoveModalOpen}
+          onOpenChange={setBulkRemoveModalOpen}
+          onConfirm={confirmBulkRemove}
+          title="Remover Usuários"
+          description={`Tem certeza que deseja remover ${selectedIds.size} usuários selecionados? Esta ação não pode ser desfeita.`}
         />
       </div>
     </div>

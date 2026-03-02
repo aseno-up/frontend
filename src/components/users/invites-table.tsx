@@ -56,9 +56,10 @@ export function InvitesTable({
   }
 
   return (
-    <div className="rounded-md border">
-      <Table>
-        <TableHeader>
+    <div className="flex flex-col flex-1 overflow-hidden w-full rounded-md border-0 border-t">
+      <div className="overflow-auto flex-1">
+        <Table>
+          <TableHeader className="sticky top-0 bg-white z-10 shadow-sm dark:bg-slate-900">
           <TableRow>
             <TableHead>Email</TableHead>
             <TableHead>Funcao</TableHead>
@@ -120,6 +121,7 @@ export function InvitesTable({
           })}
         </TableBody>
       </Table>
+      </div>
     </div>
   )
 }
