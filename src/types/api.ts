@@ -49,6 +49,7 @@ export interface Clinic {
   id: string
   name: string
   slug: string
+  type?: string
   subscription_status: 'trial' | 'active' | 'past_due' | 'canceled'
   plan: 'free' | 'basic' | 'professional' | 'enterprise' | 'advanced'
   trial_ends_at: string
