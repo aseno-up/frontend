@@ -45,6 +45,18 @@ class ApiClient {
           return Promise.reject(error)
         }
 
+        // Handle subscription expired (HTTP 402)
+        if (error.response?.status === 402) {
+          const errorData = error.response?.data as ApiError
+          if (errorData?.error?.type === 'SUBSCRIPTION_EXPIRED') {
+            // Emit custom event for SubscriptionGuard to handle
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new CustomEvent('subscription-expired'))
+            }
+          }
+          return Promise.reject(error)
+        }
+
         if (error.response?.status === 401 && !originalRequest._retry) {
           originalRequest._retry = true
 
@@ -107,8 +119,11 @@ class ApiClient {
     return response.data
   }
 
-  async googleLogin(idToken: string) {
-    const response = await this.client.post('/auth/google', { id_token: idToken })
+  async googleLogin(idToken: string, plan?: string, billing?: string) {
+    const body: Record<string, string> = { id_token: idToken }
+    if (plan) body.plan = plan
+    if (billing) body.billing = billing
+    const response = await this.client.post('/auth/google', body)
     return response.data
   }
 
@@ -424,6 +439,34 @@ class ApiClient {
 
   async cancelSubscription() {
     const response = await this.client.delete('/billing/subscription')
+    return response.data
+  }
+
+  async switchPlan(data: {
+    plan: 'basic' | 'professional' | 'advanced'
+    billing_type: string
+    cycle: string
+    credit_card?: {
+      holderName: string
+      number: string
+      expiryMonth: string
+      expiryYear: string
+      ccv: string
+    }
+    credit_card_holder_info?: {
+      name: string
+      email: string
+      cpfCnpj: string
+      postalCode: string
+      phone: string
+    }
+  }) {
+    const response = await this.client.post('/billing/switch-plan', data)
+    return response.data
+  }
+
+  async getSubscriptionPayments() {
+    const response = await this.client.get('/billing/subscription/payments')
     return response.data
   }
 

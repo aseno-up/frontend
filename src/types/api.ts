@@ -50,7 +50,7 @@ export interface Clinic {
   name: string
   slug: string
   type?: string
-  subscription_status: 'trial' | 'active' | 'past_due' | 'canceled'
+  subscription_status: 'trial' | 'active' | 'pending' | 'past_due' | 'canceled' | 'expired'
   plan: 'free' | 'basic' | 'professional' | 'enterprise' | 'advanced'
   trial_ends_at: string
   created_at: string
