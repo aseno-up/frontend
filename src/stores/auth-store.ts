@@ -9,7 +9,7 @@ interface AuthState {
   isAuthenticated: boolean
 
   login: (email: string, password: string) => Promise<void>
-  googleLogin: (idToken: string) => Promise<void>
+  googleLogin: (idToken: string, plan?: string, billing?: string) => Promise<void>
   register: (data: {
     clinic_name: string
     name: string
@@ -43,8 +43,8 @@ export const useAuthStore = create<AuthState>((set) => ({
     })
   },
 
-  googleLogin: async (idToken: string) => {
-    const response: AuthResponse = await api.googleLogin(idToken)
+  googleLogin: async (idToken: string, plan?: string, billing?: string) => {
+    const response: AuthResponse = await api.googleLogin(idToken, plan, billing)
     api.setTokens(response.access_token, response.refresh_token)
     set({
       user: response.user,

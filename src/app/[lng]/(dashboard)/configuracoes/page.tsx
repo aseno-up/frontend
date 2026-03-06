@@ -535,15 +535,19 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
   const subscriptionLabels: Record<string, string> = {
     trial: "Periodo de Teste",
     active: "Ativa",
-    past_due: "Pagamento Pendente",
+    pending: "Aguardando Pagamento",
+    past_due: "Pagamento Atrasado",
     canceled: "Cancelada",
+    expired: "Expirada",
   }
 
   const subscriptionVariants: Record<string, "default" | "secondary" | "destructive" | "outline" | "success" | "warning" | "info"> = {
     trial: "info",
     active: "success",
+    pending: "warning",
     past_due: "warning",
     canceled: "destructive",
+    expired: "destructive",
   }
 
   return (
@@ -822,174 +826,222 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
             </TabsContent>
 
             {/* Tab: Assinatura */}
-            <TabsContent value="assinatura" className="mt-0 outline-none space-y-6">
-              {/* Status da Assinatura */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Status da Assinatura</CardTitle>
-                  <CardDescription>Gerencie seu plano e pagamento</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between">
+            <TabsContent value="assinatura" className="mt-0 outline-none">
+              <div className="max-w-[680px] mx-auto flex flex-col gap-5 pt-2 pb-10 font-sans text-gray-900">
+                
+                {/* PAGE HEADER */}
+                <div className="flex items-center justify-between px-1 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                  <div>
+                    <h1 className="text-[22px] font-bold tracking-tight text-gray-900">Assinatura</h1>
+                    <p className="text-[13.5px] text-gray-500 mt-0.5">Gerencie seu plano e pagamento</p>
+                  </div>
+                  <Dialog open={showPlanDialog} onOpenChange={setShowPlanDialog}>
+                    <DialogTrigger asChild>
+                      <button 
+                        className="h-[38px] px-4 rounded-[10px] text-[13px] font-semibold border-[1.5px] border-gray-200 shadow-sm transition-all bg-white text-gray-900 hover:bg-gray-900 hover:text-white hover:border-gray-900 disabled:opacity-50 hover:shadow-md hover:-translate-y-[1px]"
+                        disabled={!customer}
+                      >
+                        Gerenciar plano &rarr;
+                      </button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-[700px]">
+                      <DialogHeader>
+                        <DialogTitle>Escolha seu Plano</DialogTitle>
+                        <DialogDescription>Desbloqueie todo o potencial da sua clinica</DialogDescription>
+                      </DialogHeader>
+
+                      <div className="grid md:grid-cols-3 gap-4 py-4">
+                        <div
+                          className={`border rounded-lg p-4 cursor-pointer hover:border-primary transition-all ${selectedPlan === 'basic' ? 'border-primary bg-primary/5' : ''}`}
+                          onClick={() => setSelectedPlan('basic')}
+                        >
+                          <div className="text-lg font-bold">Basico</div>
+                          <div className="text-2xl font-bold mt-2">R$ 99</div>
+                          <div className="text-sm text-muted-foreground">/mes</div>
+                          <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
+                            <li>2 profissionais</li>
+                            <li>Agenda simples</li>
+                            <li>Confirmacao WhatsApp</li>
+                          </ul>
+                        </div>
+
+                        <div
+                          className={`border rounded-lg p-4 cursor-pointer hover:border-primary transition-all relative ${selectedPlan === 'professional' ? 'border-primary bg-primary/5' : ''}`}
+                          onClick={() => setSelectedPlan('professional')}
+                        >
+                          <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-xs px-2 py-0.5 rounded-full">
+                            Recomendado
+                          </div>
+                          <div className="text-lg font-bold text-primary">Profissional</div>
+                          <div className="text-2xl font-bold mt-2">R$ 199</div>
+                          <div className="text-sm text-muted-foreground">/mes</div>
+                          <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
+                            <li>10 profissionais</li>
+                            <li>Google Calendar</li>
+                            <li>Relatorios Avancados</li>
+                            <li>IA de Risco</li>
+                          </ul>
+                        </div>
+
+                        <div
+                          className={`border rounded-lg p-4 cursor-pointer hover:border-primary transition-all ${selectedPlan === 'advanced' ? 'border-primary bg-primary/5' : ''}`}
+                          onClick={() => setSelectedPlan('advanced')}
+                        >
+                          <div className="text-lg font-bold">Avancado</div>
+                          <div className="text-2xl font-bold mt-2">R$ 349</div>
+                          <div className="text-sm text-muted-foreground">/mes</div>
+                          <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
+                            <li>Ilimitado</li>
+                            <li>API</li>
+                            <li>Suporte VIP</li>
+                          </ul>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-end pt-4">
+                        <Button onClick={handleSubscribe} disabled={isSubscribing}>
+                          {isSubscribing ? 'Processando...' : 'Confirmar Assinatura'}
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+
+                {/* CARD 1: STATUS DA ASSINATURA */}
+                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500 delay-75 fill-mode-both">
+                  <div className="px-7 py-6 border-b border-gray-100 flex items-start justify-between gap-4">
                     <div>
-                      <p className="font-medium">Status</p>
-                      <Badge variant={subscriptionVariants[clinic?.subscription_status || "trial"]} className="mt-1">
-                        {subscriptionLabels[clinic?.subscription_status || "trial"]}
-                      </Badge>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-medium">Plano</p>
-                      <p className="text-sm text-muted-foreground">
-                        {clinic?.subscription_status === "trial"
-                          ? "Acesso completo (trial)"
-                          : clinic?.plan === "basic"
-                            ? "Basico"
-                            : clinic?.plan === "professional"
-                              ? "Profissional"
-                              : clinic?.plan === "advanced"
-                                ? "Avancado"
-                                : clinic?.plan || "Free"}
+                      <h2 className="text-[15px] font-bold tracking-tight text-gray-900">Status da Assinatura</h2>
+                      <p className="text-[12.5px] text-gray-400 mt-1">
+                        Ciclo {subscription?.cycle === 'YEARLY' ? 'anual' : 'mensal'} &middot; Renovacao automatica ativa
                       </p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full tracking-wide ${
+                        clinic?.subscription_status === 'active' ? 'bg-green-100/60 text-green-700 border border-green-200' :
+                        clinic?.subscription_status === 'pending' ? 'bg-yellow-100/60 text-yellow-700 border border-yellow-200' :
+                        clinic?.subscription_status === 'trial' ? 'bg-cyan-100/60 text-cyan-700 border border-cyan-200' :
+                        'bg-red-100/60 text-red-700 border border-red-200'
+                      }`}>
+                        <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse"></span>
+                        {subscriptionLabels[clinic?.subscription_status || "trial"]}
+                      </span>
+                      <span className="text-[12.5px] font-semibold text-gray-500 bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-full tracking-wide">
+                        &#10022; {clinic?.plan === 'basic' ? 'Basico' : clinic?.plan === 'professional' ? 'Profissional' : clinic?.plan === 'advanced' ? 'Avancado' : clinic?.plan || 'Free'}
+                      </span>
                     </div>
                   </div>
+                  
+                  <div className="p-7">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="bg-gray-50 border border-gray-100 rounded-xl p-4 transition-all hover:bg-white hover:border-gray-200 hover:shadow-sm">
+                        <div className="text-[11.5px] font-medium text-gray-400 uppercase tracking-widest mb-2">Valor mensal</div>
+                        <div className="text-[15.5px] font-bold text-gray-900 tracking-tight">
+                          {subscription ? formatCurrency(subscription.value) : '---'}
+                        </div>
+                        <div className="text-[11.5px] text-gray-400 mt-1">por mes</div>
+                      </div>
 
-                  {clinic?.subscription_status === "trial" && clinic?.trial_ends_at && (
-                    <div className="rounded-lg bg-blue-50 p-4 text-blue-900">
-                      <p className="text-sm">
-                        Seu periodo de teste termina em <strong>{new Date(clinic.trial_ends_at).toLocaleDateString("pt-BR")}</strong>
-                      </p>
-                    </div>
-                  )}
-
-                  {isLoadingSubscription ? (
-                    <div className="animate-pulse space-y-2">
-                      <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-                    </div>
-                  ) : subscription ? (
-                    <div className="space-y-2 text-sm border-t pt-4">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Valor:</span>
-                        <span className="font-medium">{formatCurrency(subscription.value)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Ciclo:</span>
-                        <span>{subscription.cycle === 'MONTHLY' ? 'Mensal' : subscription.cycle}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Metodo:</span>
-                        <span>{billingTypeLabels[subscription.billing_type] || subscription.billing_type}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Proximo vencimento:</span>
-                        <span>{formatDate(subscription.next_due_date)}</span>
+                      <div className="bg-gray-50 border border-gray-100 rounded-xl p-4 transition-all hover:bg-white hover:border-gray-200 hover:shadow-sm">
+                        <div className="text-[11.5px] font-medium text-gray-400 uppercase tracking-widest mb-2">Metodo de pagamento</div>
+                        <div className="text-[13.5px] font-bold text-gray-900 truncate">
+                          {subscription ? (subscription.billing_type === 'CREDIT_CARD' ? '💳 Cartao de Credito' : subscription.billing_type === 'PIX' ? '💠 PIX' : '📄 Boleto') : '---'}
+                        </div>
+                        <div className="text-[11.5px] text-gray-400 mt-1">padrao</div>
                       </div>
                     </div>
-                  ) : (
-                    <div className="text-center py-4 border-t">
-                      <p className="text-muted-foreground mb-4">Nenhuma assinatura ativa</p>
 
-                      <Dialog open={showPlanDialog} onOpenChange={setShowPlanDialog}>
-                        <DialogTrigger asChild>
-                          <Button disabled={!customer}>Assinar Plano</Button>
-                        </DialogTrigger>
-                        <DialogContent className="sm:max-w-[700px]">
-                          <DialogHeader>
-                            <DialogTitle>Escolha seu Plano</DialogTitle>
-                            <DialogDescription>Desbloqueie todo o potencial da sua clinica</DialogDescription>
-                          </DialogHeader>
+                    {(subscription || clinic?.subscription_status === 'trial') && (
+                      <div className="mt-5 bg-gray-50 border border-gray-100 rounded-xl p-4">
+                        <div className="flex justify-between items-center mb-2.5">
+                          <span className="text-[12px] font-medium text-gray-500">
+                            {clinic?.subscription_status === 'trial' ? 'Progresso do período de teste' : 'Progresso do ciclo atual'}
+                          </span>
+                          <span className="text-[12px] font-bold text-gray-900 font-mono">
+                            {(() => {
+                              const due = subscription ? new Date(subscription.next_due_date) : (clinic?.trial_ends_at ? new Date(clinic.trial_ends_at) : new Date());
+                              const now = new Date();
+                              const diffTime = due.getTime() - now.getTime();
+                              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                              return diffDays > 0 ? `${diffDays} dias restantes` : (diffDays === 0 ? 'Vence hoje' : 'Vencido');
+                            })()}
+                          </span>
+                        </div>
+                        <div className="h-[5px] bg-gray-200 rounded-full overflow-hidden">
+                          {(() => {
+                            try {
+                              const due = subscription ? new Date(subscription.next_due_date) : (clinic?.trial_ends_at ? new Date(clinic.trial_ends_at) : new Date());
+                              const now = new Date();
+                              let start = new Date(due);
+                              
+                              if (subscription) {
+                                if (subscription.cycle === 'YEARLY') start.setFullYear(start.getFullYear() - 1);
+                                else start.setMonth(start.getMonth() - 1);
+                              } else if (clinic?.created_at) {
+                                start = new Date(clinic.created_at);
+                              } else {
+                                start.setDate(start.getDate() - 14); // fallback 14 days
+                              }
+                              
+                              const totalDays = (due.getTime() - start.getTime()) / (1000 * 60 * 60 * 24);
+                              const passedDays = (now.getTime() - start.getTime()) / (1000 * 60 * 60 * 24);
+                              let percent = Math.max(0, Math.min(100, (passedDays / totalDays) * 100));
+                              if (isNaN(percent) || !isFinite(percent)) percent = 0;
+                              return (
+                                <div 
+                                  className={`h-full bg-gradient-to-r ${clinic?.subscription_status === 'trial' ? 'from-cyan-500 to-cyan-400' : 'from-green-600 to-green-400'} rounded-full origin-left animate-in zoom-in-0 duration-1000 delay-300`}
+                                  style={{ width: `${percent}%` }}
+                                ></div>
+                              );
+                            } catch (e) {
+                              return <div className={`h-full ${clinic?.subscription_status === 'trial' ? 'bg-cyan-500' : 'bg-green-500'} rounded-full w-full`}></div>;
+                            }
+                          })()}
+                        </div>
+                        <div className="flex justify-between mt-2">
+                          <span className="text-[11px] text-gray-400 font-mono">
+                            Início: {(() => {
+                              try {
+                                if (subscription) {
+                                  const due = new Date(subscription.next_due_date);
+                                  if (subscription.cycle === 'YEARLY') due.setFullYear(due.getFullYear() - 1);
+                                  else due.setMonth(due.getMonth() - 1);
+                                  return formatDate(due.toISOString());
+                                } else if (clinic?.created_at) {
+                                  return formatDate(clinic.created_at);
+                                }
+                                return '---';
+                              } catch(e) { return '---'; }
+                            })()}
+                          </span>
+                          <span className="text-[11px] text-gray-400 font-mono">
+                            {clinic?.subscription_status === 'trial' ? 'Expira em' : 'Renovação'}: {subscription ? formatDate(subscription.next_due_date) : (clinic?.trial_ends_at ? formatDate(clinic.trial_ends_at) : '---')}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
 
-                          <div className="grid md:grid-cols-3 gap-4 py-4">
-                            <div
-                              className={`border rounded-lg p-4 cursor-pointer hover:border-primary transition-all ${selectedPlan === 'basic' ? 'border-primary bg-primary/5' : ''}`}
-                              onClick={() => setSelectedPlan('basic')}
-                            >
-                              <div className="text-lg font-bold">Basico</div>
-                              <div className="text-2xl font-bold mt-2">R$ 99</div>
-                              <div className="text-sm text-muted-foreground">/mes</div>
-                              <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
-                                <li>2 profissionais</li>
-                                <li>Agenda simples</li>
-                                <li>Confirmacao WhatsApp</li>
-                              </ul>
-                            </div>
-
-                            <div
-                              className={`border rounded-lg p-4 cursor-pointer hover:border-primary transition-all relative ${selectedPlan === 'professional' ? 'border-primary bg-primary/5' : ''}`}
-                              onClick={() => setSelectedPlan('professional')}
-                            >
-                              <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-xs px-2 py-0.5 rounded-full">
-                                Recomendado
-                              </div>
-                              <div className="text-lg font-bold text-primary">Profissional</div>
-                              <div className="text-2xl font-bold mt-2">R$ 199</div>
-                              <div className="text-sm text-muted-foreground">/mes</div>
-                              <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
-                                <li>10 profissionais</li>
-                                <li>Google Calendar</li>
-                                <li>Relatorios Avancados</li>
-                                <li>IA de Risco</li>
-                              </ul>
-                            </div>
-
-                            <div
-                              className={`border rounded-lg p-4 cursor-pointer hover:border-primary transition-all ${selectedPlan === 'advanced' ? 'border-primary bg-primary/5' : ''}`}
-                              onClick={() => setSelectedPlan('advanced')}
-                            >
-                              <div className="text-lg font-bold">Avancado</div>
-                              <div className="text-2xl font-bold mt-2">R$ 349</div>
-                              <div className="text-sm text-muted-foreground">/mes</div>
-                              <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
-                                <li>Ilimitado</li>
-                                <li>API</li>
-                                <li>Suporte VIP</li>
-                              </ul>
-                            </div>
-                          </div>
-
-                          <div className="flex justify-end pt-4">
-                            <Button onClick={handleSubscribe} disabled={isSubscribing}>
-                              {isSubscribing ? 'Processando...' : 'Confirmar Assinatura'}
-                            </Button>
-                          </div>
-                        </DialogContent>
-                      </Dialog>
-
-                      {!customer && (
-                        <p className="text-xs text-muted-foreground mt-2">Cadastre os dados de cobranca primeiro</p>
-                      )}
+                {/* CARD 2: DADOS DE COBRANCA */}
+                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500 delay-150 fill-mode-both">
+                  <div className="px-7 py-6 border-b border-gray-100 flex items-start justify-between gap-4">
+                    <div>
+                      <h2 className="text-[15px] font-bold tracking-tight text-gray-900">Dados de Cobranca</h2>
+                      <p className="text-[12.5px] text-gray-400 mt-1">Informações do cliente para faturamento</p>
                     </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Dados de Cobranca */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Dados de Cobranca</CardTitle>
-                  <CardDescription>Informacoes do cliente para faturamento</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {isLoadingCustomer ? (
-                    <div className="animate-pulse space-y-2">
-                      <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-                      <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-                    </div>
-                  ) : customer ? (
-                    <div className="space-y-2 text-sm">
-                      <p><strong>Nome:</strong> {customer.name}</p>
-                      <p><strong>Email:</strong> {customer.email}</p>
-                      <p><strong>Documento:</strong> {customer.document}</p>
-                      {customer.phone && <p><strong>Telefone:</strong> {customer.phone}</p>}
-                      {customer.address && (
-                        <p><strong>Endereco:</strong> {customer.address}, {customer.address_number} - {customer.province}, {customer.city}/{customer.state}</p>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {!showCustomerForm ? (
-                        <Button onClick={() => setShowCustomerForm(true)}>Cadastrar Dados de Cobranca</Button>
-                      ) : (
-                        <form onSubmit={handleSubmit(onSubmitCustomer)} className="space-y-4">
+                    {customer && !showCustomerForm && (
+                      <button 
+                        onClick={() => setShowCustomerForm(true)}
+                        className="h-[30px] px-3.5 rounded-lg text-xs font-semibold border-[1.5px] border-gray-200 hover:border-gray-900 bg-white text-gray-600 hover:text-gray-900 transition-all shadow-sm hover:shadow"
+                      >
+                        Editar
+                      </button>
+                    )}
+                  </div>
+                  <div className="p-7">
+                    {showCustomerForm ? (
+                        <form onSubmit={handleSubmit(onSubmitCustomer)} className="space-y-4 animate-in fade-in zoom-in-95 duration-200">
                           <div className="grid gap-4 md:grid-cols-2">
                             <div className="space-y-2">
                               <Label htmlFor="name">Nome <span className="text-destructive">*</span></Label>
@@ -1043,102 +1095,166 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
                             <Button type="button" variant="outline" onClick={() => setShowCustomerForm(false)}>Cancelar</Button>
                           </div>
                         </form>
-                      )}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Historico de Pagamentos */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Historico de Pagamentos</CardTitle>
-                  <CardDescription>Ultimos pagamentos realizados</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {isLoadingPayments ? (
-                    <div className="animate-pulse space-y-4">
-                      {[1, 2, 3].map((i) => (
-                        <div key={i} className="h-16 bg-gray-200 rounded"></div>
-                      ))}
-                    </div>
-                  ) : payments.length > 0 ? (
-                    <div className="space-y-4">
-                      {payments.map((payment) => (
-                        <div key={payment.id} className="flex items-center justify-between p-4 border rounded-lg">
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium">{formatCurrency(payment.value)}</span>
-                              <Badge variant={paymentStatusLabels[payment.status]?.variant || 'outline'}>
-                                {paymentStatusLabels[payment.status]?.label || payment.status}
-                              </Badge>
-                            </div>
-                            <p className="text-sm text-muted-foreground">
-                              {billingTypeLabels[payment.billing_type] || payment.billing_type} - Vencimento: {formatDate(payment.due_date)}
-                            </p>
+                    ) : customer ? (
+                      <div className="flex flex-col">
+                        <div className="flex items-center justify-between py-[14px] border-b border-gray-100 gap-3 first:pt-0">
+                          <div className="text-[13px] font-medium text-gray-500 flex items-center gap-2 shrink-0">
+                            <span className="w-7 h-7 rounded-md bg-gray-50 border border-gray-100 flex items-center justify-center text-[13px]">👤</span>
+                            Nome
                           </div>
-                          <div className="flex gap-2">
-                            {payment.billing_type === 'PIX' && payment.status === 'PENDING' && (
-                              <Dialog>
-                                <DialogTrigger asChild>
-                                  <Button variant="outline" size="sm" onClick={() => handleViewPix(payment)}>Ver PIX</Button>
-                                </DialogTrigger>
-                                <DialogContent>
-                                  <DialogHeader>
-                                    <DialogTitle>Pagamento via PIX</DialogTitle>
-                                    <DialogDescription>Escaneie o QR Code ou copie o codigo PIX</DialogDescription>
-                                  </DialogHeader>
-                                  <div className="flex flex-col items-center gap-4 py-4">
-                                    {isLoadingPix ? (
-                                      <div className="animate-pulse bg-gray-200 w-48 h-48 rounded"></div>
-                                    ) : pixQRCode ? (
-                                      <>
-                                        <img src={`data:image/png;base64,${pixQRCode.encodedImage}`} alt="PIX QR Code" className="w-48 h-48" />
-                                        <div className="w-full">
-                                          <Label>Codigo PIX (Copia e Cola)</Label>
-                                          <div className="flex gap-2 mt-1">
-                                            <Input value={pixQRCode.payload} readOnly className="text-xs" />
-                                            <Button
-                                              variant="outline"
-                                              size="sm"
-                                              onClick={() => {
-                                                navigator.clipboard.writeText(pixQRCode.payload)
-                                                showToast.success('Codigo copiado!')
-                                              }}
-                                            >
-                                              Copiar
-                                            </Button>
-                                          </div>
-                                        </div>
-                                      </>
-                                    ) : (
-                                      <p className="text-muted-foreground">QR Code nao disponivel</p>
-                                    )}
-                                  </div>
-                                </DialogContent>
-                              </Dialog>
-                            )}
-                            {payment.invoice_url && (
-                              <Button variant="outline" size="sm" asChild>
-                                <a href={payment.invoice_url} target="_blank" rel="noopener noreferrer">Fatura</a>
-                              </Button>
-                            )}
-                            {payment.bank_slip_url && (
-                              <Button variant="outline" size="sm" asChild>
-                                <a href={payment.bank_slip_url} target="_blank" rel="noopener noreferrer">Boleto</a>
-                              </Button>
+                          <div className="text-[13.5px] font-medium text-gray-900 text-right break-words">{customer.name}</div>
+                        </div>
+
+                        <div className="flex items-center justify-between py-[14px] border-b border-gray-100 gap-3">
+                          <div className="text-[13px] font-medium text-gray-500 flex items-center gap-2 shrink-0">
+                            <span className="w-7 h-7 rounded-md bg-gray-50 border border-gray-100 flex items-center justify-center text-[13px]">✉️</span>
+                            E-mail
+                          </div>
+                          <div className="text-[12.5px] font-medium text-gray-900 text-right break-words">{customer.email}</div>
+                        </div>
+
+                        <div className="flex items-center justify-between py-[14px] border-b border-gray-100 gap-3">
+                          <div className="text-[13px] font-medium text-gray-500 flex items-center gap-2 shrink-0">
+                            <span className="w-7 h-7 rounded-md bg-gray-50 border border-gray-100 flex items-center justify-center text-[13px]">📄</span>
+                            Documento
+                          </div>
+                          <div className="text-right">
+                            {customer.document ? (
+                              <span className="text-[13.5px] font-medium text-gray-900">{customer.document}</span>
+                            ) : (
+                              <div>
+                                <span className="text-[12.5px] text-gray-400 italic block">Nao informado</span>
+                                <button onClick={() => setShowCustomerForm(true)} className="mt-1.5 font-sans text-xs font-semibold px-3 py-1.5 rounded-md border-[1.5px] border-dashed border-gray-200 bg-transparent text-gray-500 transition-all hover:bg-gray-50 hover:border-gray-900 hover:text-gray-900">+ Adicionar CPF/CNPJ</button>
+                              </div>
                             )}
                           </div>
                         </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-center text-muted-foreground py-8">Nenhum pagamento encontrado</p>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
 
+                        <div className="flex items-center justify-between py-[14px] border-b border-gray-100 gap-3 last:border-0 last:pb-0">
+                          <div className="text-[13px] font-medium text-gray-500 flex items-center gap-2 shrink-0">
+                            <span className="w-7 h-7 rounded-md bg-gray-50 border border-gray-100 flex items-center justify-center text-[13px]">📱</span>
+                            Telefone
+                          </div>
+                          <div className="text-right">
+                            {customer.phone ? (
+                              <span className="text-[13.5px] font-medium text-gray-900">{customer.phone}</span>
+                            ) : (
+                              <span className="text-[12.5px] text-gray-400 italic">Nao informado</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center py-4">
+                        <p className="text-gray-400 text-[13px] mb-4">Nenhum dado cadastrado.</p>
+                        <button onClick={() => setShowCustomerForm(true)} className="h-[38px] px-4 rounded-[10px] text-[13px] font-semibold border-[1.5px] border-gray-200 shadow-sm transition-all bg-white text-gray-900 hover:bg-gray-900 hover:text-white hover:border-gray-900">
+                          Cadastrar Dados
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* CARD 3: HISTORICO DE PAGAMENTOS */}
+                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500 delay-200 fill-mode-both">
+                  <div className="px-7 py-6 border-b border-gray-100 flex items-start justify-between gap-4">
+                    <div>
+                      <h2 className="text-[15px] font-bold tracking-tight text-gray-900">Historico de Pagamentos</h2>
+                      <p className="text-[12.5px] text-gray-400 mt-1">Ultimos pagamentos realizados</p>
+                    </div>
+                    <span className="text-[12px] text-gray-400 font-mono bg-gray-50 border border-gray-100 px-2.5 py-1 rounded-full">{payments.length} registro{payments.length !== 1 ? 's' : ''}</span>
+                  </div>
+
+                  <div className="p-7">
+                    <div className="space-y-3.5">
+                      {payments.map(payment => (
+                        <div key={payment.id} className="flex items-center gap-4 p-3.5 rounded-xl bg-gray-50 border border-gray-100 transition-all hover:bg-white hover:border-gray-200 hover:shadow-sm hover:translate-x-1 cursor-default">
+                          <div className="w-10 h-10 rounded-md bg-white border border-gray-200 flex items-center justify-center text-[18px] shrink-0 shadow-sm">
+                            {payment.billing_type === 'CREDIT_CARD' ? '💳' : payment.billing_type === 'PIX' ? '💠' : '📄'}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-[13.5px] font-semibold text-gray-900 truncate">{billingTypeLabels[payment.billing_type] || payment.billing_type}</div>
+                            <div className="text-[12px] text-gray-400 mt-0.5 font-mono">Vencimento: {formatDate(payment.due_date)}</div>
+                          </div>
+                          <div className="flex flex-col items-end gap-1.5 shrink-0">
+                            <div className="text-[15px] font-bold text-gray-900 font-mono tracking-tight">{formatCurrency(payment.value)}</div>
+                            <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full ${
+                              payment.status === 'CONFIRMED' || payment.status === 'RECEIVED' ? 'bg-cyan-100/60 text-cyan-700 border border-cyan-200' :
+                              payment.status === 'PENDING' ? 'bg-yellow-100/60 text-yellow-700 border border-yellow-200' :
+                              payment.status === 'OVERDUE' ? 'bg-red-100/60 text-red-700 border border-red-200' :
+                              'bg-gray-100/60 text-gray-700 border border-gray-200'
+                            }`}>
+                              <span className="w-1.5 h-1.5 rounded-full bg-current"></span>
+                              {paymentStatusLabels[payment.status]?.label || payment.status}
+                            </span>
+                            
+                            <div className="flex gap-1.5 mt-0.5">
+                              {payment.billing_type === 'PIX' && payment.status === 'PENDING' && (
+                                <Dialog>
+                                  <DialogTrigger asChild>
+                                    <button className="font-sans text-[11.5px] font-semibold px-3 py-1.5 rounded-md border-[1.5px] border-gray-200 bg-white text-gray-500 hover:text-white hover:bg-gray-900 hover:border-gray-900 shadow-sm transition-all tracking-wide" onClick={() => handleViewPix(payment)}>Ver PIX</button>
+                                  </DialogTrigger>
+                                  <DialogContent>
+                                    <DialogHeader>
+                                      <DialogTitle>Pagamento via PIX</DialogTitle>
+                                      <DialogDescription>Escaneie o QR Code ou copie o codigo PIX</DialogDescription>
+                                    </DialogHeader>
+                                    <div className="flex flex-col items-center gap-4 py-4">
+                                      {isLoadingPix ? (
+                                        <div className="animate-pulse bg-gray-200 w-48 h-48 rounded"></div>
+                                      ) : pixQRCode ? (
+                                        <>
+                                          <img src={`data:image/png;base64,${pixQRCode.encodedImage}`} alt="PIX QR Code" className="w-48 h-48" />
+                                          <div className="w-full">
+                                            <Label>Codigo PIX (Copia e Cola)</Label>
+                                            <div className="flex gap-2 mt-1">
+                                              <Input value={pixQRCode.payload} readOnly className="text-xs" />
+                                              <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => {
+                                                  navigator.clipboard.writeText(pixQRCode.payload)
+                                                  showToast.success('Codigo copiado!')
+                                                }}
+                                              >
+                                                Copiar
+                                              </Button>
+                                            </div>
+                                          </div>
+                                        </>
+                                      ) : (
+                                        <p className="text-muted-foreground">QR Code nao disponivel</p>
+                                      )}
+                                    </div>
+                                  </DialogContent>
+                                </Dialog>
+                              )}
+                              {payment.invoice_url && (
+                                <a href={payment.invoice_url} target="_blank" rel="noopener noreferrer" className="font-sans text-[11.5px] font-semibold px-3 py-1.5 rounded-md border-[1.5px] border-gray-200 bg-white text-gray-500 hover:text-white hover:bg-gray-900 hover:border-gray-900 shadow-sm transition-all flex items-center gap-1.5 tracking-wide">
+                                  <svg width="11" height="11" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                                  Fatura
+                                </a>
+                              )}
+                              {payment.bank_slip_url && (
+                                <a href={payment.bank_slip_url} target="_blank" rel="noopener noreferrer" className="font-sans text-[11.5px] font-semibold px-3 py-1.5 rounded-md border-[1.5px] border-gray-200 bg-white text-gray-500 hover:text-white hover:bg-gray-900 hover:border-gray-900 shadow-sm transition-all flex items-center gap-1.5 tracking-wide">
+                                  <svg width="11" height="11" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                                  Boleto
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+
+                      {payments.length === 0 && (
+                        <p className="text-center text-gray-400 py-4 text-[13px]">Nenhum pagamento encontrado</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </TabsContent>
             {/* Tab: Conta */}
             <TabsContent value="conta" className="mt-0 outline-none space-y-6">
               <Card>

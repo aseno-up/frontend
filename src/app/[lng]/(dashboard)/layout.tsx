@@ -3,6 +3,7 @@
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Sidebar } from "@/components/dashboard/sidebar"
+import { SubscriptionGuard } from "@/components/subscription-guard"
 import { useAuthStore } from "@/stores/auth-store"
 
 interface DashboardLayoutProps {
@@ -63,9 +64,11 @@ function DashboardLayoutContent({
   }, [params])
 
   return (
-    <div className="flex h-screen bg-muted/30">
-      <Sidebar lng={lng} />
-      <main className="flex-1 overflow-auto">{children}</main>
-    </div>
+    <SubscriptionGuard lng={lng}>
+      <div className="flex h-screen bg-muted/30">
+        <Sidebar lng={lng} />
+        <main className="flex-1 overflow-auto">{children}</main>
+      </div>
+    </SubscriptionGuard>
   )
 }

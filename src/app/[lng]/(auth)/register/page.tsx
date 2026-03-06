@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { useForm } from "react-hook-form"
@@ -37,6 +37,18 @@ interface RegisterPageProps {
 }
 
 export default function RegisterPage({ params }: RegisterPageProps) {
+  return (
+    <Suspense fallback={
+      <div className="flex h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    }>
+      <RegisterContent params={params} />
+    </Suspense>
+  )
+}
+
+function RegisterContent({ params }: RegisterPageProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { register: registerUser, googleLogin } = useAuthStore()
@@ -83,7 +95,7 @@ export default function RegisterPage({ params }: RegisterPageProps) {
 
       // If user selected a paid plan (anything except trial), redirect to billing setup
       if (selectedPlan && selectedPlan !== 'trial') {
-        router.push(`/${lng}/configuracoes?tab=faturamento&setup=true`)
+        router.push(`/${lng}/billing-setup?plan=${selectedPlan}&billing=${selectedBilling === 'annually' ? 'YEARLY' : 'MONTHLY'}`)
       } else {
         router.push(`/${lng}/agenda`)
       }
@@ -103,10 +115,20 @@ export default function RegisterPage({ params }: RegisterPageProps) {
     setIsGoogleLoading(true)
 
     try {
-      await googleLogin(credentialResponse.credential)
+      await googleLogin(
+        credentialResponse.credential,
+        selectedPlan || undefined,
+        selectedBilling || undefined
+      )
       const { lng } = await params
       showToast.success("Login com Google realizado com sucesso!")
-      router.push(`/${lng}/agenda`)
+
+      // Redirect to billing-setup for paid plans, otherwise to agenda
+      if (selectedPlan && selectedPlan !== "trial") {
+        router.push(`/${lng}/billing-setup?plan=${selectedPlan}&billing=${selectedBilling === "annually" ? "YEARLY" : "MONTHLY"}`)
+      } else {
+        router.push(`/${lng}/agenda`)
+      }
     } catch (err) {
       handleApiError(err, "Erro ao cadastrar com Google")
     } finally {
@@ -128,11 +150,15 @@ export default function RegisterPage({ params }: RegisterPageProps) {
   return (
     <Card className="w-full max-w-md">
       <CardHeader className="space-y-1">
-        <CardTitle className="text-2xl font-bold">Criar conta</CardTitle>
+        <CardTitle className="text-2xl font-bold">
+          {selectedPlan && selectedPlan !== 'trial' ? 'Criar conta e assinar' : 'Criar conta'}
+        </CardTitle>
         <CardDescription>
-          Comece seu teste gratuito de 14 dias
+          {selectedPlan && selectedPlan !== 'trial'
+            ? 'Preencha seus dados para ativar seu plano'
+            : 'Comece seu teste gratuito de 14 dias'}
         </CardDescription>
-        {selectedPlan && (
+        {selectedPlan && selectedPlan !== 'trial' && (
           <div className="flex items-center gap-2 pt-2">
             <span className="text-sm text-muted-foreground">Plano selecionado:</span>
             <Badge variant="secondary">
