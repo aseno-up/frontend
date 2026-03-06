@@ -17,6 +17,7 @@ import {
   UserPlus,
   BarChart3,
   Stethoscope,
+  Shield,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -46,6 +47,10 @@ const navItems: NavItem[] = [
   { href: "/relatorios", label: "Relatorios", icon: BarChart3, permission: "billing:access", tutorialId: "relatorios" },
   { href: "/usuarios", label: "Usuarios", icon: UserPlus, permission: "users:manage", tutorialId: "usuarios" },
   { href: "/configuracoes", label: "Configuracoes", icon: Settings, permission: "settings:access", tutorialId: "configuracoes" },
+]
+
+const adminNavItems: NavItem[] = [
+  { href: "/admin/settings", label: "Admin", icon: Shield },
 ]
 
 interface SidebarProps {
@@ -87,6 +92,9 @@ export function Sidebar({ lng }: SidebarProps) {
     window.location.href = `/${lng}/login`
   }
 
+  // Check if clinic is dev type for admin menu
+  const isDevClinic = clinic?.type === "dev"
+
   const NavLinks = ({ onItemClick }: { onItemClick?: () => void }) => (
     <nav className="flex-1 space-y-1 px-2 py-4" data-tutorial="sidebar">
       {filteredNavItems.map((item) => {
@@ -110,6 +118,38 @@ export function Sidebar({ lng }: SidebarProps) {
           </Link>
         )
       })}
+
+      {/* Admin section - only visible for dev clinics */}
+      {isDevClinic && (
+        <>
+          <div className={cn(
+            "mt-4 mb-1 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground/60",
+            collapsed && "sr-only"
+          )}>
+            Admin
+          </div>
+          {adminNavItems.map((item) => {
+            const isActive = pathname.includes(item.href)
+            const Icon = item.icon
+            return (
+              <Link
+                key={item.href}
+                href={`/${lng}${item.href}`}
+                onClick={onItemClick}
+                className={cn(
+                  "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                  isActive
+                    ? "bg-primary/10 text-primary"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                )}
+              >
+                <Icon className="h-5 w-5 shrink-0" />
+                {!collapsed && <span>{item.label}</span>}
+              </Link>
+            )
+          })}
+        </>
+      )}
     </nav>
   )
 

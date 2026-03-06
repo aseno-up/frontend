@@ -1,18 +1,24 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { Settings, Save, Loader2, AlertTriangle } from "lucide-react"
+import { useEffect, useState, useCallback } from "react"
+import {
+  Users,
+  DollarSign,
+  Activity,
+  Clock,
+  Loader2,
+  AlertTriangle,
+  Minus,
+  Plus,
+  Info,
+  Zap,
+  Check,
+} from "lucide-react"
 
 import { Header } from "@/components/dashboard/header"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Switch } from "@/components/ui/switch"
-import { Separator } from "@/components/ui/separator"
 import { useAuthStore } from "@/stores/auth-store"
 import { api } from "@/lib/api/client"
-import { handleApiError, showToast } from "@/lib/toast"
+import { handleApiError } from "@/lib/toast"
 
 interface AdminSettingsPageProps {
   params: Promise<{ lng: string }>
@@ -28,8 +34,10 @@ export default function AdminSettingsPage({ params }: AdminSettingsPageProps) {
   const { clinic } = useAuthStore()
   const [settings, setSettings] = useState<Record<string, SettingDetail>>({})
   const [isLoading, setIsLoading] = useState(true)
-  const [isSaving, setIsSaving] = useState<string | null>(null)
+  const [isSaving, setIsSaving] = useState(false)
   const [editedValues, setEditedValues] = useState<Record<string, string>>({})
+  const [dirty, setDirty] = useState(false)
+  const [toast, setToast] = useState<{ message: string; visible: boolean }>({ message: "", visible: false })
 
   useEffect(() => {
     params.then(({ lng }) => setLng(lng))
@@ -44,7 +52,6 @@ export default function AdminSettingsPage({ params }: AdminSettingsPageProps) {
       setIsLoading(true)
       const data = await api.getAdminSettings()
       setSettings(data.settings)
-      // Initialize edited values with current values
       const values: Record<string, string> = {}
       Object.entries(data.settings).forEach(([key, detail]) => {
         values[key] = detail.value
@@ -57,76 +64,109 @@ export default function AdminSettingsPage({ params }: AdminSettingsPageProps) {
     }
   }
 
-  const handleSave = async (key: string) => {
-    const newValue = editedValues[key]
-    if (newValue === settings[key]?.value) return
+  const updateValue = useCallback((key: string, value: string) => {
+    setEditedValues(prev => ({ ...prev, [key]: value }))
+    setDirty(true)
+  }, [])
+
+  const stepValue = useCallback((key: string, delta: number) => {
+    setEditedValues(prev => {
+      const current = parseInt(prev[key] || "0")
+      const minVal = key === "plan_advanced_limit" ? -1 : 0
+      const newVal = Math.max(minVal, current + delta)
+      return { ...prev, [key]: String(newVal) }
+    })
+    setDirty(true)
+  }, [])
+
+  const handleToggle = useCallback((key: string) => {
+    setEditedValues(prev => ({
+      ...prev,
+      [key]: prev[key] === "true" ? "false" : "true"
+    }))
+    setDirty(true)
+  }, [])
+
+  const showToast = (message: string) => {
+    setToast({ message, visible: true })
+    setTimeout(() => setToast(prev => ({ ...prev, visible: false })), 3000)
+  }
+
+  const saveAll = async () => {
+    const changedKeys = Object.keys(editedValues).filter(
+      key => editedValues[key] !== settings[key]?.value
+    )
+    if (changedKeys.length === 0) return
 
     try {
-      setIsSaving(key)
-      await api.updateAdminSetting(key, newValue)
-      setSettings(prev => ({
-        ...prev,
-        [key]: { ...prev[key], value: newValue }
-      }))
-      showToast.success("Configuracao atualizada com sucesso")
+      setIsSaving(true)
+      for (const key of changedKeys) {
+        await api.updateAdminSetting(key, editedValues[key])
+      }
+      // Update local settings state
+      const newSettings = { ...settings }
+      changedKeys.forEach(key => {
+        newSettings[key] = { ...newSettings[key], value: editedValues[key] }
+      })
+      setSettings(newSettings)
+      setDirty(false)
+      showToast("Configurações salvas com sucesso!")
     } catch (err) {
       handleApiError(err)
-      // Revert on error
-      setEditedValues(prev => ({
-        ...prev,
-        [key]: settings[key]?.value || ""
-      }))
+      // Revert changed values
+      const reverted = { ...editedValues }
+      changedKeys.forEach(key => {
+        reverted[key] = settings[key]?.value || ""
+      })
+      setEditedValues(reverted)
     } finally {
-      setIsSaving(null)
+      setIsSaving(false)
     }
   }
 
-  const handleToggle = async (key: string, checked: boolean) => {
-    const newValue = checked ? "true" : "false"
-    setEditedValues(prev => ({ ...prev, [key]: newValue }))
-
-    try {
-      setIsSaving(key)
-      await api.updateAdminSetting(key, newValue)
-      setSettings(prev => ({
-        ...prev,
-        [key]: { ...prev[key], value: newValue }
-      }))
-      showToast.success("Configuracao atualizada com sucesso")
-    } catch (err) {
-      handleApiError(err)
-      // Revert on error
-      setEditedValues(prev => ({
-        ...prev,
-        [key]: settings[key]?.value || "false"
-      }))
-    } finally {
-      setIsSaving(null)
-    }
+  const resetForm = () => {
+    const values: Record<string, string> = {}
+    Object.entries(settings).forEach(([key, detail]) => {
+      values[key] = detail.value
+    })
+    setEditedValues(values)
+    setDirty(false)
   }
 
-  const hasChanged = (key: string) => editedValues[key] !== settings[key]?.value
+  // Computed values
+  const limBasico = editedValues.plan_basic_limit || "5"
+  const limProfissional = editedValues.plan_pro_limit || "15"
+  const limAvancado = editedValues.plan_advanced_limit || "-1"
+  const isUnlimited = parseInt(limAvancado) === -1
+  const trialDias = parseInt(editedValues.trial_days || "14")
+  const excessEnabled = editedValues.excess_billing_enabled === "true"
 
-  // Check if clinic is dev type
-  // @ts-ignore - Clinic type might not have 'type' property defined yet in the frontend types
+  const getTrialLabel = () => {
+    if (trialDias === 0) return { text: "Sem trial", color: "#dc2626", bg: "#fef2f2" }
+    if (trialDias <= 7) return { text: `${trialDias} dias`, color: "#d97706", bg: "#fffbeb" }
+    if (trialDias === 14) return { text: "2 semanas", color: "#1a1a2e", bg: "#f0f1f5" }
+    if (trialDias === 30) return { text: "1 mês", color: "#059669", bg: "#ecfdf5" }
+    return { text: `${trialDias} dias`, color: "#1a1a2e", bg: "#f0f1f5" }
+  }
+  const trialLabel = getTrialLabel()
+
+  // Access check
   if (clinic?.type !== "dev") {
     return (
       <div className="flex h-full flex-col">
-        <Header lng={lng} title="Configuracoes do Sistema" />
+        <Header lng={lng} title="Configurações do Sistema" />
         <div className="flex-1 flex items-center justify-center p-4">
-          <Card className="max-w-md">
-            <CardHeader>
-              <div className="flex items-center gap-2 text-destructive">
-                <AlertTriangle className="h-5 w-5" />
-                <CardTitle>Acesso Restrito</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">
-                Esta pagina esta disponivel apenas para clinicas de desenvolvimento.
-              </p>
-            </CardContent>
-          </Card>
+          <div style={{
+            background: "white", borderRadius: 16, padding: "32px 40px",
+            boxShadow: "0 4px 16px rgba(0,0,0,0.06)", maxWidth: 420, textAlign: "center",
+            border: "1px solid #e8eaed"
+          }}>
+            <AlertTriangle style={{ width: 40, height: 40, color: "#dc2626", margin: "0 auto 16px" }} />
+            <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Acesso Restrito</h2>
+            <p style={{ fontSize: 14, color: "#6b7280" }}>
+              Esta página está disponível apenas para clínicas de desenvolvimento.
+            </p>
+          </div>
         </div>
       </div>
     )
@@ -134,236 +174,542 @@ export default function AdminSettingsPage({ params }: AdminSettingsPageProps) {
 
   return (
     <div className="flex h-full flex-col">
-      <Header lng={lng} title="Configuracoes do Sistema" />
+      <Header lng={lng} title="Configurações do Sistema" />
 
-      <div className="flex-1 overflow-auto p-4 md:p-6">
-        <div className="mx-auto max-w-3xl space-y-6">
+      <div style={{ flex: 1, overflow: "auto", padding: "40px 24px", background: "#f5f6f8", fontFamily: "'DM Sans', sans-serif" }}>
+        <div style={{ maxWidth: 680, margin: "0 auto" }}>
+
+          {/* Page header */}
+          <div style={{ marginBottom: 36 }}>
+            <h1 style={{ fontSize: 22, fontWeight: 700, color: "#0f1117", letterSpacing: -0.4, marginBottom: 4 }}>
+              Configurações do Sistema
+            </h1>
+            <p style={{ fontSize: 14, color: "#6b7280" }}>
+              Gerencie planos, limites e cobranças da plataforma
+            </p>
+          </div>
+
+          {/* Save bar */}
+          <div style={{
+            position: "sticky", top: 16, zIndex: 100,
+            background: "#1a1a2e", color: "white", borderRadius: 12,
+            padding: "12px 20px", display: "flex", alignItems: "center",
+            justifyContent: "space-between", marginBottom: 28,
+            boxShadow: "0 8px 24px rgba(26,26,46,0.3)",
+            transform: dirty ? "translateY(0)" : "translateY(-4px)",
+            opacity: dirty ? 1 : 0,
+            pointerEvents: dirty ? "all" : "none",
+            transition: "all 220ms cubic-bezier(0.34, 1.56, 0.64, 1)",
+          }}>
+            <span style={{ fontSize: 13.5, fontWeight: 500 }}>Você tem alterações não salvas</span>
+            <button
+              onClick={saveAll}
+              disabled={isSaving}
+              style={{
+                background: "white", color: "#1a1a2e", border: "none", borderRadius: 8,
+                padding: "7px 18px", fontSize: 13, fontWeight: 600, cursor: "pointer",
+                opacity: isSaving ? 0.7 : 1, display: "flex", alignItems: "center", gap: 6,
+                fontFamily: "inherit",
+              }}
+            >
+              {isSaving ? <Loader2 style={{ width: 14, height: 14, animation: "spin 1s linear infinite" }} /> : null}
+              Salvar alterações
+            </button>
+          </div>
+
           {isLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            <div style={{ display: "flex", justifyContent: "center", padding: "48px 0" }}>
+              <Loader2 style={{ width: 32, height: 32, color: "#9ca3af", animation: "spin 1s linear infinite" }} />
             </div>
           ) : (
             <>
-              {/* Plan Limits */}
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center gap-2">
-                    <Settings className="h-5 w-5 text-muted-foreground" />
-                    <CardTitle>Limites de Profissionais</CardTitle>
-                  </div>
-                  <CardDescription>
-                    Configure o numero maximo de profissionais por plano
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <SettingInput
-                    label="Plano Basico"
-                    settingKey="plan_basic_limit"
-                    description={settings.plan_basic_limit?.description}
-                    value={editedValues.plan_basic_limit || ""}
-                    onChange={(val) => setEditedValues(prev => ({ ...prev, plan_basic_limit: val }))}
-                    onSave={() => handleSave("plan_basic_limit")}
-                    hasChanged={hasChanged("plan_basic_limit")}
-                    isSaving={isSaving === "plan_basic_limit"}
-                  />
-                  <Separator />
-                  <SettingInput
-                    label="Plano Profissional"
-                    settingKey="plan_pro_limit"
-                    description={settings.plan_pro_limit?.description}
-                    value={editedValues.plan_pro_limit || ""}
-                    onChange={(val) => setEditedValues(prev => ({ ...prev, plan_pro_limit: val }))}
-                    onSave={() => handleSave("plan_pro_limit")}
-                    hasChanged={hasChanged("plan_pro_limit")}
-                    isSaving={isSaving === "plan_pro_limit"}
-                  />
-                  <Separator />
-                  <SettingInput
-                    label="Plano Avancado"
-                    settingKey="plan_advanced_limit"
-                    description={settings.plan_advanced_limit?.description}
-                    value={editedValues.plan_advanced_limit || ""}
-                    onChange={(val) => setEditedValues(prev => ({ ...prev, plan_advanced_limit: val }))}
-                    onSave={() => handleSave("plan_advanced_limit")}
-                    hasChanged={hasChanged("plan_advanced_limit")}
-                    isSaving={isSaving === "plan_advanced_limit"}
-                    hint="Use -1 para ilimitado"
-                  />
-                </CardContent>
-              </Card>
+              {/* ── LIMITES DE PROFISSIONAIS ── */}
+              <SectionCard
+                icon={<Users style={{ width: 18, height: 18, color: "#1a1a2e" }} />}
+                title="Limites de Profissionais"
+                subtitle="Número máximo de profissionais por plano"
+                delay={0}
+              >
+                <div style={{ padding: "8px 28px 24px" }}>
+                  <FieldRow
+                    label="Plano Básico"
+                    description="Limite de profissionais cadastrados"
+                  >
+                    <Stepper
+                      value={limBasico}
+                      onStep={(d) => stepValue("plan_basic_limit", d)}
+                      onChange={(v) => updateValue("plan_basic_limit", v)}
+                      min={1}
+                    />
+                  </FieldRow>
 
-              {/* Plan Prices */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Precos dos Planos (BRL)</CardTitle>
-                  <CardDescription>
-                    Configure os precos mensais de cada plano
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <SettingInput
-                    label="Plano Basico"
-                    settingKey="plan_basic_price"
-                    description={settings.plan_basic_price?.description}
-                    value={editedValues.plan_basic_price || ""}
-                    onChange={(val) => setEditedValues(prev => ({ ...prev, plan_basic_price: val }))}
-                    onSave={() => handleSave("plan_basic_price")}
-                    hasChanged={hasChanged("plan_basic_price")}
-                    isSaving={isSaving === "plan_basic_price"}
-                    prefix="R$"
-                  />
-                  <Separator />
-                  <SettingInput
+                  <FieldRow
                     label="Plano Profissional"
-                    settingKey="plan_pro_price"
-                    description={settings.plan_pro_price?.description}
-                    value={editedValues.plan_pro_price || ""}
-                    onChange={(val) => setEditedValues(prev => ({ ...prev, plan_pro_price: val }))}
-                    onSave={() => handleSave("plan_pro_price")}
-                    hasChanged={hasChanged("plan_pro_price")}
-                    isSaving={isSaving === "plan_pro_price"}
-                    prefix="R$"
-                  />
-                  <Separator />
-                  <SettingInput
-                    label="Plano Avancado"
-                    settingKey="plan_advanced_price"
-                    description={settings.plan_advanced_price?.description}
-                    value={editedValues.plan_advanced_price || ""}
-                    onChange={(val) => setEditedValues(prev => ({ ...prev, plan_advanced_price: val }))}
-                    onSave={() => handleSave("plan_advanced_price")}
-                    hasChanged={hasChanged("plan_advanced_price")}
-                    isSaving={isSaving === "plan_advanced_price"}
-                    prefix="R$"
-                  />
-                </CardContent>
-              </Card>
+                    description="Limite de profissionais cadastrados"
+                  >
+                    <Stepper
+                      value={limProfissional}
+                      onStep={(d) => stepValue("plan_pro_limit", d)}
+                      onChange={(v) => updateValue("plan_pro_limit", v)}
+                      min={1}
+                    />
+                  </FieldRow>
 
-              {/* Excess Billing */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Cobranca de Excedente</CardTitle>
-                  <CardDescription>
-                    Configure a cobranca por profissional adicional
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <SettingInput
-                    label="Preco por Profissional Excedente"
-                    settingKey="plan_excess_price"
-                    description={settings.plan_excess_price?.description}
-                    value={editedValues.plan_excess_price || ""}
-                    onChange={(val) => setEditedValues(prev => ({ ...prev, plan_excess_price: val }))}
-                    onSave={() => handleSave("plan_excess_price")}
-                    hasChanged={hasChanged("plan_excess_price")}
-                    isSaving={isSaving === "plan_excess_price"}
-                    prefix="R$"
-                  />
-                  <Separator />
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label className="text-base">Cobranca de Excedente Ativa</Label>
-                      <p className="text-sm text-muted-foreground">
-                        {settings.excess_billing_enabled?.description || "Ativar cobranca automatica por excedente"}
-                      </p>
+                  <FieldRow
+                    label="Plano Avançado"
+                    description={
+                      <span>
+                        Use <code style={{
+                          fontFamily: "'DM Mono', monospace", fontSize: 12,
+                          background: "#f9fafb", padding: "1px 5px", borderRadius: 4,
+                          border: "1px solid #e8eaed"
+                        }}>-1</code> para ilimitado
+                      </span>
+                    }
+                    isLast
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <Stepper
+                        value={limAvancado}
+                        onStep={(d) => stepValue("plan_advanced_limit", d)}
+                        onChange={(v) => updateValue("plan_advanced_limit", v)}
+                        min={-1}
+                      />
+                      {isUnlimited && (
+                        <span style={{
+                          display: "inline-flex", alignItems: "center", gap: 4,
+                          padding: "2px 8px", borderRadius: 99, fontSize: 11, fontWeight: 600,
+                          background: "#ecfdf5", color: "#059669", letterSpacing: 0.2,
+                        }}>
+                          ✦ Ilimitado
+                        </span>
+                      )}
                     </div>
-                    <Switch
-                      checked={editedValues.excess_billing_enabled === "true"}
-                      onCheckedChange={(checked) => handleToggle("excess_billing_enabled", checked)}
-                      disabled={isSaving === "excess_billing_enabled"}
+                  </FieldRow>
+                </div>
+              </SectionCard>
+
+              {/* ── PREÇOS DOS PLANOS ── */}
+              <SectionCard
+                icon={<DollarSign style={{ width: 18, height: 18, color: "#1a1a2e" }} />}
+                title={<>Preços dos Planos <span style={{ fontSize: 12, color: "#9ca3af", fontWeight: 500 }}>(BRL)</span></>}
+                subtitle="Configure os preços mensais de cada plano"
+                delay={60}
+              >
+                <div style={{
+                  display: "grid", gridTemplateColumns: "repeat(3, 1fr)",
+                  gap: 12, padding: "20px 28px 24px",
+                }}>
+                  <PlanCard
+                    label="Básico"
+                    value={editedValues.plan_basic_price || "99"}
+                    onChange={(v) => updateValue("plan_basic_price", v)}
+                    limitText={`até ${limBasico} profissionais`}
+                  />
+                  <PlanCard
+                    label="Profissional"
+                    value={editedValues.plan_pro_price || "199"}
+                    onChange={(v) => updateValue("plan_pro_price", v)}
+                    limitText={`até ${limProfissional} profissionais`}
+                  />
+                  <PlanCard
+                    label="Avançado"
+                    value={editedValues.plan_advanced_price || "349"}
+                    onChange={(v) => updateValue("plan_advanced_price", v)}
+                    limitText={isUnlimited ? "Ilimitado" : `até ${limAvancado} profissionais`}
+                  />
+                </div>
+              </SectionCard>
+
+              {/* ── COBRANÇA DE EXCEDENTE ── */}
+              <SectionCard
+                icon={<Activity style={{ width: 18, height: 18, color: "#1a1a2e" }} />}
+                title="Cobrança de Excedente"
+                subtitle="Configure a cobrança por profissional adicional"
+                delay={120}
+              >
+                <div style={{ padding: "8px 28px 24px" }}>
+                  {/* Toggle row */}
+                  <div style={{
+                    padding: "20px 0", display: "flex", alignItems: "center",
+                    justifyContent: "space-between", gap: 24,
+                    borderBottom: "1px solid #e8eaed",
+                  }}>
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: "#0f1117", display: "flex", alignItems: "center", gap: 6 }}>
+                        <span style={{
+                          width: 8, height: 8, borderRadius: "50%", display: "inline-block",
+                          background: excessEnabled ? "#059669" : "#9ca3af",
+                          boxShadow: excessEnabled ? "0 0 0 3px #ecfdf5" : "none",
+                          verticalAlign: "middle", marginRight: 4,
+                        }} />
+                        Cobrança de Excedente Ativa
+                      </div>
+                      <div style={{ fontSize: 12.5, color: "#6b7280" }}>
+                        Cobrar automaticamente por profissionais acima do limite do plano
+                      </div>
+                    </div>
+                    <ToggleSwitch
+                      checked={excessEnabled}
+                      onChange={() => handleToggle("excess_billing_enabled")}
                     />
                   </div>
-                </CardContent>
-              </Card>
 
-              {/* Trial */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Periodo de Trial</CardTitle>
-                  <CardDescription>
-                    Configure o periodo de teste gratuito
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <SettingInput
-                    label="Dias de Trial"
-                    settingKey="trial_days"
-                    description={settings.trial_days?.description}
-                    value={editedValues.trial_days || ""}
-                    onChange={(val) => setEditedValues(prev => ({ ...prev, trial_days: val }))}
-                    onSave={() => handleSave("trial_days")}
-                    hasChanged={hasChanged("trial_days")}
-                    isSaving={isSaving === "trial_days"}
-                    suffix="dias"
-                  />
-                </CardContent>
-              </Card>
+                  {/* Price field */}
+                  <div style={{
+                    padding: "20px 0", display: "grid", gridTemplateColumns: "1fr 180px",
+                    alignItems: "center", gap: 24,
+                    opacity: excessEnabled ? 1 : 0.4,
+                    pointerEvents: excessEnabled ? "all" : "none",
+                    transition: "opacity 200ms",
+                  }}>
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: "#0f1117", marginBottom: 2 }}>
+                        Preço por Profissional Excedente
+                      </div>
+                      <div style={{ fontSize: 12.5, color: "#6b7280", lineHeight: 1.4 }}>
+                        Valor cobrado mensalmente por profissional além do limite
+                      </div>
+                    </div>
+                    <CurrencyInput
+                      value={editedValues.plan_excess_price || "20"}
+                      onChange={(v) => updateValue("plan_excess_price", v)}
+                    />
+                  </div>
+
+                  {/* Hint */}
+                  {excessEnabled && (
+                    <div style={{
+                      display: "flex", alignItems: "center", gap: 6, fontSize: 12,
+                      color: "#9ca3af", marginTop: 10, padding: "8px 12px",
+                      background: "#f9fafb", borderRadius: 8, border: "1px dashed #e8eaed",
+                    }}>
+                      <Zap style={{ width: 12, height: 12, flexShrink: 0 }} />
+                      Cobrança excedente ativa — cada profissional além do limite será cobrado automaticamente
+                    </div>
+                  )}
+                </div>
+              </SectionCard>
+
+              {/* ── PERÍODO DE TRIAL ── */}
+              <SectionCard
+                icon={<Clock style={{ width: 18, height: 18, color: "#1a1a2e" }} />}
+                title="Período de Trial"
+                subtitle="Configure o período de teste gratuito para novos clientes"
+                delay={180}
+              >
+                <div style={{ padding: "8px 28px 24px" }}>
+                  <div style={{
+                    padding: "20px 0", display: "grid", gridTemplateColumns: "1fr auto",
+                    alignItems: "center", gap: 24,
+                  }}>
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: "#0f1117", marginBottom: 2 }}>
+                        Dias de Trial Gratuito
+                      </div>
+                      <div style={{ fontSize: 12.5, color: "#6b7280", lineHeight: 1.4 }}>
+                        Período de acesso completo sem cobrança após o cadastro
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <Stepper
+                        value={String(trialDias)}
+                        onStep={(d) => stepValue("trial_days", d)}
+                        onChange={(v) => updateValue("trial_days", v)}
+                        min={0}
+                      />
+                      <span style={{ fontSize: 13, color: "#6b7280", fontWeight: 500 }}>dias</span>
+                      <span style={{
+                        display: "inline-flex", padding: "2px 8px", borderRadius: 99,
+                        fontSize: 11, fontWeight: 600, letterSpacing: 0.2,
+                        background: trialLabel.bg, color: trialLabel.color,
+                      }}>
+                        {trialLabel.text}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </SectionCard>
+
+              {/* Bottom actions */}
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, paddingTop: 8 }}>
+                <button
+                  onClick={resetForm}
+                  style={{
+                    padding: "10px 22px", borderRadius: 8, fontSize: 14, fontWeight: 600,
+                    background: "transparent", color: "#6b7280", border: "1.5px solid #e8eaed",
+                    cursor: "pointer", fontFamily: "inherit", transition: "all 180ms ease",
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = "#f9fafb"; e.currentTarget.style.borderColor = "#c5c9d3" }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "#e8eaed" }}
+                >
+                  Descartar
+                </button>
+                <button
+                  onClick={saveAll}
+                  disabled={isSaving}
+                  style={{
+                    padding: "10px 22px", borderRadius: 8, fontSize: 14, fontWeight: 600,
+                    background: "#1a1a2e", color: "white", border: "none", cursor: "pointer",
+                    fontFamily: "inherit", boxShadow: "0 2px 8px rgba(26,26,46,0.25)",
+                    transition: "all 180ms ease", opacity: isSaving ? 0.7 : 1,
+                    display: "flex", alignItems: "center", gap: 6,
+                  }}
+                  onMouseEnter={(e) => { if (!isSaving) { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = "0 4px 14px rgba(26,26,46,0.3)" } }}
+                  onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "0 2px 8px rgba(26,26,46,0.25)" }}
+                >
+                  {isSaving ? <Loader2 style={{ width: 14, height: 14, animation: "spin 1s linear infinite" }} /> : null}
+                  Salvar configurações
+                </button>
+              </div>
             </>
           )}
         </div>
+      </div>
+
+      {/* Toast */}
+      <div style={{
+        position: "fixed", bottom: 28, left: "50%",
+        transform: `translateX(-50%) translateY(${toast.visible ? "0" : "10px"})`,
+        background: "#0f1117", color: "white", padding: "10px 20px", borderRadius: 10,
+        fontSize: 13.5, fontWeight: 500, fontFamily: "'DM Sans', sans-serif",
+        boxShadow: "0 4px 20px rgba(0,0,0,0.2)",
+        opacity: toast.visible ? 1 : 0,
+        transition: "all 250ms cubic-bezier(0.34, 1.56, 0.64, 1)",
+        zIndex: 999, display: "flex", alignItems: "center", gap: 8,
+        pointerEvents: "none",
+      }}>
+        <Check style={{ width: 14, height: 14, color: "#34d399" }} />
+        {toast.message}
+      </div>
+
+      {/* Keyframe for spinner */}
+      <style>{`
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes fadeUp {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
+    </div>
+  )
+}
+
+// ─── SUB-COMPONENTS ───
+
+function SectionCard({ icon, title, subtitle, children, delay = 0 }: {
+  icon: React.ReactNode
+  title: React.ReactNode
+  subtitle: string
+  children: React.ReactNode
+  delay?: number
+}) {
+  return (
+    <div style={{
+      background: "white", border: "1px solid #e8eaed", borderRadius: 16,
+      marginBottom: 20, boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)",
+      overflow: "hidden", transition: "box-shadow 180ms ease",
+      animation: `fadeUp 320ms ease ${delay}ms backwards`,
+    }}
+    onMouseEnter={(e) => e.currentTarget.style.boxShadow = "0 4px 16px rgba(0,0,0,0.06), 0 2px 6px rgba(0,0,0,0.04)"}
+    onMouseLeave={(e) => e.currentTarget.style.boxShadow = "0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)"}
+    >
+      {/* Header */}
+      <div style={{
+        padding: "22px 28px 18px", borderBottom: "1px solid #e8eaed",
+        display: "flex", alignItems: "center", gap: 12,
+      }}>
+        <div style={{
+          width: 36, height: 36, borderRadius: 10, background: "#f0f1f5",
+          display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+        }}>
+          {icon}
+        </div>
+        <div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: "#0f1117", letterSpacing: -0.2 }}>
+            {title}
+          </div>
+          <div style={{ fontSize: 12.5, color: "#6b7280", marginTop: 1 }}>
+            {subtitle}
+          </div>
+        </div>
+      </div>
+      {children}
+    </div>
+  )
+}
+
+function FieldRow({ label, description, children, isLast = false }: {
+  label: string
+  description: React.ReactNode
+  children: React.ReactNode
+  isLast?: boolean
+}) {
+  return (
+    <div style={{
+      padding: "20px 0",
+      borderBottom: isLast ? "none" : "1px solid #e8eaed",
+      display: "grid", gridTemplateColumns: "1fr 180px",
+      alignItems: "center", gap: 24,
+    }}>
+      <div>
+        <div style={{ fontSize: 14, fontWeight: 600, color: "#0f1117", marginBottom: 2 }}>
+          {label}
+        </div>
+        <div style={{ fontSize: 12.5, color: "#6b7280", lineHeight: 1.4 }}>
+          {description}
+        </div>
+      </div>
+      <div>{children}</div>
+    </div>
+  )
+}
+
+function Stepper({ value, onStep, onChange, min = 0 }: {
+  value: string
+  onStep: (delta: number) => void
+  onChange: (value: string) => void
+  min?: number
+}) {
+  const btnStyle: React.CSSProperties = {
+    width: 36, height: 40, border: "none", background: "transparent",
+    cursor: "pointer", display: "flex", alignItems: "center",
+    justifyContent: "center", color: "#6b7280", fontSize: 18,
+    fontWeight: 400, lineHeight: 1, flexShrink: 0, transition: "background 180ms ease, color 180ms ease",
+  }
+  return (
+    <div style={{
+      display: "flex", alignItems: "center",
+      background: "#f9fafb", border: "1.5px solid #e8eaed", borderRadius: 8,
+      overflow: "hidden", width: "fit-content",
+      transition: "border-color 180ms ease, box-shadow 180ms ease",
+    }}>
+      <button
+        style={btnStyle}
+        onClick={() => onStep(-1)}
+        onMouseEnter={(e) => { e.currentTarget.style.background = "#e8eaed"; e.currentTarget.style.color = "#0f1117" }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#6b7280" }}
+      >
+        <Minus style={{ width: 14, height: 14 }} />
+      </button>
+      <div style={{ width: 1, height: 22, background: "#e8eaed", flexShrink: 0 }} />
+      <input
+        type="number"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        min={min}
+        style={{
+          border: "none", background: "transparent", padding: 0,
+          fontSize: 14, fontWeight: 700, color: "#0f1117",
+          fontFamily: "'DM Mono', monospace", width: 52, height: 40,
+          outline: "none", textAlign: "center", MozAppearance: "textfield" as any,
+        }}
+      />
+      <div style={{ width: 1, height: 22, background: "#e8eaed", flexShrink: 0 }} />
+      <button
+        style={btnStyle}
+        onClick={() => onStep(1)}
+        onMouseEnter={(e) => { e.currentTarget.style.background = "#e8eaed"; e.currentTarget.style.color = "#0f1117" }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#6b7280" }}
+      >
+        <Plus style={{ width: 14, height: 14 }} />
+      </button>
+    </div>
+  )
+}
+
+function CurrencyInput({ value, onChange }: {
+  value: string
+  onChange: (value: string) => void
+}) {
+  return (
+    <div style={{
+      display: "flex", alignItems: "center",
+      background: "#f9fafb", border: "1.5px solid #e8eaed", borderRadius: 8,
+      overflow: "hidden", transition: "border-color 180ms ease, box-shadow 180ms ease",
+    }}
+    onFocus={(e) => { e.currentTarget.style.borderColor = "#1a1a2e"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(26,26,46,0.12)"; e.currentTarget.style.background = "white" }}
+    onBlur={(e) => { e.currentTarget.style.borderColor = "#e8eaed"; e.currentTarget.style.boxShadow = "none"; e.currentTarget.style.background = "#f9fafb" }}
+    >
+      <span style={{
+        padding: "0 10px 0 12px", fontSize: 13, fontWeight: 600, color: "#6b7280",
+        fontFamily: "'DM Mono', monospace", borderRight: "1.5px solid #e8eaed",
+        height: 40, display: "flex", alignItems: "center", background: "white", flexShrink: 0,
+      }}>
+        R$
+      </span>
+      <input
+        type="number"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        style={{
+          border: "none", background: "transparent", padding: "0 12px",
+          fontSize: 14, fontWeight: 600, color: "#0f1117",
+          fontFamily: "'DM Mono', monospace", width: "100%", height: 40,
+          outline: "none", MozAppearance: "textfield" as any,
+        }}
+      />
+    </div>
+  )
+}
+
+function PlanCard({ label, value, onChange, limitText }: {
+  label: string
+  value: string
+  onChange: (value: string) => void
+  limitText: string
+}) {
+  return (
+    <div style={{
+      background: "#f9fafb", border: "1.5px solid #e8eaed", borderRadius: 12,
+      padding: 16, transition: "border-color 180ms ease, box-shadow 180ms ease",
+    }}
+    onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#c5c9d3"; e.currentTarget.style.boxShadow = "0 1px 3px rgba(0,0,0,0.06)" }}
+    onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#e8eaed"; e.currentTarget.style.boxShadow = "none" }}
+    >
+      <div style={{
+        fontSize: 11.5, fontWeight: 700, textTransform: "uppercase" as const,
+        letterSpacing: 0.6, color: "#6b7280", marginBottom: 12,
+      }}>
+        {label}
+      </div>
+      <CurrencyInput value={value} onChange={onChange} />
+      <div style={{
+        fontSize: 11, color: "#9ca3af", marginTop: 8,
+        display: "flex", alignItems: "center", gap: 4,
+      }}>
+        <Info style={{ width: 10, height: 10, flexShrink: 0 }} />
+        {limitText}
       </div>
     </div>
   )
 }
 
-interface SettingInputProps {
-  label: string
-  settingKey: string
-  description?: string
-  value: string
-  onChange: (value: string) => void
-  onSave: () => void
-  hasChanged: boolean
-  isSaving: boolean
-  prefix?: string
-  suffix?: string
-  hint?: string
-}
-
-function SettingInput({
-  label,
-  description,
-  value,
-  onChange,
-  onSave,
-  hasChanged,
-  isSaving,
-  prefix,
-  suffix,
-  hint,
-}: SettingInputProps) {
+function ToggleSwitch({ checked, onChange }: {
+  checked: boolean
+  onChange: () => void
+}) {
   return (
-    <div className="space-y-2">
-      <Label className="text-base">{label}</Label>
-      {description && (
-        <p className="text-sm text-muted-foreground">{description}</p>
-      )}
-      <div className="flex items-center gap-2">
-        {prefix && <span className="text-muted-foreground">{prefix}</span>}
-        <Input
-          type="number"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="max-w-[120px]"
-        />
-        {suffix && <span className="text-muted-foreground">{suffix}</span>}
-        {hasChanged && (
-          <Button
-            size="sm"
-            onClick={onSave}
-            disabled={isSaving}
-          >
-            {isSaving ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Save className="h-4 w-4" />
-            )}
-          </Button>
-        )}
-      </div>
-      {hint && (
-        <p className="text-xs text-muted-foreground">{hint}</p>
-      )}
-    </div>
+    <label style={{ position: "relative", width: 44, height: 24, flexShrink: 0, cursor: "pointer", display: "inline-block" }}>
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={onChange}
+        style={{ opacity: 0, width: 0, height: 0, position: "absolute" }}
+      />
+      <div style={{
+        position: "absolute", inset: 0,
+        background: checked ? "#1a1a2e" : "#e8eaed",
+        borderRadius: 99, cursor: "pointer", transition: "background 200ms ease",
+      }} />
+      <div style={{
+        position: "absolute", top: 3, left: 3,
+        width: 18, height: 18, borderRadius: "50%", background: "white",
+        boxShadow: "0 1px 4px rgba(0,0,0,0.2)",
+        transition: "transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1)",
+        transform: checked ? "translateX(20px)" : "translateX(0)",
+        pointerEvents: "none",
+      }} />
+    </label>
   )
 }
