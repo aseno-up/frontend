@@ -24,9 +24,11 @@ export function middleware(request: NextRequest) {
 
   // 1. If explicit default locale is present (e.g., /pt-BR/agenda), redirect to clean URL (/agenda)
   if (pathname.startsWith(`/${fallbackLng}/`) || pathname === `/${fallbackLng}`) {
-    // Remove the default locale from the path
+    // Remove the default locale from the path, preserving query params
     const newPath = pathname.replace(`/${fallbackLng}`, '')
-    return NextResponse.redirect(new URL(newPath || '/', request.url))
+    const redirectUrl = new URL(newPath || '/', request.url)
+    redirectUrl.search = request.nextUrl.search
+    return NextResponse.redirect(redirectUrl)
   }
 
   // 2. If missing locale (e.g., /agenda)
