@@ -50,10 +50,21 @@ export interface Clinic {
   name: string
   slug: string
   type?: string
-  subscription_status: 'trial' | 'active' | 'pending' | 'past_due' | 'canceled' | 'expired'
-  plan: 'free' | 'basic' | 'professional' | 'enterprise' | 'advanced'
-  trial_ends_at: string
   created_at: string
+  settings?: ClinicSettings
+  booking_url?: string
+  account?: Account
+}
+
+export interface Account {
+  id: string
+  subscription_status: 'trial' | 'active' | 'pending' | 'past_due' | 'canceled' | 'expired'
+  trial_ends_at?: string
+  plan?: {
+    id: string
+    name: string
+    slug: string
+  }
   settings?: ClinicSettings
   booking_url?: string
 }
@@ -755,3 +766,62 @@ export interface Notification {
   read: boolean
   created_at: string
 }
+
+// Plan and Offer Types
+export interface PlanCycle {
+  id: string
+  plan_id: string
+  cycle_type: 'monthly' | 'yearly' | 'lifetime'
+  price_brl: number
+}
+
+export interface Plan {
+  id: string
+  name: string
+  slug: string
+  description: string
+  features: string[]
+  max_clinics: number
+  max_professionals: number
+  max_whatsapp_connections: number
+  max_google_calendars: number
+  has_api_access: boolean
+  is_active: boolean
+  created_at: string
+  cycles: PlanCycle[]
+}
+
+export interface OfferCycle {
+  id: string
+  offer_id: string
+  cycle_type: 'monthly' | 'yearly' | 'lifetime'
+  custom_price_brl: number
+}
+
+export interface Offer {
+  id: string
+  plan_id: string
+  plan?: Plan
+  token: string
+  description: string
+  is_active: boolean
+  max_uses: number
+  current_uses: number
+  expires_at?: string
+  enforce_price_lock: boolean
+  created_at: string
+  cycles: OfferCycle[]
+}
+
+// Plan/Offer Requests
+export type CreatePlanRequest = Omit<Plan, 'id' | 'created_at' | 'cycles'> & {
+  cycles: Array<Omit<PlanCycle, 'id' | 'plan_id'>>
+}
+
+export type UpdatePlanRequest = Partial<CreatePlanRequest>
+
+export type CreateOfferRequest = Omit<Offer, 'id' | 'created_at' | 'cycles' | 'current_uses'> & {
+  cycles: Array<Omit<OfferCycle, 'id' | 'offer_id'>>
+}
+
+export type UpdateOfferRequest = Partial<CreateOfferRequest>

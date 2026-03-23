@@ -1,41 +1,9 @@
 'use client'
 
 import { use, useState, useEffect } from 'react'
-import Image from 'next/image'
 import { useRouter } from 'next/navigation'
-import { useTranslation } from '@/lib/i18n/client'
-import { Button } from '@/components/ui/button'
-import { Switch } from '@/components/ui/switch'
-import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import {
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-  CarouselNext,
-  CarouselPrevious,
-} from "@/components/ui/carousel"
-import Autoplay from "embla-carousel-autoplay"
-import {
-  Calendar,
-  MessageSquare,
-  RefreshCw,
-  Clock,
-  CheckCircle2,
-  Users,
-  ArrowRight,
-  Sparkles,
-  BarChart3,
-  Bell,
-  Smartphone,
-  Zap,
-  Check,
-  Quote,
-  Shield,
-  FileText,
-  UserCog,
-  HelpCircle
-} from 'lucide-react'
+import { useAuthStore } from '@/stores/auth-store'
+import './landing.css'
 
 interface PageProps {
   params: Promise<{ lng: string }>
@@ -47,6 +15,7 @@ interface PublicConfig {
     [key: string]: {
       limit_professionals: number
       price_monthly: number
+      price_yearly: number
       excess_price: number
     }
   }
@@ -55,344 +24,109 @@ interface PublicConfig {
 export default function LandingPage(props: PageProps) {
   const params = use(props.params)
   const router = useRouter()
-  const { t } = useTranslation(params.lng, 'landing')
+  const { isAuthenticated } = useAuthStore()
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'annually'>('annually')
   const [publicConfig, setPublicConfig] = useState<PublicConfig | null>(null)
 
-  // Fetch public config for dynamic pricing
   useEffect(() => {
     const fetchConfig = async () => {
       try {
-        // NEXT_PUBLIC_API_URL may or may not include /api/v1, so we use the base URL
         const baseUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4901').replace(/\/api\/v1\/?$/, '')
-        console.log('[Landing] Fetching config from:', `${baseUrl}/api/v1/public/config`)
-        const response = await fetch(`${baseUrl}/api/v1/public/config`)
+        const response = await fetch(`${baseUrl}/api/v1/public/config`, { cache: 'no-store' })
         if (response.ok) {
           const data = await response.json()
-          console.log('[Landing] Config loaded:', data)
           setPublicConfig(data)
-        } else {
-          console.error('[Landing] Failed to fetch config:', response.status)
         }
-      } catch (err) {
-        console.error('[Landing] Error fetching config:', err)
-      }
+      } catch (err) {}
     }
     fetchConfig()
   }, [])
 
-  const benefits = [
-    { icon: CheckCircle2, ...t('benefits.items.0', { returnObjects: true }) as { title: string; description: string } },
-    { icon: RefreshCw, ...t('benefits.items.1', { returnObjects: true }) as { title: string; description: string } },
-    { icon: Users, ...t('benefits.items.2', { returnObjects: true }) as { title: string; description: string } },
-    { icon: Clock, ...t('benefits.items.3', { returnObjects: true }) as { title: string; description: string } },
-    { icon: Calendar, ...t('benefits.items.4', { returnObjects: true }) as { title: string; description: string } },
-    { icon: MessageSquare, ...t('benefits.items.5', { returnObjects: true }) as { title: string; description: string } },
-  ]
-
-  const steps = [
-    t('howItWorks.steps.0', { returnObjects: true }) as { step: string; title: string; description: string },
-    t('howItWorks.steps.1', { returnObjects: true }) as { step: string; title: string; description: string },
-    t('howItWorks.steps.2', { returnObjects: true }) as { step: string; title: string; description: string },
-    t('howItWorks.steps.3', { returnObjects: true }) as { step: string; title: string; description: string },
-  ]
-
-  const features = [
-    { icon: Calendar, title: 'Agenda Online', description: 'Gerencie todos os agendamentos em uma interface intuitiva' },
-    { icon: MessageSquare, title: 'WhatsApp Integrado', description: 'Confirmações e lembretes automáticos via WhatsApp' },
-    { icon: RefreshCw, title: 'Reagendamento Fácil', description: 'Pacientes podem reagendar sem ligar para a clínica' },
-    { icon: BarChart3, title: 'Relatórios', description: 'Acompanhe métricas importantes do seu consultório' },
-    { icon: UserCog, title: 'Controle de Acesso', description: 'Permissões por função: admin, recepção e profissional' },
-    { icon: FileText, title: 'Ficha do Paciente', description: 'Histórico básico de atendimentos do paciente' },
-    { icon: Shield, title: 'Segurança', description: 'Dados protegidos e acesso seguro para sua equipe' },
-    { icon: Smartphone, title: 'Mobile First', description: 'Acesse de qualquer dispositivo, a qualquer hora' },
-  ]
-
-  const stats = [
-    { value: '50%', label: 'Redução de faltas' },
-    { value: '3h', label: 'Economizadas por dia' },
-    { value: '95%', label: 'Taxa de confirmação' },
-    { value: '24/7', label: 'Disponibilidade' },
-  ]
-
-  const testimonials = [
-    {
-      text: "Desde que implementamos o Aseno, nossas faltas caíram drasticamente. A confirmação automática pelo WhatsApp é um divisor de águas para nossa recepção.",
-      author: "Clínica Vitalitá"
-    },
-    {
-      text: "Os relatórios de prejuízo abriram nossos olhos. Recuperamos muito dinheiro apenas ajustando os horários de maior risco identificados pelo sistema.",
-      author: "OdontoPlus"
-    },
-    {
-      text: "A lista de espera automática é mágica. Quando um paciente cancela, o sistema preenche a vaga sozinho em minutos. Incrível!",
-      author: "Instituto Mente Sã"
-    },
-    {
-      text: "A integração com o Google Calendar facilitou muito minha vida. Meus horários pessoais e profissionais finalmente estão em sintonia total.",
-      author: "FisioCenter"
-    },
-    {
-      text: "Saber o risco de falta do paciente antes de agendar mudou nossa estratégia. Agora confirmamos com mais rigor quem tem risco alto.",
-      author: "DermatoEstética"
-    },
-    {
-      text: "Nossa recepcionista economiza horas todos os dias. O Aseno faz o trabalho pesado de confirmar e reagendar os pacientes automaticamente.",
-      author: "Clínica Bem Estar"
-    },
-    {
-      text: "Interface limpa e muito fácil de usar. Treinei minha equipe em dez minutos e todos já estavam usando perfeitamente.",
-      author: "NutriVida"
-    },
-    {
-      text: "O sistema de encaixe automático pagou a mensalidade no primeiro dia. Nunca mais ficamos com buracos na agenda por cancelamentos.",
-      author: "Psicologia Avançada"
-    },
-    {
-      text: "O melhor investimento que fizemos este ano. A redução de no-shows foi imediata e o suporte é sempre muito atencioso.",
-      author: "Clínica Sorriso"
-    },
-    {
-      text: "Sincronização perfeita com minha agenda do Google. Não preciso mais abrir dois aplicativos para saber meu dia. Recomendo o plano profissional.",
-      author: "Dr. Lucas Oftalmologia"
-    },
-    {
-      text: "Eu não sabia quanto dinheiro perdia com faltas até ver o painel do Aseno. Agora temos controle total do nosso faturamento.",
-      author: "Espaço Terapêutico"
-    },
-    {
-      text: "A automação inteligente nas respostas do WhatsApp é impressionante. Ela entende o paciente e resolve a agenda sem intervenção humana.",
-      author: "Clínica da Família"
-    },
-    {
-      text: "O plano profissional vale cada centavo. As ferramentas de risco e lista de espera trouxeram um retorno financeiro gigante para nós.",
-      author: "CardioMed"
+  const calculateMonthlyPrice = (plan: 'basic' | 'professional' | 'advanced') => {
+    if (!publicConfig) return '—'
+    const planData = publicConfig.plans[plan]
+    if (!planData) return '—'
+    if (billingCycle === 'monthly') return planData.price_monthly.toString()
+    if (planData.price_yearly > 0) {
+      return Math.round(planData.price_yearly / 12).toString()
     }
-  ]
+    return Math.round((planData.price_monthly * 10) / 12).toString()
+  }
 
-  // Get price for a plan - uses dynamic config if available, fallback to translations
-  const getPlanPrice = (plan: 'basic' | 'professional' | 'advanced'): number => {
-    if (publicConfig?.plans?.[plan]) {
-      return publicConfig.plans[plan].price_monthly
+  const handlePlanSelect = (plan: string) => {
+    const target = isAuthenticated ? 'billing-setup' : 'register'
+    const url = new URL(`/${params.lng}/${target}`, window.location.origin)
+    url.searchParams.set('plan', plan)
+
+    let cycle = billingCycle === 'annually' ? 'YEARLY' : 'MONTHLY'
+    if (plan === 'trial') cycle = 'MONTHLY'
+
+    url.searchParams.set('billing', cycle)
+
+    const currentParams = new URLSearchParams(window.location.search)
+    const offer = currentParams.get('offer')
+    if (offer) {
+      url.searchParams.set('offer', offer)
     }
-    // Fallback to static translations
-    return parseInt(t(`pricing.plans.${plan}.price`) as string) || 0
+
+    router.push(url.pathname + url.search)
   }
 
-  // Get limit for a plan - uses dynamic config if available
-  const getPlanLimit = (plan: 'basic' | 'professional' | 'advanced'): number => {
-    if (publicConfig?.plans?.[plan]) {
-      return publicConfig.plans[plan].limit_professionals
-    }
-    // Fallback defaults
-    const defaults: Record<string, number> = { basic: 5, professional: 15, advanced: -1 }
-    return defaults[plan] || 0
-  }
-
-  // Get limit text for display
-  const getPlanLimitText = (plan: 'basic' | 'professional' | 'advanced'): string => {
-    const limit = getPlanLimit(plan)
-    if (limit === -1) {
-      return params.lng === 'en' ? 'Unlimited professionals' : 'Profissionais ilimitados'
-    }
-    return params.lng === 'en' ? `Up to ${limit} professionals` : `Até ${limit} profissionais`
-  }
-
-  // Get features for a plan with dynamic limit
-  const getPlanFeatures = (plan: 'basic' | 'professional' | 'advanced'): string[] => {
-    const features = t(`pricing.plans.${plan}.features`, { returnObjects: true }) as string[]
-    // Replace the first feature (limit text) with dynamic value
-    return [getPlanLimitText(plan), ...features.slice(1)]
-  }
-
-  const calculateMonthlyPrice = (basePrice: number) => {
-    if (billingCycle === 'monthly') return basePrice.toString()
-    // Annual price is 10x monthly price, divided by 12 months for display
-    return Math.round((basePrice * 10) / 12).toString()
-  }
-
-  // Get trial days from config or fallback
   const getTrialDays = (): number => {
     return publicConfig?.trial_days || 14
   }
 
-  // Get trial text for display
-  const getTrialText = (): string => {
-    const days = getTrialDays()
-    if (params.lng === 'en') {
-      return `Start with ${days} days free on Professional plan. No credit card required.`
-    }
-    return `Comece com ${days} dias grátis no plano Profissional. Sem cartão de crédito.`
-  }
-
-  // Get CTA trial button text
-  const getTrialCtaText = (): string => {
-    const days = getTrialDays()
-    if (params.lng === 'en') {
-      return `Try free for ${days} days`
-    }
-    return `Testar grátis por ${days} dias`
-  }
-
-  // Get FAQ trial text
-  const getFaqTrialText = (): string => {
-    const days = getTrialDays()
-    if (params.lng === 'en') {
-      return `No. Free trial for ${days} days without a credit card.`
-    }
-    return `Não. Teste grátis por ${days} dias sem precisar de cartão de crédito.`
-  }
-
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 border-b border-white/10 bg-background/80 backdrop-blur-lg">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="relative h-10 w-10">
-            <Image 
-              src="/logo-icon.png" 
-              alt="Aseno" 
-              fill 
-              className="object-contain" 
-            />
-          </div>
-          <nav className="hidden md:flex items-center gap-8">
-            <a href="#features" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-              Recursos
-            </a>
-            <a href="#how-it-works" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-              Como Funciona
-            </a>
-            <a href="#pricing" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-              Preços
-            </a>
-          </nav>
-          <div className="flex items-center gap-3">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="border-foreground/20 text-foreground hover:bg-foreground/10"
-              onClick={() => router.push(`/${params.lng}/login`)}
-            >
-              Login
-            </Button>
-            <Button
-              size="sm"
-              onClick={() => {
-                const url = new URL(`/${params.lng}/register`, window.location.origin)
-                url.searchParams.set('plan', 'trial')
-                url.searchParams.set('billing', 'monthly')
-                router.push(url.pathname + url.search)
-              }}
-            >
-              {getTrialCtaText()}
-            </Button>
-          </div>
+    <div className="landing-body">
+      <nav className="landing-nav">
+        <a href="#" className="nav-logo">aseno<div className="nav-logo-dot"></div></a>
+        <ul className="nav-links">
+          <li><a href="#recursos">Recursos</a></li>
+          <li><a href="#como-funciona">Como Funciona</a></li>
+          <li><a href="#precos">Planos</a></li>
+        </ul>
+        <div className="nav-cta">
+          <button className="btn-ghost" onClick={() => router.push(`/${params.lng}/login`)}>Entrar</button>
+          <button className="btn-nav" onClick={() => handlePlanSelect('trial')}>Testar grátis</button>
         </div>
-      </header>
+      </nav>
 
-      {/* Hero Section */}
-      <section className="pt-32 pb-20 md:pt-40 md:pb-32 relative overflow-hidden">
-        {/* Background gradient */}
-        <div className="absolute inset-0 bg-gradient-to-b from-primary/20 via-background to-background" />
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-primary/30 rounded-full blur-[120px] opacity-20" />
-
-        <div className="container mx-auto px-4 relative z-10">
-          <div className="text-center max-w-4xl mx-auto">
-            <div className="inline-flex items-center gap-2 bg-primary/10 border border-primary/20 text-primary px-4 py-2 rounded-full text-sm mb-6">
-              <Sparkles className="h-4 w-4" />
-              <span>Para estética e fisioterapia</span>
-            </div>
-
-            <h1 className="font-poppins text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight leading-tight text-foreground text-white">
-              {t('hero.headline')}
-            </h1>
-
-            <p className="mt-6 text-xl text-foreground/80 max-w-2xl mx-auto text-white/90">
-              {t('hero.subheadline')}
-            </p>
-
-            <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
-              <Button
-                size="lg"
-                className="text-lg px-8 h-14"
-                onClick={() => {
-                  const url = new URL(`/${params.lng}/register`, window.location.origin)
-                  url.searchParams.set('plan', 'trial')
-                  url.searchParams.set('billing', 'monthly')
-                  router.push(url.pathname + url.search)
-                }}
-              >
-                {getTrialCtaText()}
-                <ArrowRight className="ml-2 h-5 w-5" />
-              </Button>
-              <Button size="lg" variant="outline" className="text-lg px-8 h-14 border-white/20 hover:bg-white/5 text-white">
-                Ver demonstração
-              </Button>
-            </div>
-
-            <p className="mt-4 text-sm text-foreground/60 text-white/60">
-              {t('form.noCard')}
-            </p>
+      <section className="hero">
+        <div className="hero-content">
+          <div className="hero-badge"><div className="hero-badge-dot"></div>Para clínicas de estética e fisioterapia</div>
+          <h1 className="hero-title">Reduza <span className="a1">faltas</span> e pare de confirmar consultas no <span className="a2">manual</span></h1>
+          <p className="hero-sub">Agenda simples, sessões recorrentes e confirmações automáticas no WhatsApp que atualizam o status sozinhas — sua equipe foca no atendimento.</p>
+          <div className="hero-actions">
+            <button className="btn-lg" onClick={() => handlePlanSelect('trial')}>Testar grátis por {getTrialDays()} dias &rarr;</button>
+            <a href="#como-funciona" className="btn-lg-out">Ver demonstração</a>
           </div>
-
-          {/* Product Mockup */}
-          <div className="mt-16 relative">
-            <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent z-10 pointer-events-none" />
-            <div className="glass-card p-2 md:p-4 max-w-5xl mx-auto">
-              <div className="bg-card rounded-xl overflow-hidden border border-white/10">
-                {/* Mock Dashboard */}
-                <div className="bg-muted/50 px-4 py-2 border-b border-white/10 flex items-center gap-2">
-                  <div className="flex gap-1.5">
-                    <div className="w-3 h-3 rounded-full bg-red-500/80" />
-                    <div className="w-3 h-3 rounded-full bg-yellow-500/80" />
-                    <div className="w-3 h-3 rounded-full bg-green-500/80" />
-                  </div>
-                  <div className="flex-1 flex justify-center">
-                    <div className="bg-background/50 rounded px-4 py-1 text-xs text-muted-foreground">
-                      app.aseno.com.br/dashboard
-                    </div>
-                  </div>
+          <p className="hero-note">Sem cartão de crédito. Ativação imediata.</p>
+        </div>
+        <div className="mkp-wrap">
+          <div className="mkp-glow"></div>
+          <div className="mkp-card">
+            <div className="mkp-bar">
+              <div className="dot dot-r"></div><div className="dot dot-y"></div><div className="dot dot-g"></div>
+              <div className="mkp-url"><span>app.aseno.com.br/agenda</span></div>
+            </div>
+            <div className="mkp-body">
+              <div className="mk-stats">
+                <div className="mk-stat"><div className="mk-stat-lbl">Hoje</div><div className="mk-stat-val b">12</div></div>
+                <div className="mk-stat"><div className="mk-stat-lbl">Confirmados</div><div className="mk-stat-val g">10</div></div>
+                <div className="mk-stat"><div className="mk-stat-lbl">Pendentes</div><div className="mk-stat-val y">2</div></div>
+              </div>
+              <div className="mk-grid">
+                <div className="mk-panel">
+                  <div className="mk-panel-ttl">Próximas pacientes</div>
+                  <div className="mk-row"><span className="mk-row-n">Maria Silva — 09:00</span><span className="bdg bdg-g">Confirmado</span></div>
+                  <div className="mk-row"><span className="mk-row-n">Juliana Costa — 09:30</span><span className="bdg bdg-g">Confirmado</span></div>
+                  <div className="mk-row"><span className="mk-row-n">Ana Lima — 10:00</span><span className="bdg bdg-y">Pendente</span></div>
                 </div>
-                <div className="p-6 min-h-[300px] md:min-h-[400px]">
-                  <div className="grid md:grid-cols-3 gap-4 mb-6">
-                    <div className="bg-background/50 rounded-lg p-4 border border-white/5">
-                      <div className="text-sm text-muted-foreground mb-1">Agendamentos Hoje</div>
-                      <div className="text-2xl font-bold text-primary text-white">12</div>
-                    </div>
-                    <div className="bg-background/50 rounded-lg p-4 border border-white/5">
-                      <div className="text-sm text-muted-foreground mb-1">Confirmados</div>
-                      <div className="text-2xl font-bold text-green-500">10</div>
-                    </div>
-                    <div className="bg-background/50 rounded-lg p-4 border border-white/5">
-                      <div className="text-sm text-muted-foreground mb-1">Pendentes</div>
-                      <div className="text-2xl font-bold text-yellow-500">2</div>
-                    </div>
-                  </div>
-                  <div className="grid md:grid-cols-2 gap-4">
-                    <div className="bg-background/50 rounded-lg p-4 border border-white/5">
-                      <div className="text-sm font-medium mb-3 text-white">Próximos Pacientes</div>
-                      <div className="space-y-3">
-                        {['Maria Silva - 09:00', 'João Santos - 09:30', 'Ana Costa - 10:00'].map((item, i) => (
-                          <div key={i} className="flex items-center justify-between text-sm">
-                            <span className="text-muted-foreground text-white/70">{item}</span>
-                            <span className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded">Confirmado</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="bg-background/50 rounded-lg p-4 border border-white/5">
-                      <div className="text-sm font-medium mb-3 text-white">Mensagens WhatsApp</div>
-                      <div className="space-y-3">
-                        {['Lembrete enviado para Maria', 'João confirmou presença', 'Ana solicitou reagendamento'].map((item, i) => (
-                          <div key={i} className="flex items-center gap-2 text-sm text-muted-foreground text-white/70">
-                            <MessageSquare className="h-3 w-3 text-green-500" />
-                            <span>{item}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
+                <div className="mk-panel">
+                  <div className="mk-panel-ttl">WhatsApp</div>
+                  <div className="mk-msg"><div className="msg-dot"></div><span>Lembrete enviado para Maria</span></div>
+                  <div className="mk-msg"><div className="msg-dot"></div><span>Juliana confirmou pre...</span></div>
+                  <div className="mk-msg"><div className="msg-dot"></div><span>Ana pediu reagendamento</span></div>
                 </div>
               </div>
             </div>
@@ -400,570 +134,238 @@ export default function LandingPage(props: PageProps) {
         </div>
       </section>
 
-      {/* Stats Section */}
-      <section className="py-16 border-y border-white/10">
-        <div className="container mx-auto px-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            {stats.map((stat, index) => (
-              <div key={index} className="text-center">
-                <div className="text-3xl md:text-4xl font-bold text-primary font-poppins text-white">{stat.value}</div>
-                <div className="text-sm text-muted-foreground mt-1 text-white/70">{stat.label}</div>
+      <div className="stats-bar">
+        <div className="stats-inner">
+          <div className="stat-item"><div className="stat-num">50%</div><div className="stat-lbl">Redução de faltas</div></div>
+          <div className="stat-item"><div className="stat-num">3h</div><div className="stat-lbl">Economizadas por dia</div></div>
+          <div className="stat-item"><div className="stat-num">95%</div><div className="stat-lbl">Taxa de confirmação</div></div>
+          <div className="stat-item"><div className="stat-num">24/7</div><div className="stat-lbl">Disponibilidade</div></div>
+        </div>
+        <p className="stats-note">*Resultados médios observados em clínicas ativas</p>
+      </div>
+
+      <section className="sec sec-alt" id="recursos">
+        <div className="sec-hd">
+          <span className="eyebrow">Recursos</span>
+          <h2 className="sec-title">Tudo que sua clínica precisa<br/><span className="a1">em um só lugar</span></h2>
+          <p className="sec-sub">Interface que sua equipe aprende a usar em minutos, não em semanas.</p>
+        </div>
+        <div className="feat-grid">
+          <div className="feat-card"><div className="feat-icon">📅</div><h3>Agenda Online</h3><p>Visão diária, semanal e por profissional. Gerencie todos os agendamentos em uma interface intuitiva e fluida.</p></div>
+          <div className="feat-card"><div className="feat-icon">💬</div><h3>WhatsApp Integrado</h3><p>Confirmações e lembretes automáticos. O paciente confirma, cancela ou reagenda sem ligar para a clínica.</p></div>
+          <div className="feat-card"><div className="feat-icon">🔄</div><h3>Sessões Recorrentes</h3><p>Planos com várias sessões de uma vez. Ideal para tratamentos de fisioterapia, drenagem e protocolos estéticos.</p></div>
+          <div className="feat-card"><div className="feat-icon">📊</div><h3>Relatórios</h3><p>Presença, faturamento e métricas de faltas. Identifique horários de risco e tome decisões baseadas em dados.</p></div>
+          <div className="feat-card"><div className="feat-icon">👥</div><h3>Controle de Acesso</h3><p>Perfis por função: administrador, recepção e profissional. Cada usuário acessa somente as informações que precisa.</p></div>
+          <div className="feat-card"><div className="feat-icon">📋</div><h3>Ficha do Paciente</h3><p>Histórico completo de atendimentos, procedimento executado, região tratada e evolução clínica detalhada.</p></div>
+          <div className="feat-card"><div className="feat-icon">🗓️</div><h3>Google Calendar</h3><p>Sincronização bidirecional. Compromissos pessoais bloqueiam a agenda automaticamente.</p></div>
+          <div className="feat-card"><div className="feat-icon">⏰</div><h3>Lista de Espera</h3><p>Cancelou? O sistema notifica quem está aguardando e preenche a vaga automaticamente.</p></div>
+          <div className="feat-card"><div className="feat-icon">🔒</div><h3>Segurança e Backup</h3><p>Dados protegidos, backup diário automático e acesso seguro com autenticação por perfil.</p></div>
+        </div>
+      </section>
+
+      <div className="divider"></div>
+
+      <section className="sec" id="como-funciona">
+        <div className="sec-hd">
+          <span className="eyebrow">Como Funciona</span>
+          <h2 className="sec-title">Comece a usar em<br/><span className="a2">menos de 5 minutos</span></h2>
+          <p className="sec-sub">Quatro passos para transformar a gestão da sua clínica.</p>
+        </div>
+        <div className="how-grid">
+          <div className="how-step"><div className="how-num">1</div><h3>Agende a consulta</h3><p>Crie atendimentos únicos ou planos com várias sessões de forma rápida e simples no painel.</p></div>
+          <div className="how-step"><div className="how-num">2</div><h3>WhatsApp automático</h3><p>O paciente recebe o lembrete via WhatsApp e confirma ou reagenda com poucos cliques, sem telefonar.</p></div>
+          <div className="how-step"><div className="how-num">3</div><h3>Status atualizado</h3><p>Confirmado, cancelado ou reagendado — tudo atualizado na agenda sem trabalho manual.</p></div>
+          <div className="how-step"><div className="how-num">4</div><h3>Agenda sincronizada</h3><p>Google Calendar integrado. Horários pessoais e profissionais sempre em sincronia e harmonia.</p></div>
+        </div>
+      </section>
+
+      <section className="sec sec-alt">
+        <div className="demo-inner">
+          <div className="demo-text">
+            <span className="eyebrow" style={{ display: 'block' }}>Automação inteligente</span>
+            <h2 className="sec-title" style={{ textAlign: 'left' }}>A parte chata,<br/>o <span className="a1">Aseno resolve</span></h2>
+            <p className="sec-sub" style={{ textAlign: 'left', marginTop: '.85rem' }}>A IA entende a resposta do paciente e atualiza o status da consulta automaticamente. Sem intervenção manual da sua equipe.</p>
+            <div className="checklist">
+              <div className="chk"><div className="chk-ic">✓</div><span>Confirmação automática via WhatsApp</span></div>
+              <div className="chk"><div className="chk-ic">✓</div><span>Reagendamento em 1 clique pelo paciente</span></div>
+              <div className="chk"><div className="chk-ic">✓</div><span>Mensagem personalizada por procedimento</span></div>
+              <div className="chk"><div className="chk-ic">✓</div><span>Envio programado horas antes da consulta</span></div>
+              <div className="chk"><div className="chk-ic">✓</div><span>Suporte técnico em português</span></div>
+            </div>
+          </div>
+          <div>
+            <div className="phone-wrap">
+              <div className="phone-hd">
+                <div className="phone-av">💬</div>
+                <div><div className="phone-nm">Aseno Clínica</div><div className="phone-st">● Online</div></div>
               </div>
-            ))}
-          </div>
-          <p className="text-center text-xs text-white/40 mt-6">
-            *Resultados médios observados em clínicas ativas
-          </p>
-        </div>
-      </section>
-
-      {/* Features Section */}
-      <section id="features" className="py-20 md:py-32">
-        <div className="container mx-auto px-4">
-          <div className="text-center max-w-2xl mx-auto mb-16">
-            <h2 className="font-poppins text-3xl md:text-4xl font-bold mb-4 text-foreground text-white">
-              {t('benefits.title')}
-            </h2>
-            <p className="text-foreground/70 text-lg text-white/70">
-              Agenda inteligente para clínicas de estética e fisioterapia
-            </p>
-          </div>
-
-          <Carousel
-            opts={{
-              align: "center",
-              loop: true,
-            }}
-            plugins={[
-              Autoplay({
-                delay: 3000,
-                stopOnInteraction: true,
-                stopOnMouseEnter: true,
-              }),
-            ]}
-            className="w-full max-w-6xl mx-auto cursor-grab active:cursor-grabbing"
-          >
-            <CarouselContent>
-              {features.map((feature, index) => {
-                const Icon = feature.icon
-                return (
-                  <CarouselItem key={index} className="md:basis-1/2 lg:basis-1/3 pl-6">
-                    <Card className="bg-card/50 border-white/10 hover:border-primary/50 transition-colors group h-full">
-                      <CardHeader className="text-center">
-                        <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors mx-auto">
-                          <Icon className="h-6 w-6 text-primary" />
-                        </div>
-                        <CardTitle className="text-lg font-poppins text-white">{feature.title}</CardTitle>
-                      </CardHeader>
-                      <CardContent className="text-center">
-                        <p className="text-foreground/70 text-white/70">{feature.description}</p>
-                      </CardContent>
-                    </Card>
-                  </CarouselItem>
-                )
-              })}
-            </CarouselContent>
-            <div className="hidden md:block">
-              <CarouselPrevious className="-left-12 border-white/10 hover:bg-white/10 text-white" />
-              <CarouselNext className="-right-12 border-white/10 hover:bg-white/10 text-white" />
-            </div>
-          </Carousel>
-        </div>
-      </section>
-
-      {/* Benefits Highlight Section */}
-      <section className="py-20 md:py-32 bg-gradient-to-b from-primary/5 to-background">
-        <div className="container mx-auto px-4">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <div>
-              <h2 className="font-poppins text-3xl md:text-4xl font-bold mb-6 text-foreground text-white">
-                Software que sua equipe vai adorar usar
-              </h2>
-              <p className="text-foreground/70 text-lg mb-8 text-white/70">
-                Interface intuitiva, fácil de aprender e usar. Sua equipe estará produtiva em minutos, não em semanas.
-              </p>
-              <ul className="space-y-4">
-                {[
-                  'Confirmação automática via WhatsApp',
-                  'Reagendamento em 1 clique pelo paciente',
-                  'Relatórios de presença e faturamento',
-                  'Integração com Google Calendar',
-                  'Campo de procedimento e região tratada por sessão',
-                  'Evolução clínica simplificada por sessão',
-                  'Suporte técnico em português',
-                  'Atualizações constantes gratuitas'
-                ].map((item, index) => (
-                  <li key={index} className="flex items-center gap-3">
-                    <div className="h-5 w-5 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
-                      <Check className="h-3 w-3 text-primary" />
-                    </div>
-                    <span className="text-foreground text-white/90">{item}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div className="relative">
-              <div className="glass-card p-6">
-                <div className="bg-card rounded-xl p-6 border border-white/10">
-                  <div className="flex items-center gap-3 mb-6">
-                    <div className="h-10 w-10 rounded-full bg-green-500/20 flex items-center justify-center">
-                      <MessageSquare className="h-5 w-5 text-green-500" />
-                    </div>
-                    <div>
-                      <div className="font-medium text-white text-sm">WhatsApp Automatizado</div>
-                      <div className="text-xs text-white/70 font-medium italic">(Automação inteligente cuida da parte chata)</div>
-                    </div>
-                  </div>
-                  <div className="space-y-3">
-                    <div className="bg-background/50 rounded-lg p-3 border border-white/5">
-                      <div className="text-xs text-muted-foreground mb-1 text-white/50">08:00</div>
-                      <div className="text-sm text-white/90">Olá Maria! Lembrete: consulta amanhã às 14h. Consegue comparecer amanhã?</div>
-                    </div>
-                    <div className="bg-primary/10 rounded-lg p-3 border border-primary/20 ml-8">
-                      <div className="text-xs text-muted-foreground mb-1 text-primary/70">08:05</div>
-                      <div className="text-sm text-white/90">Vou levar minha filha na escola e chego no máximo às 14 e 05</div>
-                    </div>
-                    <div className="bg-background/50 rounded-lg p-3 border border-white/5">
-                      <div className="text-xs text-muted-foreground mb-1 text-white/50">08:05</div>
-                      <div className="text-sm text-white/90">Perfeito! Sem problemas! Sua consulta está confirmada. Até amanhã!</div>
-                    </div>
-                  </div>
-                </div>
+              <div className="msgs">
+                <div className="msg msg-in">Olá Maria! Lembrete: sua consulta é amanhã às 14h. Confirma sua presença?<div className="msg-time">08:00</div></div>
+                <div className="msg msg-out">Vou levar minha filha na escola e chego às 14h05 😊<div className="msg-time">08:05</div></div>
+                <div className="msg msg-in">Perfeito! Sem problemas. Sua consulta está confirmada. Até amanhã!<div className="msg-time">08:05</div></div>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* How It Works Section */}
-      <section id="how-it-works" className="py-20 md:py-32">
-        <div className="container mx-auto px-4">
-          <div className="text-center max-w-2xl mx-auto mb-16">
-            <h2 className="font-poppins text-3xl md:text-4xl font-bold mb-4 text-foreground text-white">
-              {t('howItWorks.title')}
-            </h2>
-            <p className="text-foreground/70 text-lg text-white/70">
-              Comece a usar em menos de 5 minutos
-            </p>
-          </div>
+      <section className="sec">
+        <div className="sec-hd">
+          <span className="eyebrow">Para quem é</span>
+          <h2 className="sec-title">Feito para <span className="a2">quem cuida</span></h2>
+          <p className="sec-sub">Desenvolvido especificamente para as necessidades das clínicas de saúde e bem-estar.</p>
+        </div>
+        <div className="for-grid">
+          <div className="for-card"><div className="for-icon">✨</div><h3>Clínicas de Estética</h3><p>Procedimento, região tratada e sessões recorrentes organizados. Do facial ao corporal.</p></div>
+          <div className="for-card"><div className="for-icon">🦴</div><h3>Fisioterapia</h3><p>Tipo de sessão, evolução clínica, contador e acompanhamento de planos de tratamento.</p></div>
+          <div className="for-card"><div className="for-icon">📱</div><h3>Quem usa WhatsApp</h3><p>Se sua equipe gasta tempo confirmando pelo WhatsApp manualmente, nós automatizamos tudo.</p></div>
+        </div>
+      </section>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 max-w-7xl mx-auto">
-            {steps.map((step, index) => (
-              <div key={index} className="text-center relative">
-                {index < steps.length - 1 && (
-                  <div className="hidden lg:block absolute top-8 left-[60%] w-[80%] h-[2px] bg-gradient-to-r from-primary/50 to-transparent" />
-                )}
-                <div className="h-16 w-16 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center text-2xl font-bold mx-auto mb-4 font-poppins">
-                  {step.step}
-                </div>
-                <h3 className="font-poppins font-semibold text-lg mb-2 text-foreground text-white">{step.title}</h3>
-                <p className="text-foreground/70 text-white/70">{step.description}</p>
-              </div>
-            ))}
+      <section className="sec testi-sec">
+        <div className="sec-hd">
+          <span className="eyebrow">Depoimentos</span>
+          <h2 className="sec-title">Quem usa, <span className="a1">recomenda</span></h2>
+          <p className="sec-sub">Clínicas que transformaram sua gestão diária com o Aseno.</p>
+        </div>
+        <div className="testi-grid">
+          <div className="testi-card"><div className="testi-q">&quot;</div><p className="testi-txt">Desde que implementamos, nossas faltas caíram drasticamente. A confirmação automática pelo WhatsApp é incrível.</p><div className="testi-auth">Clínica Vitalitá</div></div>
+          <div className="testi-card"><div className="testi-q">&quot;</div><p className="testi-txt">Nossa recepcionista economiza horas por dia. O Aseno faz o trabalho pesado de confirmar e reagendar sozinho.</p><div className="testi-auth">Clínica Bem Estar</div></div>
+          <div className="testi-card"><div className="testi-q">&quot;</div><p className="testi-txt">A lista de espera automática é fantástica. Quando uma paciente cancela, o sistema preenche a vaga rápido.</p><div className="testi-auth">Instituto Mente Sã</div></div>
+        </div>
+      </section>
+
+      <section className="sec sec-alt" id="precos">
+        <div className="sec-hd">
+          <span className="eyebrow">Planos</span>
+          <h2 className="sec-title">Simples e <span className="a1">transparente</span></h2>
+          <p className="sec-sub">{getTrialDays()} dias grátis no plano Profissional. Sem cartão de crédito.</p>
+        </div>
+        <div className="ptoggle">
+          <span style={{ fontWeight: billingCycle === 'monthly' ? 600 : 500, color: billingCycle === 'monthly' ? 'var(--ink)' : 'var(--ink-light)' }}>Mensal</span>
+          <button className={`toggle-pill ${billingCycle === 'annually' ? 'active' : ''}`} onClick={() => setBillingCycle(billingCycle === 'monthly' ? 'annually' : 'monthly')}><div className="toggle-thumb"></div></button>
+          <span style={{ fontWeight: billingCycle === 'annually' ? 600 : 500, color: billingCycle === 'annually' ? 'var(--ink)' : 'var(--ink-light)' }}>Anual {billingCycle === 'annually' && <span className="toggle-bdg">2 meses grátis</span>}</span>
+        </div>
+        <div className="price-grid">
+          <div className="price-card">
+            <div className="price-nm">Teste Grátis</div>
+            <div className="price-amt">R$ 0</div>
+            <div className="price-per">por {getTrialDays()} dias</div>
+            <hr className="price-div" />
+            <ul className="price-feats">
+              <li>Todas as funções Profissional</li>
+              <li>Sem cartão de crédito</li>
+              <li>Acesso imediato</li>
+            </ul>
+            <button className="btn-p btn-p-fill" onClick={() => handlePlanSelect('trial')}>Começar grátis</button>
+          </div>
+          <div className="price-card">
+            <div className="price-nm">Básico</div>
+            <div className="price-amt"><sup>R$</sup> {calculateMonthlyPrice('basic')}</div>
+            <div className="price-per">por mês</div>
+            <hr className="price-div" />
+            <ul className="price-feats">
+              <li>Até 5 profissionais</li>
+              <li>Agenda ilimitada</li>
+              <li>Confirmações WhatsApp</li>
+              <li>Sessões recorrentes</li>
+              <li>Gestão de pacientes</li>
+              <li>Suporte por e-mail</li>
+            </ul>
+            <button className="btn-p btn-p-out" onClick={() => handlePlanSelect('basic')}>Assinar agora</button>
+          </div>
+          <div className="price-card feat">
+            <div className="feat-bdg">Recomendado</div>
+            <div className="price-nm">Profissional</div>
+            <div className="price-amt"><sup>R$</sup> {calculateMonthlyPrice('professional')}</div>
+            <div className="price-per">por mês</div>
+            <hr className="price-div" />
+            <ul className="price-feats">
+              <li>Até 15 profissionais</li>
+              <li>Tudo do Básico</li>
+              <li>Google Calendar</li>
+              <li>Lista de Espera Automática</li>
+              <li>Detector de Risco de Faltas</li>
+              <li>Relatórios de Prejuízo</li>
+              <li>Personalização de mensagens</li>
+              <li>Suporte prioritário WhatsApp</li>
+            </ul>
+            <button className="btn-p btn-p-fill" onClick={() => handlePlanSelect('professional')}>Assinar agora</button>
+          </div>
+          <div className="price-card">
+            <div className="price-nm">Avançado</div>
+            <div className="price-amt"><sup>R$</sup> {calculateMonthlyPrice('advanced')}</div>
+            <div className="price-per">por mês</div>
+            <hr className="price-div" />
+            <ul className="price-feats">
+              <li>Profissionais ilimitados</li>
+              <li>Tudo do Profissional</li>
+              <li>API de integração</li>
+              <li>Treinamento da equipe</li>
+              <li>Importação de dados</li>
+              <li>SLA de 99.9%</li>
+              <li>Backup diário automático</li>
+            </ul>
+            <button className="btn-p btn-p-out" onClick={() => handlePlanSelect('advanced')}>Assinar agora</button>
           </div>
         </div>
       </section>
 
-      {/* Para Quem É Section */}
-      <section className="py-16 md:py-24 bg-gradient-to-b from-background to-primary/5">
-        <div className="container mx-auto px-4">
-          <div className="text-center max-w-2xl mx-auto mb-12">
-            <h2 className="font-poppins text-3xl md:text-4xl font-bold mb-4 text-foreground text-white">
-              Para quem é o Aseno?
-            </h2>
-          </div>
-          <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
-            <div className="bg-card/50 border border-white/10 rounded-xl p-6 text-center">
-              <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                <Sparkles className="h-6 w-6 text-primary" />
-              </div>
-              <h3 className="font-semibold text-white mb-2">Clínicas de Estética</h3>
-              <p className="text-sm text-white/70">Procedimento, região tratada e sessões recorrentes organizados sem esforço</p>
-            </div>
-            <div className="bg-card/50 border border-white/10 rounded-xl p-6 text-center">
-              <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                <Calendar className="h-6 w-6 text-primary" />
-              </div>
-              <h3 className="font-semibold text-white mb-2">Clínicas de Fisioterapia</h3>
-              <p className="text-sm text-white/70">Tipo de sessão, evolução clínica e contador de sessões restantes</p>
-            </div>
-            <div className="bg-card/50 border border-white/10 rounded-xl p-6 text-center">
-              <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                <MessageSquare className="h-6 w-6 text-primary" />
-              </div>
-              <h3 className="font-semibold text-white mb-2">Equipes que usam WhatsApp</h3>
-              <p className="text-sm text-white/70">Para comunicação com pacientes no dia a dia</p>
-            </div>
-          </div>
+      <section className="sec" style={{ paddingTop: '64px', paddingBottom: '80px' }}>
+        <div className="sec-hd" style={{ marginBottom: '2.5rem' }}>
+          <span className="eyebrow">Dúvidas</span>
+          <h2 className="sec-title">Perguntas <span className="a2">frequentes</span></h2>
+        </div>
+        <div className="faq-grid">
+          <div className="faq-item"><h3>Preciso instalar algo?</h3><p>Não. O Aseno funciona 100% no navegador, sem instalação em nenhum dispositivo.</p></div>
+          <div className="faq-item"><h3>Funciona no celular?</h3><p>Sim. Interface totalmente responsiva em qualquer smartphone, tablet ou computador.</p></div>
+          <div className="faq-item"><h3>Preciso de cartão para testar?</h3><p>Não. {getTrialDays()} dias com acesso completo, sem cartão de crédito.</p></div>
         </div>
       </section>
 
-      {/* Testimonials Section */}
-      <section className="py-20 md:py-32 bg-background border-t border-white/10">
-        <div className="container mx-auto px-4">
-          <div className="text-center max-w-2xl mx-auto mb-16">
-            <h2 className="font-poppins text-3xl md:text-4xl font-bold mb-4 text-foreground text-white">
-              Quem usa, recomenda
-            </h2>
-            <p className="text-foreground/70 text-lg text-white/70">
-              Junte-se a clínicas que transformaram sua gestão
-            </p>
-          </div>
-          
-          <Carousel
-            opts={{
-              align: "start",
-              loop: true,
-            }}
-            plugins={[
-              Autoplay({
-                delay: 4000,
-                stopOnInteraction: true,
-                stopOnMouseEnter: true,
-              }),
-            ]}
-            className="w-full max-w-6xl mx-auto cursor-grab active:cursor-grabbing"
-          >
-            <CarouselContent>
-              {testimonials.map((t, i) => (
-                <CarouselItem key={i} className="md:basis-1/2 lg:basis-1/3 pl-6">
-                  <Card className="bg-card/50 border-white/10 h-full">
-                    <CardContent className="pt-6 flex flex-col justify-between h-full">
-                      <div>
-                        <div className="mb-4 text-primary opacity-80">
-                          <Quote className="h-6 w-6" />
-                        </div>
-                        <p className="text-white/80 italic mb-4 leading-relaxed">"{t.text}"</p>
-                      </div>
-                      <p className="text-sm font-semibold text-primary mt-auto">{t.author}</p>
-                    </CardContent>
-                  </Card>
-                </CarouselItem>
-              ))}
-            </CarouselContent>
-            <div className="hidden md:block">
-              <CarouselPrevious className="-left-12 border-white/10 hover:bg-white/10 text-white" />
-              <CarouselNext className="-right-12 border-white/10 hover:bg-white/10 text-white" />
-            </div>
-          </Carousel>
+      <section className="cta-sec">
+        <h2 className="sec-title">Pronto para reduzir<br/>as faltas na sua clínica?</h2>
+        <p className="cta-p">Junte-se a centenas de clínicas que já transformaram sua gestão com o Aseno.</p>
+        <div className="cta-acts">
+          <button className="btn-cta-w" onClick={() => handlePlanSelect('trial')}>Testar grátis por {getTrialDays()} dias &rarr;</button>
+          <a href="#como-funciona" className="btn-cta-o">Ver demonstração</a>
         </div>
+        <p className="cta-note">Sem cartão de crédito. Ativação imediata.</p>
       </section>
 
-      {/* Pricing Section */}
-      <section id="pricing" className="py-20 md:py-32 bg-gradient-to-b from-background to-primary/5">
-        <div className="container mx-auto px-4">
-          <div className="text-center max-w-2xl mx-auto mb-10">
-            <h2 className="font-poppins text-3xl md:text-4xl font-bold mb-4 text-foreground text-white">
-              {t('pricing.title')}
-            </h2>
-            <p className="text-foreground/70 text-lg text-white/70 mb-8">
-              {getTrialText()}
-            </p>
-
-            <div className="flex items-center justify-center gap-4 mb-8">
-              <span className={`text-sm ${billingCycle === 'monthly' ? 'text-white font-bold' : 'text-white/60'}`}>
-                {t('pricing.monthly')}
-              </span>
-              <Switch 
-                checked={billingCycle === 'annually'}
-                onCheckedChange={(checked) => setBillingCycle(checked ? 'annually' : 'monthly')}
-              />
-              <span className={`text-sm ${billingCycle === 'annually' ? 'text-white font-bold' : 'text-white/60'}`}>
-                {t('pricing.annually')}
-                <span className="ml-2 bg-green-500/20 text-green-400 text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider font-bold">
-                  {t('pricing.save')}
-                </span>
-              </span>
-            </div>
+      <footer className="landing-footer">
+        <div className="ft-grid">
+          <div className="ft-brand">
+            <a href="#" className="ft-logo">aseno<span>.</span></a>
+            <p>Sistema de agendamento inteligente para clínicas de estética e fisioterapia.</p>
           </div>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto">
-            {/* Trial Plan */}
-            <Card className="bg-gradient-to-br from-primary/20 to-card border-primary/50 relative overflow-hidden flex flex-col">
-              <div className="absolute top-0 right-0 p-3 opacity-10">
-                <Sparkles className="w-24 h-24" />
-              </div>
-              <CardHeader>
-                <CardTitle className="font-poppins text-white text-2xl">Teste Grátis</CardTitle>
-                <CardDescription>
-                  <span className="text-3xl font-bold text-foreground text-white">R$ 0</span>
-                  <span className="text-muted-foreground text-white/60">/{getTrialDays()} dias</span>
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="flex-1 flex flex-col">
-                <p className="text-sm text-white/80 mb-6 min-h-[40px]">
-                  {getTrialText()}
-                </p>
-                <ul className="space-y-3 mb-6 flex-1">
-                  {(t('pricing.trial_features', { returnObjects: true }) as string[]).map((feature, index) => (
-                    <li key={index} className="flex items-center gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0" />
-                      <span className="text-sm text-white/80">{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-                <Button
-                  className="w-full mt-auto"
-                  size="lg"
-                  onClick={() => {
-                    const url = new URL(`/${params.lng}/register`, window.location.origin)
-                    url.searchParams.set('plan', 'trial')
-                    url.searchParams.set('billing', 'monthly')
-                    router.push(url.pathname + url.search)
-                  }}
-                >
-                  {t('pricing.cta_trial')}
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* Basic Plan */}
-            <Card className="bg-card/50 border-white/10 relative flex flex-col">
-              {billingCycle === 'annually' && (
-                <div className="absolute top-4 right-4">
-                  <span className="bg-green-500/20 text-green-400 text-xs px-2 py-1 rounded-full font-bold">
-                    -17%
-                  </span>
-                </div>
-              )}
-              <CardHeader>
-                <CardTitle className="font-poppins text-white">{t('pricing.plans.basic.name')}</CardTitle>
-                <CardDescription>
-                  <span className="text-3xl font-bold text-foreground text-white">
-                    R$ {calculateMonthlyPrice(getPlanPrice('basic'))}
-                  </span>
-                  <span className="text-muted-foreground text-white/60">{t('pricing.month')}</span>
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="flex-1 flex flex-col">
-                <ul className="space-y-3 mb-6 flex-1">
-                  {getPlanFeatures('basic').map((feature, index) => (
-                    <li key={index} className="flex items-center gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0" />
-                      <span className="text-sm text-white/80">{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-                <Button
-                  className="w-full"
-                  variant="outline"
-                  onClick={() => {
-                    const url = new URL(`/${params.lng}/register`, window.location.origin)
-                    url.searchParams.set('plan', 'basic')
-                    url.searchParams.set('billing', billingCycle)
-                    router.push(url.pathname + url.search)
-                  }}
-                >
-                  {t('pricing.cta_subscribe')}
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* Professional Plan */}
-            <Card className="bg-card border-primary relative scale-105 shadow-xl shadow-primary/10 z-10 flex flex-col">
-              <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-full text-center">
-                <span className="bg-primary text-primary-foreground text-sm px-4 py-1 rounded-full font-medium shadow-lg">
-                  Recomendado
-                </span>
-              </div>
-              {billingCycle === 'annually' && (
-                <div className="absolute top-4 right-4">
-                  <span className="bg-green-500/20 text-green-400 text-xs px-2 py-1 rounded-full font-bold">
-                    -17%
-                  </span>
-                </div>
-              )}
-              <CardHeader>
-                <CardTitle className="font-poppins text-white">{t('pricing.plans.professional.name')}</CardTitle>
-                <CardDescription>
-                  <span className="text-3xl font-bold text-foreground text-white">
-                    R$ {calculateMonthlyPrice(getPlanPrice('professional'))}
-                  </span>
-                  <span className="text-muted-foreground text-white/60">{t('pricing.month')}</span>
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="flex-1 flex flex-col">
-                <ul className="space-y-3 mb-6 flex-1">
-                  {getPlanFeatures('professional').map((feature, index) => (
-                    <li key={index} className="flex items-center gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0" />
-                      <span className="text-sm text-white/80">{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-                <Button
-                  className="w-full"
-                  onClick={() => {
-                    const url = new URL(`/${params.lng}/register`, window.location.origin)
-                    url.searchParams.set('plan', 'professional')
-                    url.searchParams.set('billing', billingCycle)
-                    router.push(url.pathname + url.search)
-                  }}
-                >
-                  {t('pricing.cta_subscribe')}
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* Advanced Plan */}
-            <Card className="bg-card/50 border-white/10 relative flex flex-col">
-              {billingCycle === 'annually' && (
-                <div className="absolute top-4 right-4">
-                  <span className="bg-green-500/20 text-green-400 text-xs px-2 py-1 rounded-full font-bold">
-                    -17%
-                  </span>
-                </div>
-              )}
-              <CardHeader>
-                <CardTitle className="font-poppins text-white">{t('pricing.plans.advanced.name')}</CardTitle>
-                <CardDescription>
-                  <span className="text-3xl font-bold text-foreground text-white">
-                    R$ {calculateMonthlyPrice(getPlanPrice('advanced'))}
-                  </span>
-                  <span className="text-muted-foreground text-white/60">{t('pricing.month')}</span>
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="flex-1 flex flex-col">
-                <ul className="space-y-3 mb-6 flex-1">
-                  {getPlanFeatures('advanced').map((feature, index) => (
-                    <li key={index} className="flex items-center gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0" />
-                      <span className="text-sm text-white/80">{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-                <Button
-                  className="w-full"
-                  variant="outline"
-                  onClick={() => {
-                    const url = new URL(`/${params.lng}/register`, window.location.origin)
-                    url.searchParams.set('plan', 'advanced')
-                    url.searchParams.set('billing', billingCycle)
-                    router.push(url.pathname + url.search)
-                  }}
-                >
-                  {t('pricing.cta_subscribe')}
-                </Button>
-              </CardContent>
-            </Card>
+          <div className="ft-col">
+            <h4>Produto</h4>
+            <ul>
+              <li><a href="#recursos">Recursos</a></li>
+              <li><a href="#precos">Preços</a></li>
+              <li><a href="#">Integrações</a></li>
+            </ul>
+          </div>
+          <div className="ft-col">
+            <h4>Empresa</h4>
+            <ul>
+              <li><a href="#">Sobre</a></li>
+              <li><a href="#">Blog</a></li>
+              <li><a href="#">Contato</a></li>
+            </ul>
+          </div>
+          <div className="ft-col">
+            <h4>Legal</h4>
+            <ul>
+              <li><a href="#">Termos de uso</a></li>
+              <li><a href="#">Privacidade</a></li>
+            </ul>
           </div>
         </div>
-      </section>
-
-      {/* Micro-FAQ Section */}
-      <section className="py-16 md:py-24 border-t border-white/10">
-        <div className="container mx-auto px-4">
-          <div className="text-center max-w-2xl mx-auto mb-12">
-            <h2 className="font-poppins text-2xl md:text-3xl font-bold mb-4 text-foreground text-white">
-              Dúvidas frequentes
-            </h2>
-          </div>
-          <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
-            <div className="bg-card/50 border border-white/10 rounded-xl p-6">
-              <div className="flex items-center gap-3 mb-3">
-                <HelpCircle className="h-5 w-5 text-primary" />
-                <h3 className="font-semibold text-white">Preciso instalar algo?</h3>
-              </div>
-              <p className="text-white/70">Não. O Aseno funciona 100% no navegador, sem instalação.</p>
-            </div>
-            <div className="bg-card/50 border border-white/10 rounded-xl p-6">
-              <div className="flex items-center gap-3 mb-3">
-                <HelpCircle className="h-5 w-5 text-primary" />
-                <h3 className="font-semibold text-white">Funciona no celular?</h3>
-              </div>
-              <p className="text-white/70">Sim. Interface responsiva que funciona em qualquer dispositivo.</p>
-            </div>
-            <div className="bg-card/50 border border-white/10 rounded-xl p-6">
-              <div className="flex items-center gap-3 mb-3">
-                <HelpCircle className="h-5 w-5 text-primary" />
-                <h3 className="font-semibold text-white">Preciso de cartão para testar?</h3>
-              </div>
-              <p className="text-white/70">{getFaqTrialText()}</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="py-20 md:py-32">
-        <div className="container mx-auto px-4">
-          <div className="glass-card p-8 md:p-16 text-center max-w-4xl mx-auto">
-            <div className="inline-flex items-center gap-2 bg-primary/10 border border-primary/20 text-primary px-4 py-2 rounded-full text-sm mb-6">
-              <Zap className="h-4 w-4" />
-              <span>Comece hoje mesmo</span>
-            </div>
-            <h2 className="font-poppins text-3xl md:text-4xl font-bold mb-6 text-foreground text-white">
-              {t('cta.title')}
-            </h2>
-            <p className="text-foreground/70 text-lg mb-8 max-w-2xl mx-auto text-white/70">
-              Junte-se a centenas de profissionais que já transformaram a gestão de suas clínicas
-            </p>
-            <Button
-              size="lg"
-              className="text-lg px-8 h-14"
-              onClick={() => {
-                const url = new URL(`/${params.lng}/register`, window.location.origin)
-                url.searchParams.set('plan', 'trial')
-                url.searchParams.set('billing', 'monthly')
-                router.push(url.pathname + url.search)
-              }}
-            >
-              {getTrialCtaText()}
-              <ArrowRight className="ml-2 h-5 w-5" />
-            </Button>
-            <p className="mt-4 text-sm text-foreground/60 text-white/60">
-              {t('cta.note')}
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="py-12 border-t border-white/10">
-        <div className="container mx-auto px-4">
-          <div className="grid md:grid-cols-4 gap-8 mb-8">
-            <div>
-              <div className="relative h-10 w-10 mb-4">
-                <Image 
-                  src="/logo-icon.png" 
-                  alt="Aseno" 
-                  fill 
-                  className="object-contain" 
-                />
-              </div>
-              <p className="text-sm text-muted-foreground text-white/70">
-                Sistema de agendamento inteligente para clínicas e consultórios.
-              </p>
-            </div>
-            <div>
-              <h4 className="font-poppins font-semibold mb-4 text-white">Produto</h4>
-              <ul className="space-y-2 text-sm text-muted-foreground text-white/60">
-                <li><a href="#features" className="hover:text-foreground transition-colors">Recursos</a></li>
-                <li><a href="#pricing" className="hover:text-foreground transition-colors">Preços</a></li>
-                <li><a href="#" className="hover:text-foreground transition-colors">Integrações</a></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-poppins font-semibold mb-4 text-white">Empresa</h4>
-              <ul className="space-y-2 text-sm text-muted-foreground text-white/60">
-                <li><a href="#" className="hover:text-foreground transition-colors">Sobre</a></li>
-                <li><a href="#" className="hover:text-foreground transition-colors">Blog</a></li>
-                <li><a href="#" className="hover:text-foreground transition-colors">Contato</a></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-poppins font-semibold mb-4 text-white">Legal</h4>
-              <ul className="space-y-2 text-sm text-muted-foreground text-white/60">
-                <li><a href="#" className="hover:text-foreground transition-colors">{t('footer.terms')}</a></li>
-                <li><a href="#" className="hover:text-foreground transition-colors">{t('footer.privacy')}</a></li>
-              </ul>
-            </div>
-          </div>
-          <div className="pt-8 border-t border-white/10 flex flex-col md:flex-row items-center justify-between gap-4">
-            <p className="text-sm text-muted-foreground text-white/50">
-              &copy; {new Date().getFullYear()} Aseno. {t('footer.copyright')}
-            </p>
-          </div>
+        <div className="ft-bottom">
+          <span>© 2026 Aseno. Todos os direitos reservados.</span>
+          <span>Feito para quem cuida.</span>
         </div>
       </footer>
     </div>
