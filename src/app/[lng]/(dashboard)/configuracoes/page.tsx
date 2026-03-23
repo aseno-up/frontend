@@ -918,16 +918,16 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
                     </div>
                     <div className="flex items-center gap-3">
                       <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full tracking-wide ${
-                        clinic?.subscription_status === 'active' ? 'bg-green-100/60 text-green-700 border border-green-200' :
-                        clinic?.subscription_status === 'pending' ? 'bg-yellow-100/60 text-yellow-700 border border-yellow-200' :
-                        clinic?.subscription_status === 'trial' ? 'bg-cyan-100/60 text-cyan-700 border border-cyan-200' :
+                        clinic?.account?.subscription_status === 'active' ? 'bg-green-100/60 text-green-700 border border-green-200' :
+                        clinic?.account?.subscription_status === 'pending' ? 'bg-yellow-100/60 text-yellow-700 border border-yellow-200' :
+                        clinic?.account?.subscription_status === 'trial' ? 'bg-cyan-100/60 text-cyan-700 border border-cyan-200' :
                         'bg-red-100/60 text-red-700 border border-red-200'
                       }`}>
                         <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse"></span>
-                        {subscriptionLabels[clinic?.subscription_status || "trial"]}
+                        {subscriptionLabels[clinic?.account?.subscription_status || "trial"]}
                       </span>
                       <span className="text-[12.5px] font-semibold text-gray-500 bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-full tracking-wide">
-                        &#10022; {clinic?.plan === 'basic' ? 'Basico' : clinic?.plan === 'professional' ? 'Profissional' : clinic?.plan === 'advanced' ? 'Avancado' : clinic?.plan || 'Free'}
+                        &#10022; {clinic?.account?.plan?.slug === 'basic' ? 'Basico' : clinic?.account?.plan?.slug === 'professional' ? 'Profissional' : clinic?.account?.plan?.slug === 'advanced' ? 'Avancado' : clinic?.account?.plan?.name || clinic?.account?.plan?.slug || 'Free'}
                       </span>
                     </div>
                   </div>
@@ -951,15 +951,15 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
                       </div>
                     </div>
 
-                    {(subscription || clinic?.subscription_status === 'trial') && (
+                    {(subscription || clinic?.account?.subscription_status === 'trial') && (
                       <div className="mt-5 bg-gray-50 border border-gray-100 rounded-xl p-4">
                         <div className="flex justify-between items-center mb-2.5">
                           <span className="text-[12px] font-medium text-gray-500">
-                            {clinic?.subscription_status === 'trial' ? 'Progresso do período de teste' : 'Progresso do ciclo atual'}
+                            {clinic?.account?.subscription_status === 'trial' ? 'Progresso do período de teste' : 'Progresso do ciclo atual'}
                           </span>
                           <span className="text-[12px] font-bold text-gray-900 font-mono">
                             {(() => {
-                              const due = subscription ? new Date(subscription.next_due_date) : (clinic?.trial_ends_at ? new Date(clinic.trial_ends_at) : new Date());
+                              const due = subscription ? new Date(subscription.next_due_date) : (clinic?.account?.trial_ends_at ? new Date(clinic.account.trial_ends_at) : new Date());
                               const now = new Date();
                               const diffTime = due.getTime() - now.getTime();
                               const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -970,7 +970,7 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
                         <div className="h-[5px] bg-gray-200 rounded-full overflow-hidden">
                           {(() => {
                             try {
-                              const due = subscription ? new Date(subscription.next_due_date) : (clinic?.trial_ends_at ? new Date(clinic.trial_ends_at) : new Date());
+                              const due = subscription ? new Date(subscription.next_due_date) : (clinic?.account?.trial_ends_at ? new Date(clinic.account.trial_ends_at) : new Date());
                               const now = new Date();
                               let start = new Date(due);
                               
@@ -989,12 +989,12 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
                               if (isNaN(percent) || !isFinite(percent)) percent = 0;
                               return (
                                 <div 
-                                  className={`h-full bg-gradient-to-r ${clinic?.subscription_status === 'trial' ? 'from-cyan-500 to-cyan-400' : 'from-green-600 to-green-400'} rounded-full origin-left animate-in zoom-in-0 duration-1000 delay-300`}
+                                  className={`h-full bg-gradient-to-r ${clinic?.account?.subscription_status === 'trial' ? 'from-cyan-500 to-cyan-400' : 'from-green-600 to-green-400'} rounded-full origin-left animate-in zoom-in-0 duration-1000 delay-300`}
                                   style={{ width: `${percent}%` }}
                                 ></div>
                               );
                             } catch (e) {
-                              return <div className={`h-full ${clinic?.subscription_status === 'trial' ? 'bg-cyan-500' : 'bg-green-500'} rounded-full w-full`}></div>;
+                              return <div className={`h-full ${clinic?.account?.subscription_status === 'trial' ? 'bg-cyan-500' : 'bg-green-500'} rounded-full w-full`}></div>;
                             }
                           })()}
                         </div>
@@ -1015,7 +1015,7 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
                             })()}
                           </span>
                           <span className="text-[11px] text-gray-400 font-mono">
-                            {clinic?.subscription_status === 'trial' ? 'Expira em' : 'Renovação'}: {subscription ? formatDate(subscription.next_due_date) : (clinic?.trial_ends_at ? formatDate(clinic.trial_ends_at) : '---')}
+                            {clinic?.account?.subscription_status === 'trial' ? 'Expira em' : 'Renovação'}: {subscription ? formatDate(subscription.next_due_date) : (clinic?.account?.trial_ends_at ? formatDate(clinic.account.trial_ends_at) : '---')}
                           </span>
                         </div>
                       </div>

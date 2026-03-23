@@ -446,6 +446,7 @@ class ApiClient {
     plan: 'basic' | 'professional' | 'advanced'
     billing_type: string
     cycle: string
+    offer_token?: string
     credit_card?: {
       holderName: string
       number: string
@@ -849,6 +850,40 @@ class ApiClient {
     value: string
   }> {
     const response = await this.client.put(`/admin/settings/${key}`, { value })
+    return response.data
+  }
+
+  // ==========================================
+  // Plans & Offers Settings (admin only)
+  // ==========================================
+
+  async getPlans() {
+    const response = await this.client.get('/plans')
+    return response.data
+  }
+
+  async createPlan(data: any) {
+    const response = await this.client.post('/admin/plans', data)
+    return response.data
+  }
+
+  async updatePlan(id: string, data: any) {
+    const response = await this.client.put(`/admin/plans/${id}`, data)
+    return response.data
+  }
+
+  async getOffers() {
+    const response = await this.client.get('/admin/offers')
+    return response.data
+  }
+
+  async createOffer(data: any) {
+    const response = await this.client.post('/admin/offers', data)
+    return response.data
+  }
+
+  async updateOffer(id: string, data: any) {
+    const response = await this.client.put(`/admin/offers/${id}`, data)
     return response.data
   }
 

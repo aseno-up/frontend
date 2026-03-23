@@ -14,6 +14,19 @@ const planLabels: Record<string, string> = {
   advanced: "Avançado",
 }
 
+interface PublicConfig {
+  trial_days: number
+  plans: {
+    [key: string]: {
+      limit_professionals: number
+      price_monthly: number
+      price_yearly: number
+      excess_price: number
+    }
+  }
+}
+
+
 export default function BillingSetupPage() {
   return (
     <Suspense fallback={
@@ -33,10 +46,18 @@ function BillingSetupContent() {
 
   const selectedPlan = searchParams.get("plan") || "professional"
   const selectedBilling = searchParams.get("billing") || "MONTHLY"
+  const offerToken = searchParams.get("offer") || ""
 
   const [step, setStep] = useState<Step>("billing")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
+  const [publicConfig, setPublicConfig] = useState<PublicConfig | null>(null)
+
+  // Coupon/offer state
+  const [coupon, setCoupon] = useState(offerToken)
+  const [couponApplied, setCouponApplied] = useState(false)
+  const [couponError, setCouponError] = useState("")
+  const [discountedPrice, setDiscountedPrice] = useState<number | null>(null)
 
   // Billing form state
   const [name, setName] = useState("")
@@ -78,6 +99,29 @@ function BillingSetupContent() {
       setPhone(user.phone || "")
     }
   }, [user])
+
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const baseUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4901').replace(/\/api\/v1\/?$/, '')
+        const response = await fetch(`${baseUrl}/api/v1/public/config`, { cache: 'no-store' })
+        if (response.ok) {
+          const data = await response.json()
+          setPublicConfig(data)
+        }
+      } catch (err) {
+        console.error("Failed to fetch config", err)
+      }
+    }
+    fetchConfig()
+  }, [])
+
+  // Auto-apply coupon if offer token is present in URL
+  useEffect(() => {
+    if (offerToken) {
+      setCouponApplied(true)
+    }
+  }, [offerToken])
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -126,6 +170,7 @@ function BillingSetupContent() {
           plan: selectedPlan as "basic" | "professional" | "advanced",
           billing_type: "PIX",
           cycle: selectedBilling,
+          offer_token: coupon || undefined,
         })
 
         // Step 3: Get subscription payments to find the first pending payment
@@ -148,6 +193,7 @@ function BillingSetupContent() {
           plan: selectedPlan as "basic" | "professional" | "advanced",
           billing_type: "CREDIT_CARD",
           cycle: selectedBilling,
+          offer_token: coupon || undefined,
           credit_card: {
             holderName: cardHolderName,
             number: cardNumber.replace(/\s/g, ""),
@@ -224,6 +270,47 @@ function BillingSetupContent() {
   const currentStepIdx = stepLabels.findIndex((s) => s.key === step)
 
   const inputClass = "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary dark:border-slate-600 dark:bg-slate-800 dark:text-white"
+
+  const getPlanPrice = (): number => {
+    if (!publicConfig?.plans?.[selectedPlan]) return 0
+    if (selectedBilling === 'YEARLY') {
+      return publicConfig.plans[selectedPlan].price_yearly
+    }
+    return publicConfig.plans[selectedPlan].price_monthly
+  }
+
+  const priceBRL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(getPlanPrice())
+
+  const handleApplyCoupon = () => {
+    setCouponError("")
+    if (!coupon.trim()) {
+      setCouponError("Digite um código de cupom")
+      return
+    }
+    setCouponApplied(true)
+  }
+
+  const priceSummaryBox = (
+    <div className="rounded-lg bg-blue-50 p-4 dark:bg-blue-900/20 mb-6 border border-blue-100 dark:border-blue-800">
+      <div className="flex justify-between items-center">
+        <div>
+          <h3 className="font-semibold text-blue-900 dark:text-blue-100 text-lg">Total a pagar</h3>
+          <p className="text-sm text-blue-700 dark:text-blue-300">
+            Plano {planLabels[selectedPlan] || selectedPlan} ({selectedBilling === "YEARLY" ? "Anual" : "Mensal"})
+          </p>
+        </div>
+        <div className="text-2xl font-bold text-blue-900 dark:text-blue-100">
+          {publicConfig ? priceBRL : 'Calculando...'}
+        </div>
+      </div>
+      {couponApplied && coupon && (
+        <div className="mt-2 flex items-center gap-2 text-sm text-green-700 dark:text-green-400">
+          <Check className="h-4 w-4" />
+          <span>Cupom aplicado: <strong>{coupon}</strong></span>
+        </div>
+      )}
+    </div>
+  )
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50 p-4 dark:from-slate-950 dark:via-blue-950/10 dark:to-slate-950">
@@ -357,6 +444,43 @@ function BillingSetupContent() {
           {/* Step 2: Payment Method */}
           {step === "payment" && (
             <div className="space-y-4">
+              {/* Coupon input */}
+              <div className="rounded-lg border border-slate-200 p-4 dark:border-slate-700">
+                <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                  Cupom de desconto
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={coupon}
+                    onChange={(e) => {
+                      setCoupon(e.target.value)
+                      setCouponApplied(false)
+                      setCouponError("")
+                    }}
+                    className={inputClass}
+                    placeholder="Digite seu cupom"
+                  />
+                  <button
+                    onClick={handleApplyCoupon}
+                    disabled={couponApplied && coupon.trim() !== ""}
+                    className="shrink-0 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+                  >
+                    {couponApplied ? "Aplicado" : "Aplicar"}
+                  </button>
+                </div>
+                {couponError && (
+                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">{couponError}</p>
+                )}
+                {couponApplied && coupon && (
+                  <p className="mt-1 flex items-center gap-1 text-sm text-green-600 dark:text-green-400">
+                    <Check className="h-3 w-3" />
+                    Cupom aplicado com sucesso
+                  </p>
+                )}
+              </div>
+
+              {priceSummaryBox}
               <p className="text-sm text-slate-600 dark:text-slate-400">
                 Escolha como deseja pagar sua assinatura:
               </p>
@@ -416,6 +540,7 @@ function BillingSetupContent() {
           {/* Step 3: PIX QR Code */}
           {step === "process" && billingType === "PIX" && (
             <div className="space-y-4">
+              {priceSummaryBox}
               {loading && !pixQrCodeBase64 ? (
                 <div className="flex flex-col items-center gap-4 py-8">
                   <Loader2 className="h-10 w-10 animate-spin text-primary" />
@@ -511,6 +636,7 @@ function BillingSetupContent() {
           {/* Step 3: Credit Card Form */}
           {step === "process" && billingType === "CREDIT_CARD" && (
             <div className="space-y-4">
+              {priceSummaryBox}
               <div>
                 <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Nome no Cartão *</label>
                 <input

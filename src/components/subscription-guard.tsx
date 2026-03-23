@@ -6,15 +6,15 @@ import { useAuthStore } from "@/stores/auth-store"
 import { AlertTriangle, CreditCard, Loader2, LogOut } from "lucide-react"
 
 // Checks if the current subscription is expired/inactive
-function isSubscriptionExpired(clinic: { subscription_status: string; trial_ends_at?: string } | null): boolean {
+function isSubscriptionExpired(clinic: { account?: { subscription_status: string; trial_ends_at?: string } } | null): boolean {
   if (!clinic) return false
 
-  const status = clinic.subscription_status
+  const status = clinic.account?.subscription_status
   if (status === "active") return false
 
   if (status === "trial") {
-    if (!clinic.trial_ends_at) return true
-    return new Date(clinic.trial_ends_at) < new Date()
+    if (!clinic.account?.trial_ends_at) return true
+    return new Date(clinic.account.trial_ends_at) < new Date()
   }
 
   // pending, past_due, canceled, expired
@@ -44,19 +44,19 @@ export function SubscriptionGuard({ children, lng }: SubscriptionGuardProps) {
 
   // Poll for payment confirmation when status is pending
   useEffect(() => {
-    if (clinic?.subscription_status !== "pending") return
+    if (clinic?.account?.subscription_status !== "pending") return
 
     const interval = setInterval(async () => {
       await loadUser()
     }, 5000) // Check every 5 seconds
 
     return () => clearInterval(interval)
-  }, [clinic?.subscription_status, loadUser])
+  }, [clinic?.account?.subscription_status, loadUser])
 
   if (!expired) return <>{children}</>
 
   const isOwner = user?.role === "owner"
-  const isPending = clinic?.subscription_status === "pending"
+  const isPending = clinic?.account?.subscription_status === "pending"
 
   // Pending payment: show waiting screen
   if (isPending) {
@@ -101,19 +101,19 @@ export function SubscriptionGuard({ children, lng }: SubscriptionGuardProps) {
           {isOwner ? (
             <>
               <h1 className="mb-2 text-2xl font-bold text-slate-900 dark:text-white">
-                {clinic?.subscription_status === "trial"
+                {clinic?.account?.subscription_status === "trial"
                   ? "Período de teste expirado"
                   : "Assinatura expirada"}
               </h1>
               <p className="mb-6 text-slate-600 dark:text-slate-400">
-                {clinic?.subscription_status === "trial"
+                {clinic?.account?.subscription_status === "trial"
                   ? "Seu período de teste acabou. Escolha um plano para continuar usando o Aseno."
                   : "Sua assinatura expirou. Renove para continuar acessando seus dados."}
               </p>
 
               <div className="flex w-full flex-col gap-3">
                 <button
-                  onClick={() => router.push(`/${lng}#pricing`)}
+                  onClick={() => router.push(`/${lng}/#pricing`)}
                   className="flex items-center justify-center gap-2 rounded-lg bg-primary px-6 py-3 font-medium text-primary-foreground transition-colors hover:bg-primary/90"
                 >
                   <CreditCard className="h-4 w-4" />
