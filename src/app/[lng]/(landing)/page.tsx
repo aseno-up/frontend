@@ -3,6 +3,7 @@
 import { use, useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/stores/auth-store'
+import { LandingFooter } from './landing-footer'
 import './landing.css'
 
 interface PageProps {
@@ -333,41 +334,7 @@ export default function LandingPage(props: PageProps) {
         <p className="cta-note">Sem cartão de crédito. Ativação imediata.</p>
       </section>
 
-      <footer className="landing-footer">
-        <div className="ft-grid">
-          <div className="ft-brand">
-            <a href="#" className="ft-logo">aseno<span>.</span></a>
-            <p>Sistema de agendamento inteligente para clínicas de estética e fisioterapia.</p>
-          </div>
-          <div className="ft-col">
-            <h4>Produto</h4>
-            <ul>
-              <li><a href="#recursos">Recursos</a></li>
-              <li><a href="#precos">Preços</a></li>
-              <li><a href="#">Integrações</a></li>
-            </ul>
-          </div>
-          <div className="ft-col">
-            <h4>Empresa</h4>
-            <ul>
-              <li><a href="#">Sobre</a></li>
-              <li><a href="#">Blog</a></li>
-              <li><a href="#">Contato</a></li>
-            </ul>
-          </div>
-          <div className="ft-col">
-            <h4>Legal</h4>
-            <ul>
-              <li><a href="#">Termos de uso</a></li>
-              <li><a href="#">Privacidade</a></li>
-            </ul>
-          </div>
-        </div>
-        <div className="ft-bottom">
-          <span>© 2026 Aseno. Todos os direitos reservados.</span>
-          <span>Feito para quem cuida.</span>
-        </div>
-      </footer>
+      <LandingFooter />
     </div>
   )
 }

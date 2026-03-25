@@ -16,6 +16,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { useAuthStore } from "@/stores/auth-store"
 import { showToast, handleApiError } from "@/lib/toast"
 import { Badge } from "@/components/ui/badge"
+import { Checkbox } from "@/components/ui/checkbox"
 
 const registerSchema = z.object({
   clinic_name: z.string().min(2, "Nome da clinica deve ter no minimo 2 caracteres"),
@@ -25,6 +26,9 @@ const registerSchema = z.object({
   confirmPassword: z.string(),
   document: z.string().optional(),
   phone: z.string().optional(),
+  acceptTerms: z.literal(true, {
+    error: "Voce deve aceitar os termos de uso e politica de privacidade",
+  }),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "As senhas nao conferem",
   path: ["confirmPassword"],
@@ -62,10 +66,14 @@ function RegisterContent({ params }: RegisterPageProps) {
   const {
     register,
     handleSubmit,
+    setValue,
+    watch,
     formState: { errors },
   } = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
   })
+
+  const termsAccepted = watch("acceptTerms")
 
   const onSubmit = async (data: RegisterFormData) => {
     setIsLoading(true)
@@ -271,6 +279,32 @@ function RegisterContent({ params }: RegisterPageProps) {
               <p className="text-sm text-destructive">{errors.confirmPassword.message}</p>
             )}
           </div>
+
+          <div className="flex items-start space-x-2">
+            <Checkbox
+              id="acceptTerms"
+              disabled={isLoading}
+              onCheckedChange={(checked) => {
+                setValue("acceptTerms", (checked === true) as true)
+              }}
+            />
+            <label
+              htmlFor="acceptTerms"
+              className="text-sm text-muted-foreground leading-snug cursor-pointer"
+            >
+              Li e aceito os{" "}
+              <Link href="/termos" target="_blank" className="text-primary hover:underline">
+                Termos de Uso
+              </Link>{" "}
+              e a{" "}
+              <Link href="/privacidade" target="_blank" className="text-primary hover:underline">
+                Politica de Privacidade
+              </Link>
+            </label>
+          </div>
+          {errors.acceptTerms && (
+            <p className="text-sm text-destructive">{errors.acceptTerms.message}</p>
+          )}
         </CardContent>
 
         <CardFooter className="flex flex-col space-y-4">
@@ -290,11 +324,15 @@ function RegisterContent({ params }: RegisterPageProps) {
             </div>
           </div>
 
-          <div className="flex justify-center w-full">
+          <div className="flex flex-col items-center w-full gap-2">
             {isGoogleLoading ? (
               <div className="flex items-center justify-center h-10">
                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
               </div>
+            ) : !termsAccepted ? (
+              <p className="text-xs text-muted-foreground text-center">
+                Aceite os termos acima para cadastrar com Google
+              </p>
             ) : (
               <GoogleLogin
                 onSuccess={handleGoogleSuccess}

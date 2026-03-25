@@ -195,6 +195,17 @@ export default function LoginPage({ params }: LoginPageProps) {
             )}
           </div>
 
+          <p className="text-xs text-muted-foreground text-center leading-relaxed">
+            Ao continuar, voce concorda com nossos{" "}
+            <Link href="/termos" target="_blank" className="text-primary hover:underline">
+              Termos de Uso
+            </Link>{" "}
+            e{" "}
+            <Link href="/privacidade" target="_blank" className="text-primary hover:underline">
+              Politica de Privacidade
+            </Link>
+          </p>
+
           <p className="text-sm text-muted-foreground text-center">
             Nao tem uma conta?{" "}
             <Link href="register" className="text-primary hover:underline">
