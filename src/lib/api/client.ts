@@ -888,6 +888,74 @@ class ApiClient {
   }
 
   // ==========================================
+  // Sprint 6: Admin Observability & Control
+  // ==========================================
+
+  async getAuditLogs(params?: {
+    page?: number
+    limit?: number
+    action?: string
+    entity_type?: string
+    user_id?: string
+    start_date?: string
+    end_date?: string
+  }) {
+    const response = await this.client.get('/admin/audit-logs', { params })
+    return response.data
+  }
+
+  async getSystemLogs(params?: {
+    page?: number
+    limit?: number
+    service?: string
+    event?: string
+    status?: string
+    clinic_id?: string
+    start_date?: string
+    end_date?: string
+  }) {
+    const response = await this.client.get('/admin/system-logs', { params })
+    return response.data
+  }
+
+  async getFeatureFlags() {
+    const response = await this.client.get('/admin/feature-flags')
+    return response.data
+  }
+
+  async createFeatureFlag(data: { key: string; description?: string; enabled: boolean; clinic_id?: string }) {
+    const response = await this.client.post('/admin/feature-flags', data)
+    return response.data
+  }
+
+  async updateFeatureFlag(id: string, data: { description?: string; enabled?: boolean }) {
+    const response = await this.client.put(`/admin/feature-flags/${id}`, data)
+    return response.data
+  }
+
+  async deleteFeatureFlag(id: string) {
+    const response = await this.client.delete(`/admin/feature-flags/${id}`)
+    return response.data
+  }
+
+  async getUsageMetrics(params?: {
+    page?: number
+    limit?: number
+    clinic_id?: string
+    metric?: string
+    start_date?: string
+    end_date?: string
+  }) {
+    const response = await this.client.get('/admin/usage-metrics', { params })
+    return response.data
+  }
+
+  async getUsageMetricsSummary(params?: { start_date?: string; end_date?: string }) {
+    const response = await this.client.get('/admin/usage-metrics/summary', { params })
+    return response.data
+  }
+
+  // ==========================================
   // Public Config (no auth required)
   // ==========================================
 

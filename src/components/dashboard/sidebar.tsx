@@ -18,6 +18,10 @@ import {
   BarChart3,
   Stethoscope,
   Shield,
+  FileText,
+  Server,
+  Flag,
+  Activity,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -50,7 +54,11 @@ const navItems: NavItem[] = [
 ]
 
 const adminNavItems: NavItem[] = [
-  { href: "/admin/settings", label: "Admin", icon: Shield },
+  { href: "/admin/settings", label: "Settings", icon: Shield },
+  { href: "/admin/audit-logs", label: "Audit Logs", icon: FileText },
+  { href: "/admin/system-logs", label: "System Logs", icon: Server },
+  { href: "/admin/feature-flags", label: "Feature Flags", icon: Flag },
+  { href: "/admin/usage-metrics", label: "Usage Metrics", icon: Activity },
 ]
 
 interface SidebarProps {
