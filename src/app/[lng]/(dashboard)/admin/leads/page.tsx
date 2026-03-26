@@ -27,7 +27,7 @@ import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { api } from "@/lib/api/client";
 import { handleApiError } from "@/lib/toast";
-import type { Lead, LeadStatus, LeadChannel } from "@/types/api";
+import type { Lead, LeadStatus, LeadChannel, LeadType } from "@/types/api";
 import { LeadSheet } from "./components/lead-sheet";
 
 const STATUS_OPTIONS: { value: LeadStatus | ""; label: string }[] = [
@@ -48,6 +48,20 @@ const CHANNEL_OPTIONS: { value: LeadChannel | ""; label: string }[] = [
   { value: "outbound", label: "Outbound" },
   { value: "inbound", label: "Inbound" },
 ];
+
+const TYPE_LABELS: Record<LeadType, string> = {
+  estetica: "Estetica",
+  fisioterapia: "Fisioterapia",
+  misto: "Misto",
+  psicologia: "Psicologia",
+};
+
+const TYPE_COLORS: Record<LeadType, string> = {
+  estetica: "bg-pink-100 text-pink-700",
+  fisioterapia: "bg-teal-100 text-teal-700",
+  misto: "bg-amber-100 text-amber-700",
+  psicologia: "bg-indigo-100 text-indigo-700",
+};
 
 const STATUS_COLORS: Record<LeadStatus, string> = {
   identificado: "bg-gray-100 text-gray-700",
@@ -324,6 +338,7 @@ export default function LeadsPage({ params }: LeadsPageProps) {
                       <TableHead className="font-bold text-xs uppercase tracking-wider text-muted-foreground/70 w-[200px]">CLINICA</TableHead>
                       <TableHead className="font-bold text-xs uppercase tracking-wider text-muted-foreground/70">CONTATO</TableHead>
                       <TableHead className="font-bold text-xs uppercase tracking-wider text-muted-foreground/70">TELEFONE</TableHead>
+                      <TableHead className="font-bold text-xs uppercase tracking-wider text-muted-foreground/70">TIPO</TableHead>
                       <TableHead className="font-bold text-xs uppercase tracking-wider text-muted-foreground/70">STATUS</TableHead>
                       <TableHead className="font-bold text-xs uppercase tracking-wider text-muted-foreground/70">CANAL</TableHead>
                       <TableHead className="font-bold text-xs uppercase tracking-wider text-muted-foreground/70">DOR</TableHead>
@@ -347,6 +362,11 @@ export default function LeadsPage({ params }: LeadsPageProps) {
                         </TableCell>
                         <TableCell className="truncate max-w-[140px]">{lead.contact_name}</TableCell>
                         <TableCell>{lead.phone || "-"}</TableCell>
+                        <TableCell>
+                          <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ${TYPE_COLORS[lead.type] || "bg-gray-100 text-gray-700"}`}>
+                            {TYPE_LABELS[lead.type] || lead.type || "-"}
+                          </span>
+                        </TableCell>
                         <TableCell>
                           <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ${STATUS_COLORS[lead.status] || "bg-gray-100 text-gray-700"}`}>
                             {STATUS_LABELS[lead.status] || lead.status}
