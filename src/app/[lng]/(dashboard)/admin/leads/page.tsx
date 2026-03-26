@@ -400,7 +400,7 @@ export default function LeadsPage({ params }: LeadsPageProps) {
                   <div className="bg-card rounded-xl border border-border shadow-sm p-4">
                     <h3 className="text-sm font-semibold mb-3">Leads por Status</h3>
                     <div className="space-y-2">
-                      {dashboard.leads_by_status.map((s) => (
+                      {(dashboard.leads_by_status || []).map((s) => (
                         <div key={s.status} className="flex items-center justify-between text-sm">
                           <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[s.status as LeadStatus] || "bg-gray-100 text-gray-700"}`}>
                             {STATUS_LABELS[s.status as LeadStatus] || s.status}
@@ -415,7 +415,7 @@ export default function LeadsPage({ params }: LeadsPageProps) {
                   <div className="bg-card rounded-xl border border-border shadow-sm p-4">
                     <h3 className="text-sm font-semibold mb-3">Clinicas por Plano</h3>
                     <div className="space-y-2">
-                      {dashboard.clinics_per_plan.map((p) => (
+                      {(dashboard.clinics_per_plan || []).map((p) => (
                         <div key={p.plan_name} className="flex items-center justify-between text-sm">
                           <span>{p.plan_name}</span>
                           <span className="font-medium">{p.count}</span>
@@ -428,10 +428,10 @@ export default function LeadsPage({ params }: LeadsPageProps) {
                   <div className="bg-card rounded-xl border border-border shadow-sm p-4">
                     <h3 className="text-sm font-semibold mb-3">Resumo</h3>
                     <div className="space-y-2 text-sm">
-                      <div className="flex justify-between"><span className="text-muted-foreground">Total clinicas</span><span className="font-medium">{dashboard.clinics.length}</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">Total clinicas</span><span className="font-medium">{(dashboard.clinics || []).length}</span></div>
                       <div className="flex justify-between"><span className="text-muted-foreground">Trials ativos</span><span className="font-medium">{dashboard.active_trials}</span></div>
                       <div className="flex justify-between"><span className="text-muted-foreground">Taxa conversao</span><span className="font-medium">{dashboard.total_leads > 0 ? Math.round((dashboard.converted_leads / dashboard.total_leads) * 100) : 0}%</span></div>
-                      <div className="flex justify-between"><span className="text-muted-foreground">MRR medio/clinica</span><span className="font-medium">{dashboard.clinics.length > 0 ? formatCurrency(dashboard.total_clinic_mrr / dashboard.clinics.length) : "R$ 0"}</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">MRR medio/clinica</span><span className="font-medium">{(dashboard.clinics || []).length > 0 ? formatCurrency(dashboard.total_clinic_mrr / (dashboard.clinics || []).length) : "R$ 0"}</span></div>
                     </div>
                   </div>
                 </div>
@@ -451,7 +451,7 @@ export default function LeadsPage({ params }: LeadsPageProps) {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {dashboard.clinics.map((clinic) => (
+                      {(dashboard.clinics || []).map((clinic) => (
                         <TableRow key={clinic.id}>
                           <TableCell className="max-w-[200px]">
                             <div className="font-medium truncate" title={clinic.name}>{clinic.name}</div>
