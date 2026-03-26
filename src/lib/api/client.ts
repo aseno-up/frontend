@@ -961,6 +961,45 @@ class ApiClient {
   }
 
   // ==========================================
+  // CRM Leads (admin - dev clinics only)
+  // ==========================================
+
+  async getLeads(params?: Record<string, string | number>) {
+    const response = await this.client.get('/admin/leads', { params })
+    return response.data
+  }
+
+  async getLeadById(id: string) {
+    const response = await this.client.get(`/admin/leads/${id}`)
+    return response.data
+  }
+
+  async createLead(data: Record<string, unknown>) {
+    const response = await this.client.post('/admin/leads', data)
+    return response.data
+  }
+
+  async updateLead(id: string, data: Record<string, unknown>) {
+    const response = await this.client.put(`/admin/leads/${id}`, data)
+    return response.data
+  }
+
+  async deleteLead(id: string) {
+    const response = await this.client.delete(`/admin/leads/${id}`)
+    return response.data
+  }
+
+  async getAdminAccounts() {
+    const response = await this.client.get('/admin/accounts')
+    return response.data
+  }
+
+  async getCRMDashboard() {
+    const response = await this.client.get('/admin/crm-dashboard')
+    return response.data
+  }
+
+  // ==========================================
   // Public Config (no auth required)
   // ==========================================
 

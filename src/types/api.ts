@@ -845,3 +845,43 @@ export type CreateOfferRequest = Omit<Offer, 'id' | 'created_at' | 'cycles' | 'c
 }
 
 export type UpdateOfferRequest = Partial<CreateOfferRequest>
+
+// CRM Leads
+export type LeadType = 'estetica' | 'fisioterapia' | 'misto' | 'psicologia'
+export type LeadChannel = 'outbound' | 'inbound'
+export type LeadSource = 'google_maps' | 'instagram' | 'indicacao' | 'anuncio'
+export type LeadStatus = 'identificado' | 'contactado' | 'respondeu' | 'demo_agendada' | 'trial_ativo' | 'negociando' | 'convertido' | 'sem_resposta' | 'descartado'
+export type PainScore = 'alto' | 'medio' | 'baixo'
+
+export interface Lead {
+  id: string
+  clinic_id: string
+  account_id?: string
+  clinic_name: string
+  contact_name: string
+  phone: string
+  city: string
+  type: LeadType
+  channel: LeadChannel
+  source: LeadSource
+  status: LeadStatus
+  pain_score: PainScore
+  first_contact_at?: string
+  next_follow_up_at?: string
+  trial_start_at?: string
+  trial_end_at?: string
+  converted_at?: string
+  cancelled_at?: string
+  interest_plan: string
+  contracted_plan: string
+  cancellation_reason: string
+  mrr: number
+  site: string
+  instagram: string
+  contact_channel: string
+  initial_message: string
+  notes: string
+  external_id: string
+  created_at: string
+  updated_at: string
+}

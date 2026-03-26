@@ -11,6 +11,7 @@ import {
   Settings,
   LogOut,
   ChevronLeft,
+  ChevronDown,
   Menu,
   MessageCircle,
   CalendarRange,
@@ -22,13 +23,14 @@ import {
   Server,
   Flag,
   Activity,
+  Target,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { useAuthStore } from "@/stores/auth-store"
 import { usePermissions, Permission } from "@/hooks/use-permissions"
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
 import { ClinicSwitcher } from "./clinic-switcher"
 
 const SIDEBAR_COLLAPSED_KEY = "sidebar-collapsed"
@@ -55,11 +57,12 @@ const navItems: NavItem[] = [
 ]
 
 const adminNavItems: NavItem[] = [
+  { href: "/admin/leads", label: "CRM Leads", icon: Target },
+  { href: "/admin/system-logs", label: "System Logs", icon: Server },
+  { href: "/admin/usage-metrics", label: "Usage Metrics", icon: Activity },
   { href: "/admin/settings", label: "Settings", icon: Shield },
   { href: "/admin/audit-logs", label: "Audit Logs", icon: FileText },
-  { href: "/admin/system-logs", label: "System Logs", icon: Server },
   { href: "/admin/feature-flags", label: "Feature Flags", icon: Flag },
-  { href: "/admin/usage-metrics", label: "Usage Metrics", icon: Activity },
 ]
 
 interface SidebarProps {
@@ -103,9 +106,10 @@ export function Sidebar({ lng }: SidebarProps) {
 
   // Check if clinic is dev type for admin menu
   const isDevClinic = clinic?.type === "dev"
+  const [adminOpen, setAdminOpen] = useState(pathname.includes("/admin/"))
 
   const NavLinks = ({ onItemClick }: { onItemClick?: () => void }) => (
-    <nav className="flex-1 space-y-1 px-2 py-4" data-tutorial="sidebar">
+    <nav className="flex-1 space-y-1 px-2 py-4 overflow-y-auto" data-tutorial="sidebar">
       {filteredNavItems.map((item) => {
         const isActive = pathname.includes(item.href)
         const Icon = item.icon
@@ -128,36 +132,50 @@ export function Sidebar({ lng }: SidebarProps) {
         )
       })}
 
-      {/* Admin section - only visible for dev clinics */}
+      {/* Admin section - collapsible dropdown, only visible for dev clinics */}
       {isDevClinic && (
-        <>
-          <div className={cn(
-            "mt-4 mb-1 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground/60",
-            collapsed && "sr-only"
-          )}>
-            Admin
-          </div>
-          {adminNavItems.map((item) => {
-            const isActive = pathname.includes(item.href)
-            const Icon = item.icon
-            return (
-              <Link
-                key={item.href}
-                href={`/${lng}${item.href}`}
-                onClick={onItemClick}
-                className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                  isActive
-                    ? "bg-primary/10 text-primary"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                )}
-              >
-                <Icon className="h-5 w-5 shrink-0" />
-                {!collapsed && <span>{item.label}</span>}
-              </Link>
-            )
-          })}
-        </>
+        <div className="mt-2">
+          <button
+            onClick={() => setAdminOpen(!adminOpen)}
+            className={cn(
+              "flex items-center w-full gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+              "text-muted-foreground hover:bg-muted hover:text-foreground",
+              adminOpen && "text-foreground"
+            )}
+          >
+            <Shield className="h-5 w-5 shrink-0" />
+            {!collapsed && (
+              <>
+                <span className="flex-1 text-left">Admin</span>
+                <ChevronDown className={cn("h-4 w-4 transition-transform", adminOpen && "rotate-180")} />
+              </>
+            )}
+          </button>
+          {adminOpen && !collapsed && (
+            <div className="ml-4 mt-1 space-y-0.5">
+              {adminNavItems.map((item) => {
+                const isActive = pathname.includes(item.href)
+                const Icon = item.icon
+                return (
+                  <Link
+                    key={item.href}
+                    href={`/${lng}${item.href}`}
+                    onClick={onItemClick}
+                    className={cn(
+                      "flex items-center gap-3 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
+                      isActive
+                        ? "bg-primary/10 text-primary"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    )}
+                  >
+                    <Icon className="h-4 w-4 shrink-0" />
+                    <span>{item.label}</span>
+                  </Link>
+                )
+              })}
+            </div>
+          )}
+        </div>
       )}
     </nav>
   )

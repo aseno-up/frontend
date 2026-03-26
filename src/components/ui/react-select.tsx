@@ -1,6 +1,7 @@
 "use client"
 
 import Select, { Props, GroupBase, StylesConfig } from "react-select"
+import CreatableSelect, { CreatableProps } from "react-select/creatable"
 
 export interface SelectOption {
   value: string
@@ -134,6 +135,21 @@ export function ReactSelect<IsMulti extends boolean = false>({ showColorIndicato
       formatOptionLabel={formatOptionLabel}
       classNamePrefix="react-select"
       noOptionsMessage={() => "Nenhuma opção encontrada"}
+      loadingMessage={() => "Carregando..."}
+    />
+  )
+}
+
+interface ReactCreatableSelectProps<IsMulti extends boolean = false> extends Omit<CreatableProps<SelectOption, IsMulti, GroupBase<SelectOption>>, "styles"> {}
+
+export function ReactCreatableSelect<IsMulti extends boolean = false>(props: ReactCreatableSelectProps<IsMulti>) {
+  return (
+    <CreatableSelect
+      {...props}
+      styles={customStyles}
+      classNamePrefix="react-select"
+      noOptionsMessage={() => "Digite para criar..."}
+      formatCreateLabel={(inputValue: string) => `Criar "${inputValue}"`}
       loadingMessage={() => "Carregando..."}
     />
   )
