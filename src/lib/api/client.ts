@@ -140,6 +140,11 @@ class ApiClient {
     return response.data
   }
 
+  async switchClinic(clinicId: string) {
+    const response = await this.client.post('/auth/switch-clinic', { clinic_id: clinicId })
+    return response.data
+  }
+
   // Professionals endpoints
   async getProfessionals(params?: { page?: number; limit?: number; search?: string; status?: string; sort_by?: string }) {
     const response = await this.client.get('/professionals', { params })
@@ -584,7 +589,7 @@ class ApiClient {
     return response.data
   }
 
-  async createInvite(data: { email: string; role: string }) {
+  async createInvite(data: { email: string; role: string; professional_id?: string; new_professional_name?: string }) {
     const response = await this.client.post('/invites', data)
     return response.data
   }

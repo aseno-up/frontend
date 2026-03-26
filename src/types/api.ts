@@ -248,6 +248,13 @@ export interface CreateProfessionalRequest {
   working_hours?: WorkingHours
 }
 
+// Clinic membership info
+export interface UserClinicInfo {
+  clinic_id: string
+  clinic_name: string
+  role: UserRole
+}
+
 // Response Types
 export interface AuthResponse {
   user: User
@@ -255,6 +262,12 @@ export interface AuthResponse {
   access_token: string
   refresh_token: string
   expires_at: string
+}
+
+export interface CurrentUserResponse {
+  user: User
+  clinic: Clinic
+  clinics?: UserClinicInfo[]
 }
 
 export interface PaginatedResponse<T> {
@@ -560,6 +573,7 @@ export interface Invite {
   clinic_id: string
   email: string
   role: UserRole
+  professional_id?: string
   status: InviteStatus
   expires_at: string
   created_at: string
@@ -569,16 +583,22 @@ export interface InviteDetails {
   id: string
   email: string
   role: UserRole
+  professional_id?: string
+  professional_name?: string
   clinic_name: string
   inviter_name: string
   expires_at: string
   is_valid: boolean
   is_expired: boolean
+  user_exists: boolean
+  user_name?: string
 }
 
 export interface CreateInviteRequest {
   email: string
   role: 'admin' | 'professional' | 'receptionist'
+  professional_id?: string
+  new_professional_name?: string
 }
 
 export interface AcceptInviteRequest {

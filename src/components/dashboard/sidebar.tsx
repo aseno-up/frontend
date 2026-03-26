@@ -29,6 +29,7 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { useAuthStore } from "@/stores/auth-store"
 import { usePermissions, Permission } from "@/hooks/use-permissions"
 import { useState, useEffect, useMemo } from "react"
+import { ClinicSwitcher } from "./clinic-switcher"
 
 const SIDEBAR_COLLAPSED_KEY = "sidebar-collapsed"
 
@@ -257,6 +258,11 @@ export function Sidebar({ lng }: SidebarProps) {
               )}
             />
           </Button>
+        </div>
+
+        {/* Clinic Switcher - only shows when user has multiple clinics */}
+        <div className="border-b px-2 py-2">
+          <ClinicSwitcher collapsed={collapsed} />
         </div>
 
         <NavLinks />
