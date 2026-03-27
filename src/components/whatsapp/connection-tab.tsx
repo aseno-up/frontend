@@ -35,9 +35,10 @@ const testMessageSchema = z.object({
 type TestMessageFormData = z.infer<typeof testMessageSchema>
 
 const officialApiSchema = z.object({
+  instance: z.string().min(1, 'Nome do App é obrigatório'),
   waba_id: z.string().min(1, 'WABA ID é obrigatório'),
-  phone_number_id: z.string().min(1, 'Phone Number ID é obrigatório'),
-  token: z.string().min(1, 'Token é obrigatório'),
+  phone_number_id: z.string().min(1, 'Telefone de origem é obrigatório'),
+  token: z.string().min(1, 'API Key é obrigatória'),
 })
 type OfficialApiFormData = z.infer<typeof officialApiSchema>
 
@@ -50,12 +51,12 @@ export function WhatsAppConnectionTab() {
   const [error, setError] = useState<string>()
   const [isSending, setIsSending] = useState(false)
   const [pollingStartTime, setPollingStartTime] = useState<number | null>(null)
-  const [connectionMethod, setConnectionMethod] = useState<'evolution' | 'official'>('evolution')
+  const [connectionMethod, setConnectionMethod] = useState<'evolution' | 'official'>('official')
   const MAX_POLLING_TIME_MS = 1 * 60 * 1000
 
   const officialForm = useForm<OfficialApiFormData>({
     resolver: zodResolver(officialApiSchema),
-    defaultValues: { waba_id: '', phone_number_id: '', token: '' },
+    defaultValues: { instance: '', waba_id: '', phone_number_id: '', token: '' },
   })
 
   const {
@@ -254,7 +255,7 @@ export function WhatsAppConnectionTab() {
                   {isConnected ? 'Conectado' : 'Desconectado'}
                 </p>
                 <p className={`text-xs ${isConnected ? 'text-green-600/80 dark:text-green-500/80' : 'text-amber-600/80 dark:text-amber-500/80'}`}>
-                  {isConnected ? (status?.provider === 'EVOLUTION' ? 'Conectado via QR Code' : 'Conectado via API Oficial') : 'Nenhum número vinculado ainda'}
+                  {isConnected ? (status?.provider === 'EVOLUTION' ? 'Conectado via QR Code' : 'Conectado via WhatsApp Oficial') : 'Nenhum número vinculado ainda'}
                 </p>
               </div>
             </div>
@@ -334,8 +335,25 @@ export function WhatsAppConnectionTab() {
               <div>
                 <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-4">Método de Conexão</h3>
                 <div className="grid gap-4 md:grid-cols-2">
-                  {/* Option: Evolution QR Code */}
-                  <div 
+                  {/* Option: WhatsApp Oficial */}
+                  <div
+                    onClick={() => setConnectionMethod('official')}
+                    className={`relative p-4 rounded-xl border-2 cursor-pointer transition-all ${connectionMethod === 'official' ? 'border-primary bg-background shadow-sm' : 'border-border/50 hover:border-border hover:bg-muted/30'}`}
+                  >
+                    <div className="flex justify-between items-start mb-2">
+                      <h4 className="font-semibold text-sm">WhatsApp Oficial</h4>
+                      {connectionMethod === 'official' ? (
+                        <CheckCircle2 className="h-5 w-5 text-primary" />
+                      ) : (
+                        <Circle className="h-5 w-5 text-muted-foreground/30" />
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground mb-3 leading-relaxed">Número dedicado via Meta Business, sem risco de banimento</p>
+                    <Badge variant="secondary" className="bg-primary/10 text-primary hover:bg-primary/10 hover:text-primary font-normal text-[10px] px-2 py-0.5">Recomendado</Badge>
+                  </div>
+
+                  {/* Option: QR Code */}
+                  <div
                     onClick={() => setConnectionMethod('evolution')}
                     className={`relative p-4 rounded-xl border-2 cursor-pointer transition-all ${connectionMethod === 'evolution' ? 'border-primary bg-background shadow-sm' : 'border-border/50 hover:border-border hover:bg-muted/30'}`}
                   >
@@ -348,24 +366,7 @@ export function WhatsAppConnectionTab() {
                       )}
                     </div>
                     <p className="text-xs text-muted-foreground mb-3 leading-relaxed">Escaneie com o WhatsApp já instalado no celular</p>
-                    <Badge variant="secondary" className="bg-primary/10 text-primary hover:bg-primary/10 hover:text-primary font-normal text-[10px] px-2 py-0.5">Mais rápido</Badge>
-                  </div>
-
-                  {/* Option: Official API */}
-                  <div 
-                    onClick={() => setConnectionMethod('official')}
-                    className={`relative p-4 rounded-xl border-2 cursor-pointer transition-all ${connectionMethod === 'official' ? 'border-primary bg-background shadow-sm' : 'border-border/50 hover:border-border hover:bg-muted/30'}`}
-                  >
-                    <div className="flex justify-between items-start mb-2">
-                      <h4 className="font-semibold text-sm">API Oficial</h4>
-                      {connectionMethod === 'official' ? (
-                        <CheckCircle2 className="h-5 w-5 text-primary" />
-                      ) : (
-                        <Circle className="h-5 w-5 text-muted-foreground/30" />
-                      )}
-                    </div>
-                    <p className="text-xs text-muted-foreground mb-3 leading-relaxed">Número dedicado via Meta Business, mais estável</p>
-                    <Badge variant="secondary" className="font-normal text-[10px] px-2 py-0.5 text-muted-foreground">Mais estável</Badge>
+                    <Badge variant="secondary" className="font-normal text-[10px] px-2 py-0.5 text-muted-foreground">Mais rápido</Badge>
                   </div>
                 </div>
 
@@ -420,6 +421,19 @@ export function WhatsAppConnectionTab() {
                     <div className="border border-border/50 rounded-xl p-6 bg-muted/10 animate-in fade-in slide-in-from-top-4 duration-300">
                       <form onSubmit={officialForm.handleSubmit(handleSaveOfficial)} className="space-y-4">
                         <div className="space-y-1.5">
+                          <Label htmlFor="instance" className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Nome do App</Label>
+                          <Input
+                            id="instance"
+                            placeholder="Ex: minha-clinica"
+                            className="bg-background"
+                            {...officialForm.register('instance')}
+                          />
+                          <p className="text-[10px] text-muted-foreground">Nome do app criado no painel do provedor</p>
+                          {officialForm.formState.errors.instance && (
+                            <p className="text-[10px] text-destructive">{officialForm.formState.errors.instance.message}</p>
+                          )}
+                        </div>
+                        <div className="space-y-1.5">
                           <Label htmlFor="waba_id" className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">WABA ID</Label>
                           <Input
                             id="waba_id"
@@ -432,26 +446,28 @@ export function WhatsAppConnectionTab() {
                           )}
                         </div>
                         <div className="space-y-1.5">
-                          <Label htmlFor="phone_number_id" className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Phone Number ID</Label>
+                          <Label htmlFor="phone_number_id" className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Telefone de Origem</Label>
                           <Input
                             id="phone_number_id"
-                            placeholder="Ex: 0987654321"
+                            placeholder="Ex: 5511999990000"
                             className="bg-background"
                             {...officialForm.register('phone_number_id')}
                           />
+                          <p className="text-[10px] text-muted-foreground">Telefone registrado no app (com DDI+DDD, sem +)</p>
                           {officialForm.formState.errors.phone_number_id && (
                             <p className="text-[10px] text-destructive">{officialForm.formState.errors.phone_number_id.message}</p>
                           )}
                         </div>
                         <div className="space-y-1.5">
-                          <Label htmlFor="token" className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Token de Acesso</Label>
+                          <Label htmlFor="token" className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">API Key</Label>
                           <Input
                             id="token"
                             type="password"
-                            placeholder="Cole seu token permanente aqui"
+                            placeholder="Cole a API Key do app aqui"
                             className="bg-background font-mono text-sm"
                             {...officialForm.register('token')}
                           />
+                          <p className="text-[10px] text-muted-foreground">Encontre em App Settings no painel do provedor</p>
                           {officialForm.formState.errors.token && (
                             <p className="text-[10px] text-destructive">{officialForm.formState.errors.token.message}</p>
                           )}
@@ -466,7 +482,7 @@ export function WhatsAppConnectionTab() {
                           ) : (
                             <Wifi className="h-5 w-5 mr-3" />
                           )}
-                          Salvar e Conectar API Oficial
+                          Salvar e Conectar
                         </Button>
                       </form>
                     </div>
