@@ -6,7 +6,7 @@ export function LandingFooter() {
       <div className="ft-grid">
         <div className="ft-brand">
           <Link href="/" className="ft-logo">aseno<span>.</span></Link>
-          <p>Sistema de agendamento inteligente para clínicas de estética e fisioterapia.</p>
+          <p>Sistema de agendamento inteligente para profissionais e clínicas que agendam sessões.</p>
         </div>
         <div className="ft-col">
           <h4>Produto</h4>

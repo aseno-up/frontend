@@ -94,7 +94,7 @@ export default function LandingPage(props: PageProps) {
 
       <section className="hero">
         <div className="hero-content">
-          <div className="hero-badge"><div className="hero-badge-dot"></div>Para clínicas de estética e fisioterapia</div>
+          <div className="hero-badge"><div className="hero-badge-dot"></div>Para profissionais e clínicas que agendam sessões</div>
           <h1 className="hero-title">Reduza <span className="a1">faltas</span> e pare de confirmar consultas no <span className="a2">manual</span></h1>
           <p className="hero-sub">Agenda simples, sessões recorrentes e confirmações automáticas no WhatsApp que atualizam o status sozinhas — sua equipe foca no atendimento.</p>
           <div className="hero-actions">
@@ -154,7 +154,8 @@ export default function LandingPage(props: PageProps) {
         <div className="feat-grid">
           <div className="feat-card"><div className="feat-icon">📅</div><h3>Agenda Online</h3><p>Visão diária, semanal e por profissional. Gerencie todos os agendamentos em uma interface intuitiva e fluida.</p></div>
           <div className="feat-card"><div className="feat-icon">💬</div><h3>WhatsApp Integrado</h3><p>Confirmações e lembretes automáticos. O paciente confirma, cancela ou reagenda sem ligar para a clínica.</p></div>
-          <div className="feat-card"><div className="feat-icon">🔄</div><h3>Sessões Recorrentes</h3><p>Planos com várias sessões de uma vez. Ideal para tratamentos de fisioterapia, drenagem e protocolos estéticos.</p></div>
+          <div className="feat-card"><div className="feat-icon">🔗</div><h3>Agendamento Público</h3><p>Link exclusivo da sua clínica. O paciente agenda sozinho, 24/7 — perfeito para bio do Instagram e site.</p></div>
+          <div className="feat-card"><div className="feat-icon">🔄</div><h3>Sessões Recorrentes</h3><p>Planos com várias sessões de uma vez. Ideal para tratamentos de fisioterapia, drenagem e protocolos.</p></div>
           <div className="feat-card"><div className="feat-icon">📊</div><h3>Relatórios</h3><p>Presença, faturamento e métricas de faltas. Identifique horários de risco e tome decisões baseadas em dados.</p></div>
           <div className="feat-card"><div className="feat-icon">👥</div><h3>Controle de Acesso</h3><p>Perfis por função: administrador, recepção e profissional. Cada usuário acessa somente as informações que precisa.</p></div>
           <div className="feat-card"><div className="feat-icon">📋</div><h3>Ficha do Paciente</h3><p>Histórico completo de atendimentos, procedimento executado, região tratada e evolução clínica detalhada.</p></div>
@@ -214,12 +215,15 @@ export default function LandingPage(props: PageProps) {
         <div className="sec-hd">
           <span className="eyebrow">Para quem é</span>
           <h2 className="sec-title">Feito para <span className="a2">quem cuida</span></h2>
-          <p className="sec-sub">Desenvolvido especificamente para as necessidades das clínicas de saúde e bem-estar.</p>
+          <p className="sec-sub">Se você agenda sessões e perde dinheiro com faltas, o Aseno foi feito pra você.</p>
         </div>
         <div className="for-grid">
-          <div className="for-card"><div className="for-icon">✨</div><h3>Clínicas de Estética</h3><p>Procedimento, região tratada e sessões recorrentes organizados. Do facial ao corporal.</p></div>
-          <div className="for-card"><div className="for-icon">🦴</div><h3>Fisioterapia</h3><p>Tipo de sessão, evolução clínica, contador e acompanhamento de planos de tratamento.</p></div>
-          <div className="for-card"><div className="for-icon">📱</div><h3>Quem usa WhatsApp</h3><p>Se sua equipe gasta tempo confirmando pelo WhatsApp manualmente, nós automatizamos tudo.</p></div>
+          <div className="for-card"><div className="for-icon">✨</div><h3>Estética</h3><p>Procedimento, região tratada e sessões recorrentes organizados. Do facial ao corporal.</p></div>
+          <div className="for-card"><div className="for-icon">🦴</div><h3>Fisioterapia</h3><p>Evolução clínica, contador de sessões e acompanhamento de planos de tratamento.</p></div>
+          <div className="for-card"><div className="for-icon">🧠</div><h3>Psicologia</h3><p>Sessões semanais recorrentes, ficha do paciente e lembretes automáticos sem esforço.</p></div>
+          <div className="for-card"><div className="for-icon">🧘</div><h3>Pilates e Yoga</h3><p>Planos de sessões, controle de frequência e agenda por instrutor.</p></div>
+          <div className="for-card"><div className="for-icon">🥗</div><h3>Nutrição</h3><p>Retornos agendados automaticamente e lembretes que reduzem faltas nas consultas.</p></div>
+          <div className="for-card"><div className="for-icon">💆</div><h3>Massoterapia e Quiropraxia</h3><p>Sessões avulsas ou pacotes. O paciente agenda pelo link e recebe lembrete no WhatsApp.</p></div>
         </div>
       </section>
 
@@ -240,7 +244,7 @@ export default function LandingPage(props: PageProps) {
         <div className="sec-hd">
           <span className="eyebrow">Planos</span>
           <h2 className="sec-title">Simples e <span className="a1">transparente</span></h2>
-          <p className="sec-sub">{getTrialDays()} dias grátis no plano Profissional. Sem cartão de crédito.</p>
+          <p className="sec-sub">Preço por clínica, não por profissional. {getTrialDays()} dias grátis no plano Profissional.</p>
         </div>
         <div className="ptoggle">
           <span style={{ fontWeight: billingCycle === 'monthly' ? 600 : 500, color: billingCycle === 'monthly' ? 'var(--ink)' : 'var(--ink-light)' }}>Mensal</span>
@@ -268,9 +272,12 @@ export default function LandingPage(props: PageProps) {
             <ul className="price-feats">
               <li>Até 5 profissionais</li>
               <li>Agenda ilimitada</li>
+              <li>Agendamento público (link na bio)</li>
               <li>Confirmações WhatsApp</li>
               <li>Sessões recorrentes</li>
               <li>Gestão de pacientes</li>
+              <li>Ficha e histórico do paciente</li>
+              <li>Onboarding guiado</li>
               <li>Suporte por e-mail</li>
             </ul>
             <button className="btn-p btn-p-out" onClick={() => handlePlanSelect('basic')}>Assinar agora</button>
@@ -284,11 +291,14 @@ export default function LandingPage(props: PageProps) {
             <ul className="price-feats">
               <li>Até 15 profissionais</li>
               <li>Tudo do Básico</li>
-              <li>Google Calendar</li>
+              <li>WhatsApp Oficial (sem risco de ban)</li>
+              <li>IA que entende respostas do paciente</li>
+              <li>Google Calendar bidirecional</li>
               <li>Lista de Espera Automática</li>
               <li>Detector de Risco de Faltas</li>
               <li>Relatórios de Prejuízo</li>
               <li>Personalização de mensagens</li>
+              <li>Controle de acesso por perfil</li>
               <li>Suporte prioritário WhatsApp</li>
             </ul>
             <button className="btn-p btn-p-fill" onClick={() => handlePlanSelect('professional')}>Assinar agora</button>
@@ -301,10 +311,11 @@ export default function LandingPage(props: PageProps) {
             <ul className="price-feats">
               <li>Profissionais ilimitados</li>
               <li>Tudo do Profissional</li>
+              <li>Múltiplas unidades (filiais)</li>
+              <li>Relatórios avançados</li>
+              <li>Onboarding com treinamento da equipe</li>
+              <li>Importação de dados do sistema anterior</li>
               <li>API de integração</li>
-              <li>Treinamento da equipe</li>
-              <li>Importação de dados</li>
-              <li>SLA de 99.9%</li>
               <li>Backup diário automático</li>
             </ul>
             <button className="btn-p btn-p-out" onClick={() => handlePlanSelect('advanced')}>Assinar agora</button>
@@ -321,6 +332,9 @@ export default function LandingPage(props: PageProps) {
           <div className="faq-item"><h3>Preciso instalar algo?</h3><p>Não. O Aseno funciona 100% no navegador, sem instalação em nenhum dispositivo.</p></div>
           <div className="faq-item"><h3>Funciona no celular?</h3><p>Sim. Interface totalmente responsiva em qualquer smartphone, tablet ou computador.</p></div>
           <div className="faq-item"><h3>Preciso de cartão para testar?</h3><p>Não. {getTrialDays()} dias com acesso completo, sem cartão de crédito.</p></div>
+          <div className="faq-item"><h3>O preço é por profissional?</h3><p>Não. O preço é por clínica. No plano Profissional, até 15 profissionais pagam o mesmo valor.</p></div>
+          <div className="faq-item"><h3>Meu paciente pode agendar sozinho?</h3><p>Sim. Você recebe um link exclusivo para colocar no Instagram, site ou onde quiser. O paciente agenda 24/7.</p></div>
+          <div className="faq-item"><h3>O WhatsApp da clínica pode ser banido?</h3><p>Com o WhatsApp Oficial (plano Profissional), não. É a API autorizada pela Meta, sem risco de banimento.</p></div>
         </div>
       </section>
 
