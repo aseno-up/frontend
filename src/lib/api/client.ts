@@ -210,6 +210,16 @@ class ApiClient {
     return response.data
   }
 
+  async getSelfRegisteredPatients(params?: { page?: number, limit?: number, search?: string }) {
+    const response = await this.client.get('/patients/self-registered', { params })
+    return response.data
+  }
+
+  async mergePatients(targetId: string, sourcePatientId: string) {
+    const response = await this.client.post(`/patients/${targetId}/merge`, { source_patient_id: sourcePatientId })
+    return response.data
+  }
+
   async bulkDeletePatients(ids: string[]) {
     const response = await this.client.post('/patients/bulk-delete', { ids })
     return response.data
