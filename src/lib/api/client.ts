@@ -1003,6 +1003,53 @@ class ApiClient {
   // Public Config (no auth required)
   // ==========================================
 
+  // Payment Methods (settings)
+  async getPaymentMethods() {
+    const response = await this.client.get('/payment-methods')
+    return response.data
+  }
+
+  async getActivePaymentMethods() {
+    const response = await this.client.get('/payment-methods/active')
+    return response.data
+  }
+
+  async createPaymentMethod(data: { name: string; type: string }) {
+    const response = await this.client.post('/payment-methods', data)
+    return response.data
+  }
+
+  async updatePaymentMethod(id: string, data: { name?: string; type?: string; active?: boolean }) {
+    const response = await this.client.put(`/payment-methods/${id}`, data)
+    return response.data
+  }
+
+  async deletePaymentMethod(id: string) {
+    const response = await this.client.delete(`/payment-methods/${id}`)
+    return response.data
+  }
+
+  // Appointment Payments
+  async getAppointmentPayments(appointmentId: string) {
+    const response = await this.client.get(`/appointments/${appointmentId}/payments`)
+    return response.data
+  }
+
+  async createAppointmentPayment(appointmentId: string, data: { payment_method_id: string; amount: number; discount?: number; installments?: number; notes?: string }) {
+    const response = await this.client.post(`/appointments/${appointmentId}/payments`, data)
+    return response.data
+  }
+
+  async updateAppointmentPayment(appointmentId: string, paymentId: string, data: { payment_method_id: string; amount: number; discount?: number; installments?: number; notes?: string }) {
+    const response = await this.client.put(`/appointments/${appointmentId}/payments/${paymentId}`, data)
+    return response.data
+  }
+
+  async deleteAppointmentPayment(appointmentId: string, paymentId: string) {
+    const response = await this.client.delete(`/appointments/${appointmentId}/payments/${paymentId}`)
+    return response.data
+  }
+
   async getPublicConfig(): Promise<{
     plans: Record<string, {
       limit_professionals: number

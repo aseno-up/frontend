@@ -5,7 +5,7 @@ import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { format } from "date-fns"
-import { Loader2, Trash2 } from "lucide-react"
+import { Loader2, Trash2, Wallet } from "lucide-react"
 import type { MultiValue } from "react-select"
 
 import {
@@ -24,7 +24,8 @@ import { ReactSelect, SelectOption } from "@/components/ui/react-select"
 import { CurrencyInput } from "@/components/ui/currency-input"
 import { api } from "@/lib/api/client"
 import { showToast, handleApiError } from "@/lib/toast"
-import type { Appointment, Patient, Professional } from "@/types/api"
+import type { Appointment, Patient, Professional, AppointmentPaymentStatus } from "@/types/api"
+import { AppointmentPaymentModal } from "./appointment-payment-modal"
 
 const appointmentSchema = z.object({
   patient_id: z.string().min(1, "Paciente e obrigatorio"),
@@ -88,6 +89,7 @@ export function AppointmentDialog({
   // Procedures
   const [procedures, setProcedures] = useState<any[]>([])
   const [proceduresLoading, setProceduresLoading] = useState(false)
+  const [showPaymentModal, setShowPaymentModal] = useState(false)
 
   const isEditing = !!appointment
 
@@ -493,13 +495,43 @@ export function AppointmentDialog({
           {/* Price */}
           <div className="space-y-2">
             <Label htmlFor="price">Valor Total (Soma dos Procedimentos)</Label>
-            <CurrencyInput
-              id="price"
-              value={watch("price")}
-              onChange={() => {}}
-              disabled={true}
-            />
+            <div className="flex items-center gap-3">
+              <CurrencyInput
+                id="price"
+                value={watch("price")}
+                onChange={() => {}}
+                disabled={true}
+              />
+              {isEditing && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0"
+                  onClick={() => setShowPaymentModal(true)}
+                >
+                  <Wallet className="h-4 w-4 mr-2" />
+                  Pagamentos
+                  {appointment?.payment_status === "paid" && (
+                    <Badge className="ml-2 text-[10px] bg-green-600">Pago</Badge>
+                  )}
+                  {appointment?.payment_status === "partial" && (
+                    <Badge className="ml-2 text-[10px] bg-amber-500">Parcial</Badge>
+                  )}
+                </Button>
+              )}
+            </div>
           </div>
+
+          {isEditing && appointment && (
+            <AppointmentPaymentModal
+              isOpen={showPaymentModal}
+              onClose={() => setShowPaymentModal(false)}
+              appointmentId={appointment.id}
+              appointmentPrice={watch("price") || 0}
+              onPaymentChanged={onSuccess}
+            />
+          )}
 
           <DialogFooter className="gap-2">
             {isEditing && (

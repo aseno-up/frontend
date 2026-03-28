@@ -150,6 +150,7 @@ export interface Appointment {
   notes: string
   patient_notes: string
   price: number
+  payment_status: AppointmentPaymentStatus
   procedures: AppointmentProcedure[]
   confirmed_at?: string
   canceled_at?: string
@@ -348,6 +349,43 @@ export interface SendConfirmationRequest {
   professional_name: string
   appointment_time: string
   appointment_date: string
+}
+
+// Appointment Payment Types (session-level)
+export type PaymentMethodType = 'pix' | 'credit' | 'debit' | 'cash' | 'transfer' | 'other'
+export type AppointmentPaymentStatus = 'pending' | 'partial' | 'paid'
+
+export interface PaymentMethod {
+  id: string
+  clinic_id: string
+  name: string
+  type: PaymentMethodType
+  active: boolean
+  created_at: string
+}
+
+export interface AppointmentPayment {
+  id: string
+  appointment_id: string
+  payment_method_id: string
+  amount: number
+  discount: number
+  installments: number
+  notes: string
+  paid_at: string
+  payment_method?: {
+    id: string
+    name: string
+    type: string
+  }
+  created_at: string
+}
+
+export interface CreateAppointmentPaymentRequest {
+  payment_method_id: string
+  amount: number
+  discount?: number
+  notes?: string
 }
 
 // Payment/Billing Types
