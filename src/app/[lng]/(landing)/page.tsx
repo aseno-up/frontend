@@ -154,7 +154,9 @@ export default function LandingPage(props: PageProps) {
         <div className="feat-grid">
           <div className="feat-card"><div className="feat-icon">📅</div><h3>Agenda Online</h3><p>Visão diária, semanal e por profissional. Gerencie todos os agendamentos em uma interface intuitiva e fluida.</p></div>
           <div className="feat-card"><div className="feat-icon">💬</div><h3>WhatsApp Integrado</h3><p>Confirmações e lembretes automáticos. O paciente confirma, cancela ou reagenda sem ligar para a clínica.</p></div>
-          <div className="feat-card"><div className="feat-icon">🔗</div><h3>Agendamento Público</h3><p>Link exclusivo da sua clínica. O paciente agenda sozinho, 24/7 — perfeito para bio do Instagram e site.</p></div>
+          <div className="feat-card"><div className="feat-icon">🔗</div><h3>Agendamento Público</h3><p>Landing page da sua clínica com perfil, avaliações e agendamento online. O paciente agenda sozinho, 24/7.</p></div>
+          <div className="feat-card"><div className="feat-icon">👤</div><h3>Portal do Paciente</h3><p>Seu paciente cria conta, visualiza e cancela agendamentos — tudo pelo portal, sem ligar para a clínica.</p></div>
+          <div className="feat-card"><div className="feat-icon">🎥</div><h3>Teleconsulta</h3><p>Link de videochamada gerado automaticamente via Google Meet. Paciente acessa pelo portal ou e-mail.</p></div>
           <div className="feat-card"><div className="feat-icon">🔄</div><h3>Sessões Recorrentes</h3><p>Planos com várias sessões de uma vez. Ideal para tratamentos de fisioterapia, drenagem e protocolos.</p></div>
           <div className="feat-card"><div className="feat-icon">📊</div><h3>Relatórios</h3><p>Presença, faturamento e métricas de faltas. Identifique horários de risco e tome decisões baseadas em dados.</p></div>
           <div className="feat-card"><div className="feat-icon">👥</div><h3>Controle de Acesso</h3><p>Perfis por função: administrador, recepção e profissional. Cada usuário acessa somente as informações que precisa.</p></div>
@@ -272,7 +274,9 @@ export default function LandingPage(props: PageProps) {
             <ul className="price-feats">
               <li>Até 5 profissionais</li>
               <li>Agenda ilimitada</li>
-              <li>Agendamento público (link na bio)</li>
+              <li>Landing page pública da clínica</li>
+              <li>Agendamento online (link na bio)</li>
+              <li>Portal do Paciente</li>
               <li>Confirmações WhatsApp</li>
               <li>Sessões recorrentes</li>
               <li>Gestão de pacientes</li>
@@ -294,6 +298,7 @@ export default function LandingPage(props: PageProps) {
               <li>WhatsApp Oficial (sem risco de ban)</li>
               <li>IA que entende respostas do paciente</li>
               <li>Google Calendar bidirecional</li>
+              <li>Teleconsulta (Google Meet)</li>
               <li>Lista de Espera Automática</li>
               <li>Detector de Risco de Faltas</li>
               <li>Relatórios de Prejuízo</li>

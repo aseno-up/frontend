@@ -1073,6 +1073,62 @@ class ApiClient {
     const response = await axios.get(`${API_URL}/public/config`)
     return response.data
   }
+  // --- Portal (Patient) endpoints ---
+
+  async portalValidateToken(token: string) {
+    const response = await this.client.get(`/portal/validate-token?token=${token}`)
+    return response.data
+  }
+
+  async portalRegister(token: string, password: string) {
+    const response = await this.client.post('/portal/register', { token, password })
+    return response.data
+  }
+
+  async portalVerifyEmail(token: string) {
+    const response = await this.client.post('/portal/verify-email', { token })
+    return response.data
+  }
+
+  async portalLogin(email: string, password: string) {
+    const response = await this.client.post('/portal/login', { email, password })
+    return response.data
+  }
+
+  async portalRefresh() {
+    const response = await this.client.post('/portal/refresh')
+    return response.data
+  }
+
+  async portalGetMe() {
+    const response = await this.client.get('/portal/me')
+    return response.data
+  }
+
+  async portalGetAppointments() {
+    const response = await this.client.get('/portal/appointments')
+    return response.data
+  }
+
+  async portalGetStats() {
+    const response = await this.client.get('/portal/stats')
+    return response.data
+  }
+
+  async portalCreateAppointment(data: { professional_id: string; start_time: string; procedure_id?: string; notes?: string }) {
+    const response = await this.client.post('/portal/appointments', data)
+    return response.data
+  }
+
+  async portalCancelAppointment(id: string) {
+    const response = await this.client.put(`/portal/appointments/${id}/cancel`)
+    return response.data
+  }
+
+  async portalLogout() {
+    const response = await this.client.post('/portal/logout')
+    return response.data
+  }
 }
 
 export const api = new ApiClient()
