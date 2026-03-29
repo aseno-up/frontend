@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, useMemo } from "react"
-import { useParams, useSearchParams } from "next/navigation"
+import { useParams, useSearchParams, useRouter } from "next/navigation"
 import { Loader2, AlertCircle, ArrowLeft } from "lucide-react"
 import Link from "next/link"
 import { fetchClinicInfo, fetchProfessionals, fetchSpecialties, fetchProcedures } from "../api"
@@ -32,6 +32,7 @@ function formatCurrency(value: number): string {
 export default function BookingPage() {
   const params = useParams()
   const searchParams = useSearchParams()
+  const router = useRouter()
   const slug = params.slug as string
   const professionalIdParam = searchParams.get("professional")
 
@@ -51,24 +52,36 @@ export default function BookingPage() {
   const [selectedProcedure, setSelectedProcedure] = useState<Procedure | null>(null)
   const [selectedSlot, setSelectedSlot] = useState<AvailableSlot | null>(null)
   const [bookingResult, setBookingResult] = useState<{
+    id: string
+    clinic_id: string
     professional: string
     start_time: string
     end_time: string
+    price: number
+    payment_token?: string
+    payment_url?: string
+    patient_name?: string
+    patient_cpf?: string
+    patient_email?: string
+    patient_phone?: string
   } | null>(null)
 
   // --- Steps config for progress bar ---
+  const requirePayment = clinic?.require_payment_before_booking ?? false
+  const showProcedureStep = procedures.length > 0 || requirePayment
+
   const allSteps = useMemo((): Step[] => {
     if (isPathA) {
       const steps: Step[] = []
-      if (procedures.length > 0) steps.push("procedure")
+      if (showProcedureStep) steps.push("procedure")
       steps.push("datetime", "first-visit", "patient-data")
       return steps
     }
     const steps: Step[] = ["specialty"]
-    if (procedures.length > 0) steps.push("procedure")
+    if (showProcedureStep) steps.push("procedure")
     steps.push("professional", "datetime", "first-visit", "patient-data")
     return steps
-  }, [isPathA, procedures.length])
+  }, [isPathA, showProcedureStep])
 
   const stepLabels: Record<Step, string> = {
     specialty: "Especialidade",
@@ -162,7 +175,11 @@ export default function BookingPage() {
     setStep("patient-data")
   }
 
-  function handleBookingSuccess(result: { professional: string; start_time: string; end_time: string }) {
+  function handleBookingSuccess(result: { id: string; clinic_id: string; professional: string; start_time: string; end_time: string; price: number; payment_token?: string; payment_url?: string; patient_name?: string; patient_cpf?: string; patient_email?: string; patient_phone?: string }) {
+    if (result.payment_token && requirePayment) {
+      router.push(`/pagar/${result.payment_token}`)
+      return
+    }
     setBookingResult(result)
     setStep("success")
   }
@@ -315,7 +332,7 @@ export default function BookingPage() {
         )}
 
         {step === "procedure" && (
-          <ProcedureStep procedures={procedures} onSelect={handleProcedureSelect} />
+          <ProcedureStep procedures={procedures} onSelect={handleProcedureSelect} requirePayment={requirePayment} />
         )}
 
         {step === "professional" && (
@@ -343,6 +360,7 @@ export default function BookingPage() {
             professional={selectedProfessional}
             selectedSlot={selectedSlot}
             selectedProcedure={selectedProcedure}
+            requirePayment={requirePayment}
             onSuccess={handleBookingSuccess}
           />
         )}

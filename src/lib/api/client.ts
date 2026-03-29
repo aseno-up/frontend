@@ -838,6 +838,7 @@ class ApiClient {
       require_confirmation?: boolean
       whatsapp_reminders_enabled?: boolean
       email_reminders_enabled?: boolean
+      require_payment_before_booking?: boolean
       ai_agent_enabled?: boolean
       ai_min_delay_between_messages?: number | null
       ai_min_delay_between_patients?: number | null
@@ -1127,6 +1128,89 @@ class ApiClient {
 
   async portalLogout() {
     const response = await this.client.post('/portal/logout')
+    return response.data
+  }
+
+  // Marketplace - Public (no auth)
+  async checkMarketplaceSubaccount(clinicId: string) {
+    const response = await this.client.get(`/marketplace/check/${clinicId}`)
+    return response.data as { has_subaccount: boolean; require_payment: boolean; payment_timeout_minutes?: number; status?: string }
+  }
+
+  async createMarketplaceCharge(clinicId: string, appointmentId: string, data: { billing_type: string; customer_name: string; customer_cpf_cnpj: string; customer_email?: string; customer_phone?: string; credit_card?: { holderName: string; number: string; expiryMonth: string; expiryYear: string; ccv: string }; credit_card_holder_info?: { name: string; email: string; cpfCnpj: string; postalCode: string; phone: string } }) {
+    const response = await this.client.post(`/marketplace/charge/${clinicId}/${appointmentId}`, data)
+    return response.data
+  }
+
+  async getMarketplaceChargeStatus(paymentId: string) {
+    const response = await this.client.get(`/marketplace/charge/${paymentId}/status`)
+    return response.data as { id: string; status: string }
+  }
+
+  async getMarketplaceChargePixQRCode(paymentId: string, clinicId: string) {
+    const response = await this.client.get(`/marketplace/charge/${paymentId}/pix?clinic_id=${clinicId}`)
+    return response.data
+  }
+
+  // Marketplace - Payment page (token-based, public)
+  async getPaymentPageData(token: string) {
+    const response = await this.client.get(`/marketplace/pagar/${token}`)
+    return response.data as {
+      appointment_id: string
+      clinic_id: string
+      clinic_name?: string
+      professional?: string
+      start_time: string
+      end_time: string
+      price: number
+      payment_status: string
+      status: string
+      remaining_seconds: number
+      has_subaccount: boolean
+      existing_payment?: import('@/types/api').ClinicPayment
+    }
+  }
+
+  async createChargeByToken(token: string, data: { billing_type: string; customer_name: string; customer_cpf_cnpj: string; customer_email?: string; customer_phone?: string; credit_card?: { holderName: string; number: string; expiryMonth: string; expiryYear: string; ccv: string }; credit_card_holder_info?: { name: string; email: string; cpfCnpj: string; postalCode: string; phone: string } }) {
+    const response = await this.client.post(`/marketplace/pagar/${token}/charge`, data)
+    return response.data
+  }
+
+  // Marketplace - Subaccount (auth required)
+  async getMarketplaceSubaccount() {
+    const response = await this.client.get('/marketplace/subaccount')
+    return response.data
+  }
+
+  async createMarketplaceSubaccount(data: import('@/types/api').CreateSubaccountInput) {
+    const response = await this.client.post('/marketplace/subaccount', data)
+    return response.data
+  }
+
+  // Marketplace - Split Config
+  async getMarketplaceSplitConfig() {
+    const response = await this.client.get('/marketplace/split-config')
+    return response.data
+  }
+
+  async updateMarketplaceSplitConfig(data: import('@/types/api').UpdateSplitConfigInput) {
+    const response = await this.client.put('/marketplace/split-config', data)
+    return response.data
+  }
+
+  // Marketplace - Financial Dashboard
+  async getMarketplaceBalance() {
+    const response = await this.client.get('/marketplace/balance')
+    return response.data
+  }
+
+  async getMarketplacePayments(params?: { page?: number; per_page?: number; status?: string; billing_type?: string; date_from?: string; date_to?: string }) {
+    const response = await this.client.get('/marketplace/payments', { params })
+    return response.data
+  }
+
+  async getMarketplaceSummary(params?: { date_from?: string; date_to?: string }) {
+    const response = await this.client.get('/marketplace/summary', { params })
     return response.data
   }
 }

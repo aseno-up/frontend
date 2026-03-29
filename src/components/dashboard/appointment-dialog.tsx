@@ -55,6 +55,7 @@ interface AppointmentDialogProps {
 }
 
 const statusLabels: Record<string, string> = {
+  awaiting_payment: "Aguardando Pagamento",
   pending: "Pendente",
   confirmed: "Confirmado",
   canceled: "Cancelado",
@@ -64,6 +65,7 @@ const statusLabels: Record<string, string> = {
 }
 
 const statusVariants: Record<string, "default" | "secondary" | "destructive" | "outline" | "success" | "warning" | "info"> = {
+  awaiting_payment: "warning",
   pending: "warning",
   confirmed: "success",
   canceled: "destructive",

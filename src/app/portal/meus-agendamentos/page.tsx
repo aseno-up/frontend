@@ -10,7 +10,7 @@ import interactionPlugin from "@fullcalendar/interaction"
 import { EventClickArg, EventInput } from "@fullcalendar/core"
 import ptBrLocale from "@fullcalendar/core/locales/pt-br"
 import Link from "next/link"
-import { Calendar, AlertCircle, TrendingUp, Clock, Loader2, LogOut, X, Plus } from "lucide-react"
+import { Calendar, AlertCircle, TrendingUp, Clock, Loader2, LogOut, X, Plus, QrCode, Copy, Check, CheckCircle } from "lucide-react"
 import { api } from "@/lib/api/client"
 
 interface PortalStats {
@@ -39,9 +39,12 @@ interface Appointment {
   title: string
   professional: { id: string; name: string; specialty: string; color: string }
   patient_notes: string
+  price: number
+  payment_status: string
 }
 
 const statusColors: Record<string, { bg: string; border: string; text: string }> = {
+  awaiting_payment: { bg: "#FFF7ED", border: "#F97316", text: "#9A3412" },
   pending: { bg: "#FEF3C7", border: "#F59E0B", text: "#92400E" },
   confirmed: { bg: "#D1FAE5", border: "#10B981", text: "#065F46" },
   canceled: { bg: "#FEE2E2", border: "#EF4444", text: "#991B1B" },
@@ -51,6 +54,7 @@ const statusColors: Record<string, { bg: string; border: string; text: string }>
 }
 
 const statusLabels: Record<string, string> = {
+  awaiting_payment: "Aguardando Pagamento",
   pending: "Pendente",
   confirmed: "Confirmado",
   canceled: "Cancelado",
@@ -69,6 +73,12 @@ export default function MeusAgendamentosPage() {
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [selectedApt, setSelectedApt] = useState<Appointment | null>(null)
   const [canceling, setCanceling] = useState(false)
+  const [hasSubaccount, setHasSubaccount] = useState(false)
+  const [payingApt, setPayingApt] = useState<Appointment | null>(null)
+  const [creatingCharge, setCreatingCharge] = useState(false)
+  const [pixData, setPixData] = useState<{ pix_qrcode_image?: string; pix_copy_paste?: string; id?: string } | null>(null)
+  const [pixCopied, setPixCopied] = useState(false)
+  const [paymentConfirmed, setPaymentConfirmed] = useState(false)
 
   const fetchData = useCallback(async () => {
     try {
@@ -91,6 +101,58 @@ export default function MeusAgendamentosPage() {
   useEffect(() => {
     fetchData()
   }, [fetchData])
+
+  // Check if clinic has marketplace subaccount
+  useEffect(() => {
+    if (!me?.clinic_id) return
+    api.checkMarketplaceSubaccount(me.clinic_id)
+      .then(data => setHasSubaccount(data.has_subaccount))
+      .catch(() => setHasSubaccount(false))
+  }, [me?.clinic_id])
+
+  // Poll payment status
+  useEffect(() => {
+    if (!pixData?.id) return
+    const interval = setInterval(async () => {
+      try {
+        const data = await api.getMarketplaceChargeStatus(pixData.id!)
+        if (data.status === "RECEIVED" || data.status === "CONFIRMED") {
+          setPaymentConfirmed(true)
+          clearInterval(interval)
+        }
+      } catch { /* ignore */ }
+    }, 5000)
+    return () => clearInterval(interval)
+  }, [pixData?.id])
+
+  async function handlePayPix(apt: Appointment) {
+    if (!me) return
+    try {
+      setCreatingCharge(true)
+      setPayingApt(apt)
+      setSelectedApt(null)
+      const charge = await api.createMarketplaceCharge(me.clinic_id, apt.id, {
+        billing_type: "PIX",
+        customer_name: me.name,
+        customer_cpf_cnpj: "00000000000",
+        customer_email: me.email,
+        customer_phone: me.phone,
+      })
+      setPixData({ pix_qrcode_image: charge.pix_qrcode_image, pix_copy_paste: charge.pix_copy_paste, id: charge.id })
+    } catch {
+      setPayingApt(null)
+    } finally {
+      setCreatingCharge(false)
+    }
+  }
+
+  function handleClosePayment() {
+    setPayingApt(null)
+    setPixData(null)
+    setPixCopied(false)
+    setPaymentConfirmed(false)
+    fetchData()
+  }
 
   async function handleLogout() {
     await api.portalLogout()
@@ -300,16 +362,100 @@ export default function MeusAgendamentosPage() {
               )}
             </div>
 
+            {hasSubaccount && selectedApt.price > 0 && selectedApt.payment_status !== "paid" && (selectedApt.status === "pending" || selectedApt.status === "confirmed") && (
+              <button
+                onClick={() => handlePayPix(selectedApt)}
+                className="w-full mt-3 py-2.5 bg-cyan-600 hover:bg-cyan-700 text-white border-none rounded-lg text-sm font-medium cursor-pointer transition-colors flex items-center justify-center gap-2"
+              >
+                <QrCode className="h-4 w-4" />
+                Pagar via PIX — {selectedApt.price.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+              </button>
+            )}
+
             {canCancel(selectedApt) && (
               <button
                 onClick={() => handleCancel(selectedApt.id)}
                 disabled={canceling}
-                className="w-full mt-5 py-2.5 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-lg text-sm font-medium cursor-pointer disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+                className="w-full mt-3 py-2.5 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-lg text-sm font-medium cursor-pointer disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
               >
                 {canceling ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                 Cancelar agendamento
               </button>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* PIX Payment Modal */}
+      {payingApt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl p-6 max-w-sm w-full mx-4 shadow-xl text-center">
+            {paymentConfirmed ? (
+              <>
+                <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-3" />
+                <h3 className="text-lg font-semibold text-slate-900 mb-1">Pagamento confirmado!</h3>
+                <p className="text-sm text-slate-500 mb-4">
+                  {payingApt.price.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} recebido com sucesso.
+                </p>
+                <button
+                  onClick={handleClosePayment}
+                  className="w-full py-2.5 bg-cyan-600 hover:bg-cyan-700 text-white border-none rounded-lg text-sm font-medium cursor-pointer transition-colors"
+                >
+                  Fechar
+                </button>
+              </>
+            ) : creatingCharge ? (
+              <>
+                <Loader2 className="h-8 w-8 animate-spin text-cyan-600 mx-auto mb-3" />
+                <p className="text-sm text-slate-500">Gerando PIX...</p>
+              </>
+            ) : pixData ? (
+              <>
+                <QrCode className="h-8 w-8 text-cyan-600 mx-auto mb-2" />
+                <h3 className="text-lg font-semibold text-slate-900 mb-1">Pague via PIX</h3>
+                <p className="text-sm text-slate-500 mb-3">
+                  {payingApt.price.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                </p>
+
+                {pixData.pix_qrcode_image && (
+                  <img
+                    src={`data:image/png;base64,${pixData.pix_qrcode_image}`}
+                    alt="QR Code PIX"
+                    className="w-48 h-48 mx-auto rounded-lg border border-slate-200 mb-3"
+                  />
+                )}
+
+                {pixData.pix_copy_paste && (
+                  <div className="mb-3">
+                    <div className="bg-slate-50 rounded-lg p-2 text-xs font-mono text-slate-600 break-all max-h-16 overflow-auto">
+                      {pixData.pix_copy_paste}
+                    </div>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(pixData.pix_copy_paste!)
+                        setPixCopied(true)
+                        setTimeout(() => setPixCopied(false), 2000)
+                      }}
+                      className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs transition-colors cursor-pointer border-none"
+                    >
+                      {pixCopied ? <><Check className="h-3 w-3" /> Copiado!</> : <><Copy className="h-3 w-3" /> Copiar codigo</>}
+                    </button>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-center gap-2 text-xs text-slate-400 mb-3">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  Aguardando pagamento...
+                </div>
+
+                <button
+                  onClick={handleClosePayment}
+                  className="text-xs text-slate-400 hover:text-slate-600 cursor-pointer bg-transparent border-none"
+                >
+                  Fechar
+                </button>
+              </>
+            ) : null}
           </div>
         </div>
       )}

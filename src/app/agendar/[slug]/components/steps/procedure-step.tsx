@@ -9,14 +9,35 @@ function formatCurrency(value: number): string {
 export function ProcedureStep({
   procedures,
   onSelect,
+  requirePayment,
 }: {
   procedures: Procedure[]
   onSelect: (proc: Procedure | null) => void
+  requirePayment?: boolean
 }) {
+  const proceduresWithPrice = procedures.filter((p) => p.price > 0)
+  const showSkip = !requirePayment
+
+  if (requirePayment && proceduresWithPrice.length === 0 && procedures.length === 0) {
+    return (
+      <div className="bg-white border border-slate-200 rounded-xl p-6">
+        <h2 className="text-lg font-semibold text-slate-900 mb-1">Servico</h2>
+        <div className="bg-orange-50 border border-orange-200 text-orange-700 text-sm rounded-lg px-4 py-3">
+          Esta clinica exige pagamento antecipado, mas nao ha servicos com preco configurado.
+          Entre em contato com a clinica para agendar.
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="bg-white border border-slate-200 rounded-xl p-6">
-      <h2 className="text-lg font-semibold text-slate-900 mb-1">Serviço</h2>
-      <p className="text-sm text-slate-500 mb-5">Selecione o serviço desejado</p>
+      <h2 className="text-lg font-semibold text-slate-900 mb-1">Servico</h2>
+      <p className="text-sm text-slate-500 mb-5">
+        {requirePayment
+          ? "Selecione o servico desejado (obrigatorio para pagamento)"
+          : "Selecione o servico desejado"}
+      </p>
 
       <div className="space-y-2">
         {procedures.map((proc) => (
@@ -39,12 +60,14 @@ export function ProcedureStep({
           </button>
         ))}
 
-        <button
-          onClick={() => onSelect(null)}
-          className="w-full text-center px-4 py-2.5 text-sm text-slate-500 hover:text-cyan-600 transition-colors cursor-pointer bg-transparent border-none"
-        >
-          Pular seleção de serviço
-        </button>
+        {showSkip && (
+          <button
+            onClick={() => onSelect(null)}
+            className="w-full text-center px-4 py-2.5 text-sm text-slate-500 hover:text-cyan-600 transition-colors cursor-pointer bg-transparent border-none"
+          >
+            Pular selecao de servico
+          </button>
+        )}
       </div>
     </div>
   )

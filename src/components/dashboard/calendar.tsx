@@ -26,6 +26,7 @@ import type { Appointment, Professional } from "@/types/api"
 
 // Status configuration with colors and icons
 const statusConfig: Record<string, { bg: string; border: string; text: string; label: string }> = {
+  awaiting_payment: { bg: "#FFF7ED", border: "#F97316", text: "#9A3412", label: "Aguardando Pagamento" },
   pending: { bg: "#FEF3C7", border: "#F59E0B", text: "#92400E", label: "Pendente" },
   confirmed: { bg: "#D1FAE5", border: "#10B981", text: "#065F46", label: "Confirmado" },
   canceled: { bg: "#FEE2E2", border: "#EF4444", text: "#991B1B", label: "Cancelado" },

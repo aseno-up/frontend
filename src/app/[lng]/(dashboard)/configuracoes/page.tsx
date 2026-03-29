@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import { Building2, Bell, CreditCard, Users, Calendar, Loader2, Check, Copy, ExternalLink, Link2, Wallet, Plus, Pencil, Trash2 } from "lucide-react"
+import { Building2, Bell, CreditCard, Users, Calendar, Loader2, Check, Copy, ExternalLink, Link2, Wallet, Plus, Pencil, Trash2, Store, CheckCircle2, Clock, XCircle, Eye, EyeOff } from "lucide-react"
 
 import { Header } from "@/components/dashboard/header"
 import { Button } from "@/components/ui/button"
@@ -28,7 +28,7 @@ import {
 import { useAuthStore } from "@/stores/auth-store"
 import { api } from "@/lib/api/client"
 import { handleApiError, showToast } from "@/lib/toast"
-import { CalendarIntegration, GoogleCalendar, BillingCustomer, Payment, Subscription, PaymentStatus, PixQRCode, PaymentMethod, PaymentMethodType } from "@/types/api"
+import { CalendarIntegration, GoogleCalendar, BillingCustomer, Payment, Subscription, PaymentStatus, PixQRCode, PaymentMethod, PaymentMethodType, Subaccount, SplitConfig } from "@/types/api"
 import { PlanRestriction } from "@/components/plan-restriction"
 
 // Schema de validacao para dados de cobranca
@@ -147,6 +147,25 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
   const [newMethodType, setNewMethodType] = useState<PaymentMethodType>("pix")
   const [isSavingMethod, setIsSavingMethod] = useState(false)
   const [showNewMethodForm, setShowNewMethodForm] = useState(false)
+
+  // Marketplace state
+  const [subaccount, setSubaccount] = useState<Subaccount | null>(null)
+  const [isLoadingSubaccount, setIsLoadingSubaccount] = useState(true)
+  const [isCreatingSubaccount, setIsCreatingSubaccount] = useState(false)
+  const [showWalletId, setShowWalletId] = useState(false)
+  const [mktCompanyName, setMktCompanyName] = useState("")
+  const [mktCpfCnpj, setMktCpfCnpj] = useState("")
+  const [mktCompanyType, setMktCompanyType] = useState("MEI")
+  const [mktBirthDate, setMktBirthDate] = useState("")
+  const [mktIncomeValue, setMktIncomeValue] = useState("")
+  const [mktEmail, setMktEmail] = useState("")
+  const [mktPhone, setMktPhone] = useState("")
+  const [mktPostalCode, setMktPostalCode] = useState("")
+  const [mktAddress, setMktAddress] = useState("")
+  const [mktAddressNumber, setMktAddressNumber] = useState("")
+  const [mktProvince, setMktProvince] = useState("")
+  const [mktCity, setMktCity] = useState("")
+  const [mktState, setMktState] = useState("")
 
   const loadPaymentMethods = useCallback(async () => {
     try {
@@ -469,6 +488,52 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
     loadPaymentMethods()
   }, [loadPaymentMethods])
 
+  // Marketplace functions
+  const loadSubaccount = useCallback(async () => {
+    try {
+      setIsLoadingSubaccount(true)
+      const data = await api.getMarketplaceSubaccount()
+      setSubaccount(data)
+    } catch {
+      setSubaccount(null)
+    } finally {
+      setIsLoadingSubaccount(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    loadSubaccount()
+  }, [loadSubaccount])
+
+  const handleCreateSubaccount = async () => {
+    if (!mktCompanyName.trim() || !mktCpfCnpj.trim() || !mktEmail.trim() || !mktIncomeValue) return
+    try {
+      setIsCreatingSubaccount(true)
+      const data = await api.createMarketplaceSubaccount({
+        company_name: mktCompanyName.trim(),
+        cpf_cnpj: mktCpfCnpj.replace(/[^\d]/g, ""),
+        company_type: mktCompanyType,
+        birth_date: mktBirthDate || undefined,
+        income_value: parseFloat(mktIncomeValue.replace(/\./g, "").replace(",", ".")),
+        email: mktEmail.trim(),
+        phone: mktPhone.replace(/[^\d]/g, "") || undefined,
+        mobile_phone: mktPhone.replace(/[^\d]/g, "") || undefined,
+        postal_code: mktPostalCode.replace(/[^\d]/g, "") || undefined,
+        address: mktAddress.trim() || undefined,
+        address_number: mktAddressNumber.trim() || undefined,
+        province: mktProvince.trim() || undefined,
+        city: mktCity.trim() || undefined,
+        state: mktState.trim() || undefined,
+      })
+      setSubaccount(data)
+      showToast.success("Conta financeira criada com sucesso!")
+    } catch (err) {
+      handleApiError(err, "Erro ao criar conta financeira")
+    } finally {
+      setIsCreatingSubaccount(false)
+    }
+  }
+
   const handleConnectGoogle = async () => {
     try {
       setIsConnecting(true)
@@ -677,6 +742,13 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
                 >
                   <Wallet className="h-4 w-4" />
                   <span className="hidden sm:inline">Pagamentos</span>
+                </TabsTrigger>
+                <TabsTrigger
+                  value="financeiro"
+                  className="relative h-12 rounded-none border-b-2 border-transparent bg-transparent px-2 md:px-4 pb-3 pt-3 font-medium text-muted-foreground shadow-none transition-none data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none hover:text-primary flex items-center gap-2 whitespace-nowrap"
+                >
+                  <Store className="h-4 w-4" />
+                  <span className="hidden sm:inline">Financeiro</span>
                 </TabsTrigger>
                 <TabsTrigger
                   value="conta"
@@ -1445,6 +1517,309 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
                   )}
                 </CardContent>
               </Card>
+            </TabsContent>
+
+            {/* Tab: Financeiro (Marketplace) */}
+            <TabsContent value="financeiro" className="mt-0 outline-none space-y-6">
+              {isLoadingSubaccount ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : subaccount ? (
+                <>
+                  <Card>
+                    <CardHeader>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <CardTitle>Conta Financeira</CardTitle>
+                          <CardDescription>Sua clinica esta configurada para receber pagamentos de pacientes</CardDescription>
+                        </div>
+                        <Badge variant={subaccount.status === 'active' ? 'default' : subaccount.status === 'pending' ? 'outline' : 'destructive'}>
+                          {subaccount.status === 'active' && <><CheckCircle2 className="h-3 w-3 mr-1" /> Ativa</>}
+                          {subaccount.status === 'pending' && <><Clock className="h-3 w-3 mr-1" /> Pendente</>}
+                          {subaccount.status === 'rejected' && <><XCircle className="h-3 w-3 mr-1" /> Rejeitada</>}
+                          {subaccount.status === 'suspended' && <><XCircle className="h-3 w-3 mr-1" /> Suspensa</>}
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <Label className="text-muted-foreground text-xs">Empresa</Label>
+                          <p className="font-medium">{subaccount.company_name}</p>
+                        </div>
+                        <div>
+                          <Label className="text-muted-foreground text-xs">CNPJ/CPF</Label>
+                          <p className="font-medium">{subaccount.cpf_cnpj}</p>
+                        </div>
+                        <div>
+                          <Label className="text-muted-foreground text-xs">Email</Label>
+                          <p className="font-medium">{subaccount.email}</p>
+                        </div>
+                        <div>
+                          <Label className="text-muted-foreground text-xs">Wallet ID</Label>
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium font-mono text-sm">
+                              {showWalletId ? subaccount.wallet_id : "••••••••-••••-••••-••••-••••••••••••"}
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => setShowWalletId(!showWalletId)}
+                              className="text-muted-foreground hover:text-foreground transition-colors"
+                            >
+                              {showWalletId ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      {subaccount.status === 'active' && (
+                        <div className="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg p-4 mt-4">
+                          <p className="text-sm text-green-700 dark:text-green-300">
+                            <CheckCircle2 className="h-4 w-4 inline mr-1" />
+                            Sua clinica pode receber pagamentos via PIX e Cartao de Credito. Os pacientes poderao pagar diretamente ao agendar.
+                          </p>
+                        </div>
+                      )}
+
+                      {subaccount.status === 'pending' && (
+                        <div className="bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mt-4">
+                          <p className="text-sm text-yellow-700 dark:text-yellow-300">
+                            <Clock className="h-4 w-4 inline mr-1" />
+                            Sua conta esta em analise. Assim que aprovada, voce podera receber pagamentos.
+                          </p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  {subaccount.status === 'active' && (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Pagamento antecipado</CardTitle>
+                        <CardDescription>
+                          Configure se o paciente deve pagar antes de confirmar o agendamento online
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="flex items-center justify-between">
+                          <div className="space-y-1">
+                            <p className="text-sm font-medium">Exigir pagamento antes do agendamento</p>
+                            <p className="text-xs text-muted-foreground">
+                              Quando ativado, o paciente so confirma a consulta apos pagar via PIX. O horario fica reservado por 15 minutos.
+                            </p>
+                          </div>
+                          <Switch
+                            checked={clinic?.settings?.require_payment_before_booking ?? false}
+                            onCheckedChange={async (checked) => {
+                              try {
+                                const updated = await api.updateClinic({ settings: { require_payment_before_booking: checked } })
+                                setClinic(updated)
+                                showToast.success(checked ? "Pagamento antecipado ativado" : "Pagamento antecipado desativado")
+                              } catch (err) {
+                                handleApiError(err)
+                              }
+                            }}
+                          />
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                </>
+              ) : (
+                <>
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Receba pagamentos dos pacientes</CardTitle>
+                      <CardDescription>
+                        Configure sua conta para receber pagamentos via PIX e Cartao de Credito diretamente na sua conta bancaria. O dinheiro cai direto na sua conta — sem intermediarios.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="mkt_company_name">Nome da Empresa *</Label>
+                          <Input
+                            id="mkt_company_name"
+                            value={mktCompanyName}
+                            onChange={(e) => setMktCompanyName(e.target.value)}
+                            placeholder="Clinica Exemplo LTDA"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="mkt_cpf_cnpj">CNPJ ou CPF *</Label>
+                          <Input
+                            id="mkt_cpf_cnpj"
+                            value={mktCpfCnpj}
+                            onChange={(e) => setMktCpfCnpj(e.target.value)}
+                            placeholder="00.000.000/0000-00"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="mkt_company_type">Tipo de Empresa</Label>
+                          <Select value={mktCompanyType} onValueChange={setMktCompanyType}>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="MEI">MEI</SelectItem>
+                              <SelectItem value="LIMITED">LTDA</SelectItem>
+                              <SelectItem value="INDIVIDUAL">Individual</SelectItem>
+                              <SelectItem value="ASSOCIATION">Associacao</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="mkt_income_value">Faturamento Mensal *</Label>
+                          <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">R$</span>
+                            <Input
+                              id="mkt_income_value"
+                              className="pl-10"
+                              value={mktIncomeValue}
+                              onChange={(e) => {
+                                const raw = e.target.value.replace(/[^\d]/g, "")
+                                if (!raw) { setMktIncomeValue(""); return }
+                                const cents = parseInt(raw, 10)
+                                const formatted = (cents / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                                setMktIncomeValue(formatted)
+                              }}
+                              placeholder="5.000,00"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="mkt_birth_date">Data de Nascimento</Label>
+                          <Input
+                            id="mkt_birth_date"
+                            type="date"
+                            value={mktBirthDate}
+                            onChange={(e) => setMktBirthDate(e.target.value)}
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="mkt_email">Email *</Label>
+                          <Input
+                            id="mkt_email"
+                            type="email"
+                            value={mktEmail}
+                            onChange={(e) => setMktEmail(e.target.value)}
+                            placeholder="financeiro@clinica.com"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="mkt_phone">Celular</Label>
+                          <Input
+                            id="mkt_phone"
+                            value={mktPhone}
+                            onChange={(e) => setMktPhone(e.target.value)}
+                            placeholder="11999999999"
+                          />
+                        </div>
+                      </div>
+
+                      <Separator />
+
+                      <div>
+                        <h4 className="text-sm font-medium mb-3">Endereco</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="mkt_postal_code">CEP</Label>
+                            <Input
+                              id="mkt_postal_code"
+                              value={mktPostalCode}
+                              onChange={(e) => setMktPostalCode(e.target.value)}
+                              placeholder="00000-000"
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="mkt_address">Rua</Label>
+                            <Input
+                              id="mkt_address"
+                              value={mktAddress}
+                              onChange={(e) => setMktAddress(e.target.value)}
+                              placeholder="Rua Exemplo"
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="mkt_address_number">Numero</Label>
+                            <Input
+                              id="mkt_address_number"
+                              value={mktAddressNumber}
+                              onChange={(e) => setMktAddressNumber(e.target.value)}
+                              placeholder="100"
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="mkt_province">Bairro</Label>
+                            <Input
+                              id="mkt_province"
+                              value={mktProvince}
+                              onChange={(e) => setMktProvince(e.target.value)}
+                              placeholder="Centro"
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="mkt_city">Cidade</Label>
+                            <Input
+                              id="mkt_city"
+                              value={mktCity}
+                              onChange={(e) => setMktCity(e.target.value)}
+                              placeholder="Sao Paulo"
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="mkt_state">Estado</Label>
+                            <Input
+                              id="mkt_state"
+                              value={mktState}
+                              onChange={(e) => setMktState(e.target.value)}
+                              placeholder="SP"
+                              maxLength={2}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="bg-muted/50 rounded-lg p-4">
+                        <p className="text-xs text-muted-foreground">
+                          Ao criar sua conta financeira, seus dados serao enviados ao gateway de pagamento (Asaas) para validacao.
+                          Apos aprovacao, voce podera receber pagamentos de pacientes via PIX e Cartao de Credito diretamente na sua conta.
+                        </p>
+                      </div>
+
+                      <Button
+                        onClick={handleCreateSubaccount}
+                        disabled={isCreatingSubaccount || !mktCompanyName.trim() || !mktCpfCnpj.trim() || !mktEmail.trim() || !mktIncomeValue}
+                        className="w-full"
+                      >
+                        {isCreatingSubaccount ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Criando conta...
+                          </>
+                        ) : (
+                          <>
+                            <Store className="mr-2 h-4 w-4" />
+                            Ativar Recebimento de Pagamentos
+                          </>
+                        )}
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </>
+              )}
             </TabsContent>
 
             <TabsContent value="conta" className="mt-0 outline-none space-y-6">

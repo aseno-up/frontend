@@ -164,6 +164,7 @@ export default function LandingPage(props: PageProps) {
           <div className="feat-card"><div className="feat-icon">🗓️</div><h3>Google Calendar</h3><p>Sincronização bidirecional. Compromissos pessoais bloqueiam a agenda automaticamente.</p></div>
           <div className="feat-card"><div className="feat-icon">⏰</div><h3>Lista de Espera</h3><p>Cancelou? O sistema notifica quem está aguardando e preenche a vaga automaticamente.</p></div>
           <div className="feat-card"><div className="feat-icon">🔒</div><h3>Segurança e Backup</h3><p>Dados protegidos, backup diário automático e acesso seguro com autenticação por perfil.</p></div>
+          <div className="feat-card"><div className="feat-icon">💳</div><h3>Pagamentos Online</h3><p>Receba via PIX e Cartão de Crédito direto na conta da clínica. O paciente paga ao agendar — sem intermediários.</p></div>
         </div>
       </section>
 

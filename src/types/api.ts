@@ -39,6 +39,7 @@ export interface ClinicSettings {
   require_confirmation?: boolean
   whatsapp_reminders_enabled?: boolean
   email_reminders_enabled?: boolean
+  require_payment_before_booking?: boolean
   ai_agent_enabled?: boolean
   ai_min_delay_between_messages?: number | null
   ai_min_delay_between_patients?: number | null
@@ -922,4 +923,88 @@ export interface Lead {
   external_id: string
   created_at: string
   updated_at: string
+}
+
+// Marketplace types
+
+export type SubaccountStatus = 'pending' | 'active' | 'rejected' | 'suspended'
+export type FeeType = 'percentage' | 'fixed'
+
+export interface Subaccount {
+  id: string
+  clinic_id: string
+  asaas_account_id: string
+  wallet_id: string
+  status: SubaccountStatus
+  company_name: string
+  cpf_cnpj: string
+  email: string
+  created_at: string
+}
+
+export interface SplitConfig {
+  id: string
+  clinic_id: string
+  fee_type: FeeType
+  fee_value: number
+  active: boolean
+}
+
+export interface CreateSubaccountInput {
+  company_name: string
+  cpf_cnpj: string
+  company_type: string
+  birth_date?: string
+  income_value: number
+  email: string
+  phone?: string
+  mobile_phone?: string
+  postal_code?: string
+  address?: string
+  address_number?: string
+  province?: string
+  city?: string
+  state?: string
+}
+
+export interface UpdateSplitConfigInput {
+  fee_type: FeeType
+  fee_value: number
+  active?: boolean
+}
+
+export interface ClinicPayment {
+  id: string
+  clinic_id: string
+  appointment_id?: string
+  patient_id?: string
+  asaas_payment_id: string
+  value: number
+  net_value: number
+  split_fee_value: number
+  status: PaymentStatus
+  billing_type: string
+  due_date: string
+  payment_date?: string
+  invoice_url?: string
+  pix_qrcode_image?: string
+  pix_copy_paste?: string
+  description?: string
+  installments?: number
+  created_at: string
+}
+
+export interface MarketplaceBalance {
+  balance: number
+  totalPending?: number
+  totalReceived?: number
+}
+
+export interface FinancialSummary {
+  total_received: number
+  total_pending: number
+  total_fees: number
+  net_received: number
+  payments_by_method: Record<string, number>
+  payment_count: number
 }

@@ -13,6 +13,7 @@ export interface ClinicInfo {
   about_us: string
   professional_count: number
   specialty_count: number
+  require_payment_before_booking: boolean
 }
 
 export interface Professional {
@@ -54,10 +55,14 @@ export interface AvailableSlotsResponse {
 
 export interface BookingResponse {
   id: string
+  clinic_id: string
   professional: string
   start_time: string
   end_time: string
   status: string
+  price: number
+  payment_token?: string
+  payment_url?: string
   message: string
 }
 

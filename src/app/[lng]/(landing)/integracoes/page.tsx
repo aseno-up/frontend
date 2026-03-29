@@ -22,10 +22,10 @@ const integrations = [
     status: 'available' as const,
   },
   {
-    name: 'Pagamento via Pix',
-    description: 'Cobranças e pagamento antecipado via Pix. Reduza no-shows permitindo que pacientes paguem no momento do agendamento.',
+    name: 'Pagamentos Online',
+    description: 'Receba pagamentos via PIX e Cartão de Crédito diretamente na conta da sua clínica. O paciente paga ao agendar e o dinheiro cai direto na sua conta — sem intermediários.',
     icon: '💳',
-    status: 'soon' as const,
+    status: 'available' as const,
   },
   {
     name: 'Google Meu Negócio',
