@@ -1521,6 +1521,7 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
 
             {/* Tab: Financeiro (Marketplace) */}
             <TabsContent value="financeiro" className="mt-0 outline-none space-y-6">
+              <PlanRestriction requiredPlan="professional" message="Recebimento de pagamentos online disponível no plano Profissional">
               {isLoadingSubaccount ? (
                 <div className="flex items-center justify-center py-12">
                   <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -1820,6 +1821,7 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
                   </Card>
                 </>
               )}
+              </PlanRestriction>
             </TabsContent>
 
             <TabsContent value="conta" className="mt-0 outline-none space-y-6">

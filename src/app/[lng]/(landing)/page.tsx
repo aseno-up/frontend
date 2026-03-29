@@ -282,6 +282,7 @@ export default function LandingPage(props: PageProps) {
               <li>Sessões recorrentes</li>
               <li>Gestão de pacientes</li>
               <li>Ficha e histórico do paciente</li>
+              <li>Dashboard financeiro e operacional</li>
               <li>Onboarding guiado</li>
               <li>Suporte por e-mail</li>
             </ul>
@@ -296,6 +297,7 @@ export default function LandingPage(props: PageProps) {
             <ul className="price-feats">
               <li>Até 15 profissionais</li>
               <li>Tudo do Básico</li>
+              <li>Pagamentos Online (PIX e Cartão)</li>
               <li>WhatsApp Oficial (sem risco de ban)</li>
               <li>IA que entende respostas do paciente</li>
               <li>Google Calendar bidirecional</li>
@@ -341,6 +343,7 @@ export default function LandingPage(props: PageProps) {
           <div className="faq-item"><h3>O preço é por profissional?</h3><p>Não. O preço é por clínica. No plano Profissional, até 15 profissionais pagam o mesmo valor.</p></div>
           <div className="faq-item"><h3>Meu paciente pode agendar sozinho?</h3><p>Sim. Você recebe um link exclusivo para colocar no Instagram, site ou onde quiser. O paciente agenda 24/7.</p></div>
           <div className="faq-item"><h3>O WhatsApp da clínica pode ser banido?</h3><p>Com o WhatsApp Oficial (plano Profissional), não. É a API autorizada pela Meta, sem risco de banimento.</p></div>
+          <div className="faq-item"><h3>Como funciona o pagamento online?</h3><p>No plano Profissional, sua clínica recebe pagamentos via PIX e Cartão de Crédito diretamente na sua conta. O paciente paga ao agendar e o dinheiro cai direto na conta da clínica, sem intermediários.</p></div>
         </div>
       </section>
 
