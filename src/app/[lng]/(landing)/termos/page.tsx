@@ -1,6 +1,12 @@
+import type { Metadata } from 'next'
 import Link from 'next/link'
 import { LandingFooter } from '../landing-footer'
 import '../landing.css'
+
+export const metadata: Metadata = {
+  title: 'Termos de Uso | Aseno — Sistema de Agendamento para Clínicas',
+  description: 'Termos e condições de uso da plataforma Aseno. Leia sobre responsabilidades, pagamentos, propriedade intelectual e proteção de dados.',
+}
 
 export default function TermosPage() {
   return (

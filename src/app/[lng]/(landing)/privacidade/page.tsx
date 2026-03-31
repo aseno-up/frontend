@@ -1,6 +1,12 @@
+import type { Metadata } from 'next'
 import Link from 'next/link'
 import { LandingFooter } from '../landing-footer'
 import '../landing.css'
+
+export const metadata: Metadata = {
+  title: 'Política de Privacidade | Aseno — Sistema de Agendamento para Clínicas',
+  description: 'Saiba como o Aseno coleta, utiliza e protege seus dados pessoais. Política de privacidade em conformidade com a LGPD.',
+}
 
 export default function PrivacidadePage() {
   return (

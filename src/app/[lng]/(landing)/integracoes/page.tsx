@@ -1,6 +1,12 @@
+import type { Metadata } from 'next'
 import Link from 'next/link'
 import { LandingFooter } from '../landing-footer'
 import '../landing.css'
+
+export const metadata: Metadata = {
+  title: 'Integrações | Aseno — Sistema de Agendamento para Clínicas',
+  description: 'Conecte o Aseno ao WhatsApp, Google Calendar, pagamentos online e mais. Integrações que automatizam sua rotina clínica.',
+}
 
 const integrations = [
   {

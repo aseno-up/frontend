@@ -1,6 +1,12 @@
+import type { Metadata } from 'next'
 import Link from 'next/link'
 import { LandingFooter } from '../landing-footer'
 import '../landing.css'
+
+export const metadata: Metadata = {
+  title: 'Sobre | Aseno — Sistema de Agendamento para Clínicas',
+  description: 'Conheça o Aseno: plataforma de agendamento inteligente para clínicas de estética, fisioterapia, psicologia e saúde. Nossa missão é eliminar faltas e simplificar sua rotina.',
+}
 
 export default function SobrePage() {
   return (
