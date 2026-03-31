@@ -118,10 +118,22 @@ function BillingSetupContent() {
 
   // Auto-apply coupon if offer token is present in URL
   useEffect(() => {
-    if (offerToken) {
-      setCouponApplied(true)
+    const applyInitialCoupon = async () => {
+      if (offerToken && publicConfig) {
+        try {
+          const response = await api.validateOffer(selectedPlan, offerToken, selectedBilling)
+          if (response.valid && response.price !== undefined) {
+            setDiscountedPrice(response.price)
+            setCouponApplied(true)
+          }
+        } catch (err) {
+          console.error("Failed to auto-apply coupon", err)
+        }
+      }
     }
-  }, [offerToken])
+    applyInitialCoupon()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [offerToken, publicConfig])
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -272,6 +284,9 @@ function BillingSetupContent() {
   const inputClass = "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary dark:border-slate-600 dark:bg-slate-800 dark:text-white"
 
   const getPlanPrice = (): number => {
+    if (couponApplied && discountedPrice !== null) {
+      return discountedPrice
+    }
     if (!publicConfig?.plans?.[selectedPlan]) return 0
     if (selectedBilling === 'YEARLY') {
       return publicConfig.plans[selectedPlan].price_yearly
@@ -281,13 +296,30 @@ function BillingSetupContent() {
 
   const priceBRL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(getPlanPrice())
 
-  const handleApplyCoupon = () => {
+  const handleApplyCoupon = async () => {
     setCouponError("")
     if (!coupon.trim()) {
       setCouponError("Digite um código de cupom")
+      setCouponApplied(false)
+      setDiscountedPrice(null)
       return
     }
-    setCouponApplied(true)
+    
+    try {
+      const response = await api.validateOffer(selectedPlan, coupon, selectedBilling)
+      if (response.valid && response.price !== undefined) {
+        setDiscountedPrice(response.price)
+        setCouponApplied(true)
+      } else {
+        setCouponError("Cupom inválido")
+        setCouponApplied(false)
+        setDiscountedPrice(null)
+      }
+    } catch (err: any) {
+      setCouponError(err?.response?.data?.error || "Cupom inválido ou expirado")
+      setCouponApplied(false)
+      setDiscountedPrice(null)
+    }
   }
 
   const priceSummaryBox = (

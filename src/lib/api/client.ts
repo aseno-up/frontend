@@ -486,6 +486,16 @@ class ApiClient {
     return response.data
   }
 
+  // Plans/Offers endpoints
+  async validateOffer(planSlug: string, token: string, cycle: string) {
+    const response = await this.client.post('/plans/validate-offer', {
+      plan_id: planSlug,
+      token: token,
+      cycle: cycle
+    })
+    return response.data
+  }
+
   // Google Calendar endpoints
   async getCalendarAuthURL() {
     const response = await this.client.get('/calendar/auth-url')

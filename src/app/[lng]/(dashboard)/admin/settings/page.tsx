@@ -1160,29 +1160,65 @@ export default function AdminSettingsPage({ params }: AdminSettingsPageProps) {
                         </div>
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                        <button
-                          onClick={() => {
-                            const planSlug = offer.plan?.slug || 'professional';
-                            const url = `${window.location.origin}/pt-BR/billing-setup?plan=${planSlug}&billing=MONTHLY&offer=${offer.token}`;
-                            navigator.clipboard.writeText(url).then(() => {
-                              setCopiedOfferId(offer.id);
-                              setTimeout(() => setCopiedOfferId(null), 2000);
-                            });
-                          }}
-                          title="Copiar Link"
-                          style={{
-                            background: "transparent",
-                            border: "none",
-                            color: copiedOfferId === offer.id ? "#059669" : "#9ca3af",
-                            cursor: "pointer",
-                          }}
-                        >
-                          {copiedOfferId === offer.id ? (
-                            <Check style={{ width: 16, height: 16 }} />
-                          ) : (
-                            <Link2 style={{ width: 16, height: 16 }} />
-                          )}
-                        </button>
+                        {(!offer.cycles || offer.cycles.length === 0) ? (
+                          <button
+                            onClick={() => {
+                              const planSlug = offer.plan?.slug || 'professional';
+                              const url = `${window.location.origin}/pt-BR/billing-setup?plan=${planSlug}&billing=MONTHLY&offer=${offer.token}`;
+                              navigator.clipboard.writeText(url).then(() => {
+                                setCopiedOfferId(offer.id);
+                                setTimeout(() => setCopiedOfferId(null), 2000);
+                              });
+                            }}
+                            title="Copiar Link"
+                            style={{
+                              background: "transparent",
+                              border: "none",
+                              color: copiedOfferId === offer.id ? "#059669" : "#9ca3af",
+                              cursor: "pointer",
+                            }}
+                          >
+                            {copiedOfferId === offer.id ? (
+                              <Check style={{ width: 16, height: 16 }} />
+                            ) : (
+                              <Link2 style={{ width: 16, height: 16 }} />
+                            )}
+                          </button>
+                        ) : (
+                          offer.cycles.map(cycle => (
+                            <button
+                              key={cycle.cycle_type}
+                              onClick={() => {
+                                const planSlug = offer.plan?.slug || 'professional';
+                                const billing = cycle.cycle_type === 'yearly' ? 'YEARLY' : 'MONTHLY';
+                                const url = `${window.location.origin}/pt-BR/billing-setup?plan=${planSlug}&billing=${billing}&offer=${offer.token}`;
+                                navigator.clipboard.writeText(url).then(() => {
+                                  setCopiedOfferId(`${offer.id}-${cycle.cycle_type}`);
+                                  setTimeout(() => setCopiedOfferId(null), 2000);
+                                });
+                              }}
+                              title={`Copiar Link (${cycle.cycle_type === 'yearly' ? 'Anual' : 'Mensal'})`}
+                              style={{
+                                background: "transparent",
+                                border: "none",
+                                color: copiedOfferId === `${offer.id}-${cycle.cycle_type}` ? "#059669" : "#9ca3af",
+                                cursor: "pointer",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 2,
+                                fontSize: 11,
+                                fontWeight: 500,
+                              }}
+                            >
+                              {copiedOfferId === `${offer.id}-${cycle.cycle_type}` ? (
+                                <Check style={{ width: 14, height: 14 }} />
+                              ) : (
+                                <Link2 style={{ width: 14, height: 14 }} />
+                              )}
+                              {cycle.cycle_type === 'yearly' ? 'Anual' : 'Mensal'}
+                            </button>
+                          ))
+                        )}
                         <button
                           onClick={() => {
                             setSelectedOffer(offer);
