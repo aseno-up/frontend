@@ -183,13 +183,13 @@ export default async function LandingPage(props: PageProps) {
           <h2 className="sec-title">Perguntas <span className="a2">frequentes</span></h2>
         </div>
         <div className="faq-grid">
-          <div className="faq-item"><h3>Preciso instalar algo?</h3><p>Não. O Aseno funciona 100% no navegador, sem instalação em nenhum dispositivo.</p></div>
-          <div className="faq-item"><h3>Funciona no celular?</h3><p>Sim. Interface totalmente responsiva em qualquer smartphone, tablet ou computador.</p></div>
-          <div className="faq-item"><h3>Preciso de cartão para testar?</h3><p>Não. 14 dias com acesso completo, sem cartão de crédito.</p></div>
-          <div className="faq-item"><h3>O preço é por profissional?</h3><p>Não. O preço é por clínica. No plano Profissional, até 15 profissionais pagam o mesmo valor.</p></div>
-          <div className="faq-item"><h3>Meu paciente pode agendar sozinho?</h3><p>Sim. Você recebe um link exclusivo para colocar no Instagram, site ou onde quiser. O paciente agenda 24/7.</p></div>
-          <div className="faq-item"><h3>O WhatsApp da clínica pode ser banido?</h3><p>Com o WhatsApp Oficial (plano Profissional), não. É a API autorizada pela Meta, sem risco de banimento.</p></div>
-          <div className="faq-item"><h3>Como funciona o pagamento online?</h3><p>No plano Profissional, sua clínica recebe pagamentos via PIX e Cartão de Crédito diretamente na sua conta. O paciente paga ao agendar e o dinheiro cai direto na conta da clínica, sem intermediários.</p></div>
+          <details className="faq-item"><summary>Preciso instalar algo?</summary><p>Não. O Aseno funciona 100% no navegador, sem instalação em nenhum dispositivo.</p></details>
+          <details className="faq-item"><summary>Funciona no celular?</summary><p>Sim. Interface totalmente responsiva em qualquer smartphone, tablet ou computador.</p></details>
+          <details className="faq-item"><summary>Preciso de cartão para testar?</summary><p>Não. 14 dias com acesso completo, sem cartão de crédito.</p></details>
+          <details className="faq-item"><summary>O preço é por profissional?</summary><p>Não. O preço é por clínica. No plano Profissional, até 15 profissionais pagam o mesmo valor.</p></details>
+          <details className="faq-item"><summary>Meu paciente pode agendar sozinho?</summary><p>Sim. Você recebe um link exclusivo para colocar no Instagram, site ou onde quiser. O paciente agenda 24/7.</p></details>
+          <details className="faq-item"><summary>O WhatsApp da clínica pode ser banido?</summary><p>Com o WhatsApp Oficial (plano Profissional), não. É a API autorizada pela Meta, sem risco de banimento.</p></details>
+          <details className="faq-item"><summary>Como funciona o pagamento online?</summary><p>No plano Profissional, sua clínica recebe pagamentos via PIX e Cartão de Crédito diretamente na sua conta. O paciente paga ao agendar e o dinheiro cai direto na conta da clínica, sem intermediários.</p></details>
         </div>
       </section>
 
