@@ -256,6 +256,37 @@ class ApiClient {
     return response.data
   }
 
+  // Specialties endpoints
+  async getSpecialties(params?: { page?: number; limit?: number; search?: string; status?: string; sort_by?: string }) {
+    const response = await this.client.get('/specialties', { params })
+    return response.data
+  }
+
+  async getSpecialtiesActive() {
+    const response = await this.client.get('/specialties/active')
+    return response.data
+  }
+
+  async getSpecialty(id: string) {
+    const response = await this.client.get(`/specialties/${id}`)
+    return response.data
+  }
+
+  async createSpecialty(data: any) {
+    const response = await this.client.post('/specialties', data)
+    return response.data
+  }
+
+  async updateSpecialty(id: string, data: any) {
+    const response = await this.client.put(`/specialties/${id}`, data)
+    return response.data
+  }
+
+  async deleteSpecialty(id: string) {
+    const response = await this.client.delete(`/specialties/${id}`)
+    return response.data
+  }
+
   // Appointments endpoints
   async getAppointments(params: {
     page?: number
@@ -705,23 +736,71 @@ class ApiClient {
   }
 
   async updatePatientRecord(patientId: string, data: {
-    chief_complaint?: string
-    medical_history?: string
-    family_history?: string
-    allergies?: string
-    medications?: string
-    surgical_history?: string
-    social_history?: string
-    initial_diagnosis?: string
-    treatment_plan?: string
-    observations?: string
+    template_id?: string
+    custom_fields: Record<string, any>
   }) {
     const response = await this.client.put(`/patients/${patientId}/record`, data)
     return response.data
   }
 
+  async getPatientRecordHistory(patientId: string) {
+    const response = await this.client.get(`/patients/${patientId}/record/history`)
+    return response.data
+  }
+
   async getFullPatientRecord(patientId: string) {
     const response = await this.client.get(`/patients/${patientId}/record/full`)
+    return response.data
+  }
+
+  // Anamnese Template endpoints
+  async getAnamneseTemplates() {
+    const response = await this.client.get('/anamnese-templates')
+    return response.data
+  }
+
+  async getAnamneseTemplate(id: string) {
+    const response = await this.client.get(`/anamnese-templates/${id}`)
+    return response.data
+  }
+
+  async createAnamneseTemplate(data: { name: string; is_default?: boolean }) {
+    const response = await this.client.post('/anamnese-templates', data)
+    return response.data
+  }
+
+  async updateAnamneseTemplate(id: string, data: { name?: string; is_default?: boolean }) {
+    const response = await this.client.put(`/anamnese-templates/${id}`, data)
+    return response.data
+  }
+
+  async deleteAnamneseTemplate(id: string) {
+    const response = await this.client.delete(`/anamnese-templates/${id}`)
+    return response.data
+  }
+
+  async createAnamneseTemplateField(templateId: string, data: Record<string, any>) {
+    const response = await this.client.post(`/anamnese-templates/${templateId}/fields`, data)
+    return response.data
+  }
+
+  async updateAnamneseTemplateField(templateId: string, fieldId: string, data: Record<string, any>) {
+    const response = await this.client.put(`/anamnese-templates/${templateId}/fields/${fieldId}`, data)
+    return response.data
+  }
+
+  async deleteAnamneseTemplateField(templateId: string, fieldId: string) {
+    const response = await this.client.delete(`/anamnese-templates/${templateId}/fields/${fieldId}`)
+    return response.data
+  }
+
+  async reorderAnamneseTemplateFields(templateId: string, ids: string[]) {
+    const response = await this.client.patch(`/anamnese-templates/${templateId}/reorder`, { ids })
+    return response.data
+  }
+
+  async setAnamneseTemplateSpecialties(templateId: string, specialtyIds: string[]) {
+    const response = await this.client.post(`/anamnese-templates/${templateId}/specialties`, { specialty_ids: specialtyIds })
     return response.data
   }
 

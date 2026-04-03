@@ -138,6 +138,11 @@ export interface AppointmentProcedure {
   procedure?: Procedure
 }
 
+export interface AppointmentSpecialty {
+  specialty_id: string
+  name?: string
+}
+
 export interface Appointment {
   id: string
   clinic_id: string
@@ -153,6 +158,7 @@ export interface Appointment {
   price: number
   payment_status: AppointmentPaymentStatus
   procedures: AppointmentProcedure[]
+  specialties?: AppointmentSpecialty[]
   confirmed_at?: string
   canceled_at?: string
   cancel_reason?: string
@@ -206,6 +212,7 @@ export interface AppointmentProcedureInput {
 export interface CreateAppointmentRequest {
   patient_id: string
   professional_id: string
+  specialty_ids?: string[]
   start_time: string
   duration_minutes: number
   title?: string
@@ -218,6 +225,7 @@ export interface CreateAppointmentRequest {
 export interface UpdateAppointmentRequest {
   patient_id?: string
   professional_id?: string
+  specialty_ids?: string[]
   start_time?: string
   duration_minutes?: number
   status?: AppointmentStatus
@@ -675,20 +683,37 @@ export interface UpdateRoleRequest {
 }
 
 // Patient Record Types (Ficha do Paciente)
+export interface AnamneseTemplateField {
+  id: string
+  template_id: string
+  label: string
+  field_key: string
+  field_type: 'text' | 'textarea' | 'select' | 'multiselect' | 'scale' | 'section_header'
+  options?: Record<string, any>
+  required: boolean
+  display_order: number
+  placeholder?: string
+}
+
+export interface AnamneseTemplate {
+  id: string
+  clinic_id: string
+  name: string
+  is_default: boolean
+  fields?: AnamneseTemplateField[]
+  created_at: string
+  updated_at: string
+}
+
 export interface PatientRecord {
   id: string
   clinic_id: string
   patient_id: string
-  chief_complaint: string
-  medical_history: string
-  family_history: string
-  allergies: string
-  medications: string
-  surgical_history: string
-  social_history: string
-  initial_diagnosis: string
-  treatment_plan: string
-  observations: string
+  template_id?: string
+  template?: AnamneseTemplate
+  custom_fields: Record<string, any>
+  recorded_at: string
+  recorded_by: string
   created_at: string
   updated_at: string
 }
@@ -737,17 +762,15 @@ export interface CreateSessionNoteRequest {
   is_private?: boolean
 }
 
+export interface CreatePatientRecordRequest {
+  template_id?: string
+  custom_fields: Record<string, any>
+}
+
+// In append-only, Update actually calls CreateRecord on the backend
 export interface UpdatePatientRecordRequest {
-  chief_complaint?: string
-  medical_history?: string
-  family_history?: string
-  allergies?: string
-  medications?: string
-  surgical_history?: string
-  social_history?: string
-  initial_diagnosis?: string
-  treatment_plan?: string
-  observations?: string
+  template_id?: string
+  custom_fields: Record<string, any>
 }
 
 export interface UpdateSessionNoteRequest {

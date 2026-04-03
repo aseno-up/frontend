@@ -30,6 +30,7 @@ import { AppointmentPaymentModal } from "./appointment-payment-modal"
 const appointmentSchema = z.object({
   patient_id: z.string().min(1, "Paciente e obrigatorio"),
   professional_id: z.string().min(1, "Profissional e obrigatorio"),
+  specialty_ids: z.array(z.string()).optional(),
   start_time: z.string().min(1, "Data e hora sao obrigatorios"),
   duration_minutes: z.number().min(5, "Minimo 5 minutos").max(480, "Maximo 480 minutos"),
   title: z.string().optional(),
@@ -88,6 +89,10 @@ export function AppointmentDialog({
   const [patients, setPatients] = useState<Patient[]>([])
   const [patientsLoading, setPatientsLoading] = useState(false)
   
+  // Specialties
+  const [specialties, setSpecialties] = useState<any[]>([])
+  const [specialtiesLoading, setSpecialtiesLoading] = useState(false)
+
   // Procedures
   const [procedures, setProcedures] = useState<any[]>([])
   const [proceduresLoading, setProceduresLoading] = useState(false)
@@ -113,6 +118,7 @@ export function AppointmentDialog({
     defaultValues: {
       patient_id: "",
       professional_id: defaultProfessionalId || "",
+      specialty_ids: [],
       start_time: defaultStart ? format(defaultStart, "yyyy-MM-dd'T'HH:mm") : "",
       duration_minutes: defaultDuration,
       title: "",
@@ -135,6 +141,19 @@ export function AppointmentDialog({
     }
   }, [])
 
+  // Fetch specialties
+  const fetchSpecialties = useCallback(async () => {
+    setSpecialtiesLoading(true)
+    try {
+      const response = await api.getSpecialtiesActive()
+      setSpecialties(response.data || [])
+    } catch (error) {
+      console.error("Error fetching specialties:", error)
+    } finally {
+      setSpecialtiesLoading(false)
+    }
+  }, [])
+
   // Fetch procedures
   const fetchProcedures = useCallback(async () => {
     setProceduresLoading(true)
@@ -151,9 +170,10 @@ export function AppointmentDialog({
   useEffect(() => {
     if (open) {
       fetchPatients()
+      fetchSpecialties()
       fetchProcedures()
     }
-  }, [open, fetchPatients, fetchProcedures])
+  }, [open, fetchPatients, fetchSpecialties, fetchProcedures])
 
   // Convert patients to select options
   const patientOptions: SelectOption[] = useMemo(() => {
@@ -171,6 +191,14 @@ export function AppointmentDialog({
       color: prof.color,
     }))
   }, [professionals])
+
+  const specialtyOptions: SelectOption[] = useMemo(() => {
+    if (!Array.isArray(specialties)) return []
+    return specialties.map((spec) => ({
+      value: spec.id,
+      label: spec.name,
+    }))
+  }, [specialties])
 
   const procedureOptions: SelectOption[] = useMemo(() => {
     return procedures.map((proc) => ({
@@ -192,6 +220,13 @@ export function AppointmentDialog({
     return professionalOptions.find((opt) => opt.value === watchedProfessionalId) || null
   }, [watchedProfessionalId, professionalOptions])
 
+  const watchedSpecialtyIds = watch("specialty_ids") || []
+  const selectedSpecialtyOptions = useMemo(() => {
+    return watchedSpecialtyIds
+      .map((id) => specialtyOptions.find((opt) => opt.value === id))
+      .filter(Boolean) as SelectOption[]
+  }, [watchedSpecialtyIds, specialtyOptions])
+
   const watchedProcedures = watch("procedures") || []
   const selectedProcedureOptions = useMemo(() => {
     return watchedProcedures
@@ -204,6 +239,7 @@ export function AppointmentDialog({
       reset({
         patient_id: appointment.patient_id,
         professional_id: appointment.professional_id,
+        specialty_ids: appointment.specialties ? appointment.specialties.map((s) => s.specialty_id) : [],
         start_time: format(new Date(appointment.start_time), "yyyy-MM-dd'T'HH:mm"),
         duration_minutes: Math.round(
           (new Date(appointment.end_time).getTime() -
@@ -363,6 +399,24 @@ export function AppointmentDialog({
             {errors.professional_id && (
               <p className="text-sm text-destructive">{errors.professional_id.message}</p>
             )}
+          </div>
+
+          {/* Specialties */}
+          <div className="space-y-2">
+            <Label htmlFor="specialty_ids">Especialidades</Label>
+            <ReactSelect<true>
+              isMulti
+              value={selectedSpecialtyOptions}
+              onChange={(options) => {
+                const selected = (options as MultiValue<SelectOption>) || []
+                setValue("specialty_ids", selected.map((opt) => opt.value), { shouldValidate: true })
+              }}
+              options={specialtyOptions}
+              placeholder="Selecione as especialidades..."
+              isDisabled={isLoading}
+              isLoading={specialtiesLoading}
+              isClearable
+            />
           </div>
 
           {/* Date Time */}
