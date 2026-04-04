@@ -112,6 +112,8 @@ export interface Patient {
   birth_date: string
   gender: 'male' | 'female' | 'other'
   notes: string
+  source: 'INTERNAL' | 'SELF_REGISTERED'
+  merged_into_patient_id?: string
   no_show_risk: NoShowRisk
   no_show_count: number
   total_appointments: number
@@ -1030,4 +1032,29 @@ export interface FinancialSummary {
   net_received: number
   payments_by_method: Record<string, number>
   payment_count: number
+}
+
+// Patient merge types
+export interface UnlinkedPatient {
+  id: string
+  name: string
+  email: string
+  cpf: string
+  phone: string
+  created_at: string
+}
+
+export interface PatientSearchResult {
+  id: string
+  name: string
+  cpf: string
+  email: string
+  phone: string
+  source: 'INTERNAL' | 'SELF_REGISTERED'
+}
+
+export interface BulkMergeResponse {
+  appointments_reassigned: number
+  target_patient_id: string
+  merged_count: number
 }

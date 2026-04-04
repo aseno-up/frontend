@@ -50,6 +50,7 @@ import { useAuthStore } from '@/stores/auth-store'
 import { api } from '@/lib/api/client'
 import { showToast, handleApiError } from '@/lib/toast'
 import { DynamicAnamneseForm } from '@/components/pacientes/DynamicAnamneseForm'
+import { PatientMergeModal } from '@/components/pacientes/PatientMergeModal'
 import type { Patient, PatientRecord, SessionNote, FullPatientRecord, Appointment, NoShowRisk, AnamneseTemplate } from '@/types/api'
 
 // Helper function to get risk badge variant and label
@@ -98,6 +99,7 @@ export default function PatientRecordPage() {
   const [noteDialogOpen, setNoteDialogOpen] = useState(false)
   const [editingNote, setEditingNote] = useState<SessionNote | null>(null)
   const [isSavingNote, setIsSavingNote] = useState(false)
+  const [mergeModalOpen, setMergeModalOpen] = useState(false)
 
   // Dynamic Record state
   const [customFields, setCustomFields] = useState<Record<string, any>>({})
@@ -351,6 +353,33 @@ export default function PatientRecordPage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Provisional patient banner */}
+        {patient.source === 'SELF_REGISTERED' && !patient.merged_into_patient_id && (
+          <div className="mb-6 flex flex-col gap-3 rounded-lg border border-amber-300 bg-amber-50 p-4 dark:border-amber-700 dark:bg-amber-950/30 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0" />
+              <p className="text-sm text-amber-800 dark:text-amber-200">
+                Paciente criado via portal publico &mdash; cadastro pendente de verificacao.
+              </p>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              className="border-amber-400 text-amber-800 hover:bg-amber-100 dark:border-amber-600 dark:text-amber-200 dark:hover:bg-amber-900"
+              onClick={() => setMergeModalOpen(true)}
+            >
+              Vincular a paciente existente
+            </Button>
+          </div>
+        )}
+
+        <PatientMergeModal
+          open={mergeModalOpen}
+          onClose={() => setMergeModalOpen(false)}
+          currentPatientId={patientId}
+          onMergeComplete={() => fetchData()}
+        />
 
         {/* Tabs for Record and Session Notes */}
         <Tabs defaultValue="record" className="space-y-4">

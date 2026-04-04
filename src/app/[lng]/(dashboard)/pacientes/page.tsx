@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { Plus, Search, Pencil, Trash2, Phone, Mail, FileText, CheckCircle2, Clock, Calendar, Users, MoreHorizontal } from "lucide-react"
+import { Plus, Search, Pencil, Trash2, Phone, Mail, FileText, CheckCircle2, Clock, Calendar, Users, MoreHorizontal, Link2 } from "lucide-react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -97,6 +97,7 @@ export default function PacientesPage({ params }: PacientesPageProps) {
   const [incompleteCount, setIncompleteCount] = useState(0)
 
   const [isLoading, setIsLoading] = useState(true)
+  const [unlinkedCount, setUnlinkedCount] = useState(0)
   
   // URL Params read
   const page = parseInt(searchParams.get("page") || "1", 10)
@@ -176,20 +177,24 @@ export default function PacientesPage({ params }: PacientesPageProps) {
   const fetchPatients = useCallback(async () => {
     setIsLoading(true)
     try {
-      const response: any = await api.getPatients({
-        page,
-        limit,
-        search: search || undefined,
-        status: statusParam !== "all" ? statusParam : undefined,
-        sort_by: sortBy
-      })
-      
+      const [response, unlinked]: [any, any] = await Promise.all([
+        api.getPatients({
+          page,
+          limit,
+          search: search || undefined,
+          status: statusParam !== "all" ? statusParam : undefined,
+          sort_by: sortBy
+        }),
+        api.getUnlinkedPatients(),
+      ])
+
       setPatients(response.data || [])
       setTotal(response.meta?.total || 0)
       setTotalPages(response.meta?.total_pages || 1)
       setSelectedIds(new Set()) // Reset selection on page change/fetch
-      
-      // Calculate local completes / incompletes as mock for now, 
+      setUnlinkedCount(Array.isArray(unlinked) ? unlinked.length : 0)
+
+      // Calculate local completes / incompletes as mock for now,
       // ideally backend would return this in meta!
       const completeList = (response.data || []).filter((p: Patient) => p.email && p.phone && p.document)
       setCompleteCount(completeList.length)
@@ -318,15 +323,24 @@ export default function PacientesPage({ params }: PacientesPageProps) {
               <div className="text-sm text-muted-foreground whitespace-nowrap">Cadastros incompletos</div>
             </div>
           </div>
-          <div className="bg-card rounded-xl border border-border shadow-sm p-4 flex items-center gap-4">
-            <div className="w-12 h-12 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-500 shrink-0">
-               <Calendar className="w-6 h-6" />
+          <button
+            onClick={() => unlinkedCount > 0 && router.push(`/${lng}/pacientes/auto-cadastro`)}
+            className={`bg-card rounded-xl border shadow-sm p-4 flex items-center gap-4 text-left transition-colors ${
+              unlinkedCount > 0
+                ? "border-amber-300 dark:border-amber-700 hover:bg-amber-50/50 dark:hover:bg-amber-950/20 cursor-pointer"
+                : "border-border cursor-default"
+            }`}
+          >
+            <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${
+              unlinkedCount > 0 ? "bg-amber-500/10 text-amber-500" : "bg-blue-500/10 text-blue-500"
+            }`}>
+               <Link2 className="w-6 h-6" />
             </div>
             <div>
-              <div className="text-2xl font-bold">-</div>
-              <div className="text-sm text-muted-foreground whitespace-nowrap">Agendamentos hoje</div>
+              <div className="text-2xl font-bold">{unlinkedCount}</div>
+              <div className="text-sm text-muted-foreground whitespace-nowrap">Pendentes do portal</div>
             </div>
-          </div>
+          </button>
         </div>
 
         {/* Filter Toolbar */}

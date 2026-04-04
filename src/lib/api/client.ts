@@ -1,5 +1,5 @@
 import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios'
-import type { ApiError } from '@/types/api'
+import type { ApiError, UnlinkedPatient, PatientSearchResult, BulkMergeResponse } from '@/types/api'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1'
 
@@ -222,6 +222,24 @@ class ApiClient {
 
   async bulkDeletePatients(ids: string[]) {
     const response = await this.client.post('/patients/bulk-delete', { ids })
+    return response.data
+  }
+
+  async getUnlinkedPatients(): Promise<UnlinkedPatient[]> {
+    const response = await this.client.get('/patients', { params: { unlinked: 'true' } })
+    return response.data
+  }
+
+  async searchPatientsForMerge(q: string): Promise<PatientSearchResult[]> {
+    const response = await this.client.get('/patients/search', { params: { q } })
+    return response.data
+  }
+
+  async mergePatientsBulk(provisionalIds: string[], targetPatientId: string): Promise<BulkMergeResponse> {
+    const response = await this.client.post('/patients/merge', {
+      provisional_ids: provisionalIds,
+      target_patient_id: targetPatientId,
+    })
     return response.data
   }
 
