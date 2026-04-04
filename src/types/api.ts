@@ -914,7 +914,7 @@ export type UpdateOfferRequest = Partial<CreateOfferRequest>
 export type LeadType = 'estetica' | 'fisioterapia' | 'misto' | 'psicologia'
 export type LeadChannel = 'outbound' | 'inbound'
 export type LeadSource = 'google_maps' | 'instagram' | 'indicacao' | 'anuncio'
-export type LeadStatus = 'identificado' | 'contactado' | 'respondeu' | 'demo_agendada' | 'trial_ativo' | 'negociando' | 'convertido' | 'sem_resposta' | 'descartado'
+export type LeadStatus = 'identificado' | 'contactado' | 'respondeu' | 'demo_agendada' | 'trial_ativo' | 'negociando' | 'convertido' | 'sem_resposta' | 'descartado' | 'isca'
 export type PainScore = 'alto' | 'medio' | 'baixo'
 
 export interface Lead {

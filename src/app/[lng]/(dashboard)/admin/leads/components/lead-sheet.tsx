@@ -51,6 +51,7 @@ const STATUS_OPTIONS: SelectOption[] = [
   { value: "convertido", label: "Convertido" },
   { value: "sem_resposta", label: "Sem Resposta" },
   { value: "descartado", label: "Descartado" },
+  { value: "isca", label: "Isca" },
 ];
 
 const PAIN_OPTIONS: SelectOption[] = [

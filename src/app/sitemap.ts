@@ -19,6 +19,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     '/para-nutricao',
     '/para-pilates-e-yoga',
     '/para-psicologia',
+    '/kit-planilhas',
   ]
 
   const staticEntries: MetadataRoute.Sitemap = staticPages.map((path) => ({

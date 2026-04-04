@@ -41,6 +41,7 @@ const STATUS_OPTIONS: { value: LeadStatus | ""; label: string }[] = [
   { value: "convertido", label: "Convertido" },
   { value: "sem_resposta", label: "Sem Resposta" },
   { value: "descartado", label: "Descartado" },
+  { value: "isca", label: "Isca" },
 ];
 
 const CHANNEL_OPTIONS: { value: LeadChannel | ""; label: string }[] = [
@@ -73,6 +74,7 @@ const STATUS_COLORS: Record<LeadStatus, string> = {
   convertido: "bg-green-100 text-green-700",
   sem_resposta: "bg-red-100 text-red-700",
   descartado: "bg-red-200 text-red-800",
+  isca: "bg-emerald-100 text-emerald-700",
 };
 
 const STATUS_LABELS: Record<LeadStatus, string> = {
@@ -85,6 +87,7 @@ const STATUS_LABELS: Record<LeadStatus, string> = {
   convertido: "Convertido",
   sem_resposta: "Sem Resposta",
   descartado: "Descartado",
+  isca: "Isca",
 };
 
 interface LeadsPageProps {
