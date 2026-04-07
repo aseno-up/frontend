@@ -1,4 +1,5 @@
 import Script from "next/script"
+import { FacebookPixel } from "@/components/facebook-pixel"
 
 interface LandingLayoutProps {
   children: React.ReactNode
@@ -7,6 +8,7 @@ interface LandingLayoutProps {
 export default function LandingLayout({ children }: LandingLayoutProps) {
   return (
     <div className="dark">
+      <FacebookPixel />
       <Script
         src="https://www.googletagmanager.com/gtag/js?id=G-PQNQJQ3BVH"
         strategy="afterInteractive"

@@ -55,6 +55,11 @@ export function KitPlanilhasForm() {
         throw new Error(data?.error || 'Erro ao enviar')
       }
 
+      // Dispara o evento de Lead do Facebook Pixel
+      if (typeof window !== 'undefined' && (window as any).fbq) {
+        (window as any).fbq('track', 'Lead');
+      }
+
       setSubmitted(true)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao enviar. Tente novamente.')
