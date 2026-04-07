@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { Plus, Search, Pencil, Trash2, Mail, Phone, User, Clock, CheckCircle2, MoreHorizontal, Users, Briefcase } from "lucide-react"
+import { Plus, Search, Pencil, Trash2, Mail, Phone, User, Clock, CheckCircle2, MoreHorizontal, Users, Briefcase, DollarSign } from "lucide-react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -35,6 +35,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { api } from "@/lib/api/client"
 import { showToast, handleApiError } from "@/lib/toast"
 import { WorkingHoursEditor } from "@/components/professionals/working-hours-editor"
+import { CommissionTab } from "@/components/professionals/commission-tab"
 import type { Professional, PaginatedResponse, WorkingHours } from "@/types/api"
 
 // Schema
@@ -102,6 +103,17 @@ export default function ProfissionaisPage({ params }: ProfissionaisPageProps) {
   const [selectedColor, setSelectedColor] = useState(defaultColors[0])
   const [workingHours, setWorkingHours] = useState<WorkingHours>(DEFAULT_WORKING_HOURS)
   const [activeTab, setActiveTab] = useState("info")
+  const pageTab = searchParams.get("tab") || "profissionais"
+
+  const setPageTab = useCallback((tab: string) => {
+    const params = new URLSearchParams(searchParams.toString())
+    if (tab === "profissionais") {
+      params.delete("tab")
+    } else {
+      params.set("tab", tab)
+    }
+    router.push(pathname + (params.toString() ? "?" + params.toString() : ""), { scroll: false })
+  }, [searchParams, pathname, router])
 
   const [searchInput, setSearchInput] = useState(search)
 
@@ -295,6 +307,38 @@ export default function ProfissionaisPage({ params }: ProfissionaisPageProps) {
     <div className="flex h-full flex-col">
       <Header lng={lng} title="Profissionais" tutorialPage="profissionais" />
 
+      <div className="bg-background px-4 md:px-8 pt-2 border-b border-border/40 shrink-0">
+        <div className="flex h-12 w-full justify-start gap-4 md:gap-6 p-0 overflow-x-auto no-scrollbar">
+          <button
+            onClick={() => setPageTab("profissionais")}
+            className={`relative h-12 rounded-none border-b-2 bg-transparent px-2 md:px-4 pb-3 pt-3 font-medium shadow-none transition-none flex items-center gap-2 whitespace-nowrap ${
+              pageTab === "profissionais"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-primary"
+            }`}
+          >
+            <Users className="h-4 w-4" />
+            <span className="hidden sm:inline">Profissionais</span>
+          </button>
+          <button
+            onClick={() => setPageTab("repasse")}
+            className={`relative h-12 rounded-none border-b-2 bg-transparent px-2 md:px-4 pb-3 pt-3 font-medium shadow-none transition-none flex items-center gap-2 whitespace-nowrap ${
+              pageTab === "repasse"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-primary"
+            }`}
+          >
+            <DollarSign className="h-4 w-4" />
+            <span className="hidden sm:inline">Repasse</span>
+          </button>
+        </div>
+      </div>
+
+      {pageTab === "repasse" ? (
+        <div className="flex-1 overflow-y-auto p-4 md:p-6">
+          <CommissionTab />
+        </div>
+      ) : (
       <div className="flex-1 p-4 md:p-6 flex flex-col gap-6 overflow-hidden">
         {/* Status Cards Container */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 shrink-0">
@@ -542,6 +586,7 @@ export default function ProfissionaisPage({ params }: ProfissionaisPageProps) {
           </div>
         )}
       </div>
+      )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-[550px] max-h-[90vh] overflow-y-auto">

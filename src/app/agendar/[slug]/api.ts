@@ -89,9 +89,12 @@ export async function fetchSpecialties(slug: string): Promise<Specialty[]> {
   return data || []
 }
 
-export async function fetchProcedures(slug: string, specialtyId?: string): Promise<Procedure[]> {
-  const params = specialtyId ? `?specialty_id=${specialtyId}` : ""
-  const res = await fetch(`${API_URL}/book/${slug}/procedures${params}`)
+export async function fetchProcedures(slug: string, specialtyId?: string, professionalId?: string): Promise<Procedure[]> {
+  const searchParams = new URLSearchParams()
+  if (specialtyId) searchParams.set("specialty_id", specialtyId)
+  if (professionalId) searchParams.set("professional_id", professionalId)
+  const qs = searchParams.toString() ? `?${searchParams.toString()}` : ""
+  const res = await fetch(`${API_URL}/book/${slug}/procedures${qs}`)
   if (!res.ok) throw new Error("Erro ao carregar procedimentos")
   const data = await res.json()
   return data || []

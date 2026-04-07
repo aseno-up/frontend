@@ -176,6 +176,42 @@ class ApiClient {
     return response.data
   }
 
+  async getProfessionalProcedures(professionalId: string) {
+    const response = await this.client.get(`/professionals/${professionalId}/procedures`)
+    return response.data
+  }
+
+  async updateProfessionalProcedures(professionalId: string, data: { items: Array<{ procedure_id: string; commission_type: string; commission_value: number }> }) {
+    const response = await this.client.put(`/professionals/${professionalId}/procedures`, data)
+    return response.data
+  }
+
+  async deleteProfessionalProcedure(professionalId: string, ppId: string) {
+    const response = await this.client.delete(`/professionals/${professionalId}/procedures/${ppId}`)
+    return response.data
+  }
+
+  // Commission endpoints
+  async getCommissionSummary(params?: { month?: string; from?: string; to?: string }) {
+    const response = await this.client.get('/commissions/summary', { params })
+    return response.data
+  }
+
+  async getCommissionReport(professionalId: string, params?: { month?: string; from?: string; to?: string }) {
+    const response = await this.client.get('/commissions/report', { params: { professional_id: professionalId, ...params } })
+    return response.data
+  }
+
+  async bulkPayCommissions(ids: string[]) {
+    const response = await this.client.post('/commissions/bulk-pay', { ids })
+    return response.data
+  }
+
+  async markAllCommissionsPaid(professionalId: string, month: string) {
+    const response = await this.client.post('/commissions/pay-all', { professional_id: professionalId, month })
+    return response.data
+  }
+
   // Patients endpoints
   async getPatients(params?: { page?: number, limit?: number, search?: string, status?: string, sort_by?: string }) {
     const page = params?.page || 1

@@ -154,14 +154,30 @@ export function AppointmentDialog({
     }
   }, [])
 
-  // Fetch procedures
-  const fetchProcedures = useCallback(async () => {
+  // Fetch procedures — filtered by professional if one is selected
+  const fetchProcedures = useCallback(async (professionalId?: string) => {
     setProceduresLoading(true)
     try {
-      const response = await api.getProcedures({ page: 1, limit: 100 })
-      setProcedures(response.data || [])
+      if (professionalId) {
+        const profProcs = await api.getProfessionalProcedures(professionalId)
+        const mapped = (profProcs || []).map((pp: any) => ({
+          id: pp.procedure_id,
+          name: pp.procedure_name,
+          price: pp.procedure_price,
+          duration_minutes: 0,
+        }))
+        setProcedures(mapped.length > 0 ? mapped : [])
+      } else {
+        const response = await api.getProcedures({ page: 1, limit: 100 })
+        setProcedures(response.data || [])
+      }
     } catch (error) {
       console.error("Error fetching procedures:", error)
+      // Fallback to all procedures
+      try {
+        const response = await api.getProcedures({ page: 1, limit: 100 })
+        setProcedures(response.data || [])
+      } catch { /* ignore */ }
     } finally {
       setProceduresLoading(false)
     }
@@ -171,9 +187,10 @@ export function AppointmentDialog({
     if (open) {
       fetchPatients()
       fetchSpecialties()
-      fetchProcedures()
+      const profId = defaultProfessionalId || appointment?.professional_id
+      fetchProcedures(profId)
     }
-  }, [open, fetchPatients, fetchSpecialties, fetchProcedures])
+  }, [open, fetchPatients, fetchSpecialties, fetchProcedures, defaultProfessionalId, appointment?.professional_id])
 
   // Convert patients to select options
   const patientOptions: SelectOption[] = useMemo(() => {
@@ -219,6 +236,13 @@ export function AppointmentDialog({
     if (!watchedProfessionalId) return null
     return professionalOptions.find((opt) => opt.value === watchedProfessionalId) || null
   }, [watchedProfessionalId, professionalOptions])
+
+  // Reload procedures when professional changes
+  useEffect(() => {
+    if (open && watchedProfessionalId) {
+      fetchProcedures(watchedProfessionalId)
+    }
+  }, [watchedProfessionalId, open, fetchProcedures])
 
   const watchedSpecialtyIds = watch("specialty_ids") || []
   const selectedSpecialtyOptions = useMemo(() => {

@@ -119,7 +119,7 @@ export default function BookingPage() {
 
           const specId = prof.specialty_ids?.[0] || undefined
           try {
-            const procs = await fetchProcedures(slug, specId)
+            const procs = await fetchProcedures(slug, specId, prof.id)
             setProcedures(procs)
             if (procs.length === 0) {
               setStep("datetime")

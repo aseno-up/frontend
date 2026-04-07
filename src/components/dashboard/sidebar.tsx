@@ -17,6 +17,7 @@ import {
   CalendarRange,
   UserPlus,
   BarChart3,
+  DollarSign,
   Stethoscope,
   Shield,
   FileText,
@@ -51,7 +52,7 @@ const navItems: NavItem[] = [
   { href: "/procedimentos", label: "Procedimentos", icon: Stethoscope, permission: "professionals:view", tutorialId: "procedimentos" },
   { href: "/planos-sessao", label: "Planos de Sessao", icon: CalendarRange, permission: "session-plans:view", tutorialId: "planos-sessao" },
   { href: "/whatsapp", label: "WhatsApp", icon: MessageCircle, permission: "whatsapp:access", tutorialId: "whatsapp" },
-  { href: "/relatorios", label: "Relatorios", icon: BarChart3, permission: "billing:access", tutorialId: "relatorios" },
+  { href: "/financeiro", label: "Financeiro", icon: DollarSign, permission: "billing:access", tutorialId: "financeiro" },
   { href: "/usuarios", label: "Usuarios", icon: UserPlus, permission: "users:manage", tutorialId: "usuarios" },
   { href: "/configuracoes", label: "Configuracoes", icon: Settings, permission: "settings:access", tutorialId: "configuracoes" },
 ]

@@ -99,6 +99,17 @@ export interface TimeSlot {
   end: string
 }
 
+export interface ProfessionalProcedure {
+  id: string
+  professional_id: string
+  procedure_id: string
+  procedure_name: string
+  procedure_price: number
+  commission_type: 'percentage' | 'fixed'
+  commission_value: number
+  is_active: boolean
+}
+
 export type NoShowRisk = 'unknown' | 'low' | 'medium' | 'high'
 
 export interface Patient {

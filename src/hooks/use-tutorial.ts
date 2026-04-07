@@ -18,6 +18,7 @@ export type TutorialPage =
   | "configuracoes"
   | "planos-sessao"
   | "procedimentos"
+  | "financeiro"
 
 interface UseTutorialOptions {
   page?: TutorialPage
@@ -421,6 +422,14 @@ const tutorialSteps: Record<TutorialPage, DriveStep[]> = {
       popover: {
         title: "Procedimentos",
         description: "Gerencie os procedimentos disponíveis para agendamentos na sua clínica.",
+      },
+    }
+  ],
+  financeiro: [
+    {
+      popover: {
+        title: "Financeiro",
+        description: "Acompanhe metricas financeiras, relatorios e desempenho da sua clinica.",
       },
     }
   ],
