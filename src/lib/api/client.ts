@@ -919,6 +919,11 @@ class ApiClient {
     return response.data
   }
 
+  async getFinancialReport(params?: { month?: string; professional_id?: string }) {
+    const response = await this.client.get('/analytics/financial', { params })
+    return response.data
+  }
+
   // Onboarding endpoints
   async getOnboardingStatus() {
     const response = await this.client.get('/onboarding/status')

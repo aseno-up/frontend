@@ -202,6 +202,7 @@ export function PricingSection({ lng }: LandingClientProps) {
             <li>Gestão de pacientes</li>
             <li>Ficha e histórico do paciente</li>
             <li>Dashboard financeiro e operacional</li>
+            <li>Relatório de Caixa</li>
             <li>Onboarding guiado</li>
             <li>Suporte por e-mail</li>
           </ul>
@@ -224,6 +225,7 @@ export function PricingSection({ lng }: LandingClientProps) {
             <li>Lista de Espera Automática</li>
             <li>Detector de Risco de Faltas</li>
             <li>Relatórios de Prejuízo</li>
+            <li>Recebíveis e Conciliação</li>
             <li>Personalização de mensagens</li>
             <li>Controle de acesso por perfil</li>
             <li>Suporte prioritário WhatsApp</li>

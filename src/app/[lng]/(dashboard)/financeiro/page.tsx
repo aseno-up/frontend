@@ -5,23 +5,19 @@ import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 import { Header } from '@/components/dashboard/header'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
-  UserX,
   Clock,
   CheckCircle2,
   DollarSign,
   Filter,
-  TrendingDown,
   Calendar,
   MessageSquare,
-  Send,
-  CheckCheck,
-  Reply,
-  XCircle,
-  AlertCircle,
   BarChart3,
   Loader2,
   ChevronDown,
   ChevronRight,
+  Receipt,
+  Wallet,
+  ShieldCheck,
 } from 'lucide-react'
 import { useTranslation } from '@/lib/i18n/client'
 import { api } from '@/lib/api/client'
@@ -198,6 +194,28 @@ export default function FinanceiroPage(props: FinanceiroPageProps) {
             <span className="hidden sm:inline">Visao Geral</span>
           </button>
           <button
+            onClick={() => setPageTab("recebiveis")}
+            className={`relative h-12 rounded-none border-b-2 bg-transparent px-2 md:px-4 pb-3 pt-3 font-medium shadow-none transition-none flex items-center gap-2 whitespace-nowrap ${
+              pageTab === "recebiveis"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-primary"
+            }`}
+          >
+            <Receipt className="h-4 w-4" />
+            <span className="hidden sm:inline">Recebiveis</span>
+          </button>
+          <button
+            onClick={() => setPageTab("caixa")}
+            className={`relative h-12 rounded-none border-b-2 bg-transparent px-2 md:px-4 pb-3 pt-3 font-medium shadow-none transition-none flex items-center gap-2 whitespace-nowrap ${
+              pageTab === "caixa"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-primary"
+            }`}
+          >
+            <Wallet className="h-4 w-4" />
+            <span className="hidden sm:inline">Caixa</span>
+          </button>
+          <button
             onClick={() => setPageTab("repasse")}
             className={`relative h-12 rounded-none border-b-2 bg-transparent px-2 md:px-4 pb-3 pt-3 font-medium shadow-none transition-none flex items-center gap-2 whitespace-nowrap ${
               pageTab === "repasse"
@@ -207,6 +225,17 @@ export default function FinanceiroPage(props: FinanceiroPageProps) {
           >
             <DollarSign className="h-4 w-4" />
             <span className="hidden sm:inline">Repasse</span>
+          </button>
+          <button
+            onClick={() => setPageTab("conciliacao")}
+            className={`relative h-12 rounded-none border-b-2 bg-transparent px-2 md:px-4 pb-3 pt-3 font-medium shadow-none transition-none flex items-center gap-2 whitespace-nowrap ${
+              pageTab === "conciliacao"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-primary"
+            }`}
+          >
+            <ShieldCheck className="h-4 w-4" />
+            <span className="hidden sm:inline">Conciliacao</span>
           </button>
         </div>
       </div>
@@ -218,47 +247,9 @@ export default function FinanceiroPage(props: FinanceiroPageProps) {
               <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
             </div>
           ) : isRestricted ? (
-            <div className="flex-1 p-8 flex items-center justify-center">
-              <Card className="max-w-2xl w-full border-primary/20 bg-primary/5">
-                <CardHeader className="text-center">
-                  <div className="mx-auto bg-primary/10 w-16 h-16 rounded-full flex items-center justify-center mb-4">
-                    <DollarSign className="h-8 w-8 text-primary" />
-                  </div>
-                  <CardTitle className="text-2xl font-bold">Descubra quanto sua clinica esta perdendo</CardTitle>
-                  <CardDescription className="text-lg mt-2">
-                    Relatorios detalhados de faltas, horas ociosas e faturamento perdido estao disponiveis no Plano Profissional.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="grid md:grid-cols-2 gap-4">
-                    <div className="bg-background p-4 rounded-lg border flex items-center gap-3">
-                      <UserX className="h-5 w-5 text-red-500" />
-                      <span className="font-medium">Controle de Faltas</span>
-                    </div>
-                    <div className="bg-background p-4 rounded-lg border flex items-center gap-3">
-                      <DollarSign className="h-5 w-5 text-red-500" />
-                      <span className="font-medium">Prejuizo Estimado</span>
-                    </div>
-                    <div className="bg-background p-4 rounded-lg border flex items-center gap-3">
-                      <Clock className="h-5 w-5 text-orange-500" />
-                      <span className="font-medium">Horas Perdidas</span>
-                    </div>
-                    <div className="bg-background p-4 rounded-lg border flex items-center gap-3">
-                      <CheckCircle2 className="h-5 w-5 text-green-500" />
-                      <span className="font-medium">Taxa de Comparecimento</span>
-                    </div>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-muted-foreground mb-4">Faca upgrade agora e tome decisoes baseadas em dados.</p>
-                    <a href={`/${lng}/faturamento`} className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-11 px-8">
-                      Fazer Upgrade para Profissional
-                    </a>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+            <UpgradeCard title="Descubra quanto sua clinica esta perdendo" description="Relatorios detalhados de faltas, horas ociosas e faturamento perdido estao disponiveis no Plano Profissional." />
           ) : (
-            <div className="flex-1 space-y-6 p-8 overflow-y-auto">
+            <div className="flex-1 p-8 overflow-y-auto space-y-8">
               {/* Filtros */}
               <div className="flex items-center gap-2 flex-wrap">
                 <Filter className="h-4 w-4 text-muted-foreground" />
@@ -288,219 +279,644 @@ export default function FinanceiroPage(props: FinanceiroPageProps) {
                 )}
               </div>
 
-              {/* Cards de Metricas Principais */}
-              <div>
-                <h2 className="text-lg font-semibold mb-4 text-muted-foreground uppercase tracking-wider text-sm">
-                  Resumo do Periodo ({getPeriodLabel(period)})
-                </h2>
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                  <Card className="border-red-200 dark:border-red-900">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium">Faltas (No-Show)</CardTitle>
-                      <UserX className="h-4 w-4 text-red-500" />
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-3xl font-bold text-red-600">{m.no_shows}</div>
-                      <p className="text-xs text-muted-foreground mt-1">pacientes nao compareceram</p>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="border-orange-200 dark:border-orange-900">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium">Horas Perdidas</CardTitle>
-                      <Clock className="h-4 w-4 text-orange-500" />
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-3xl font-bold text-orange-600">{formatHours(m.hours_lost)}</div>
-                      <p className="text-xs text-muted-foreground mt-1">de agenda desperdicadas</p>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="border-green-200 dark:border-green-900">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium">Sessoes Realizadas</CardTitle>
-                      <CheckCircle2 className="h-4 w-4 text-green-500" />
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-3xl font-bold text-green-600">{m.completed_sessions}</div>
-                      <p className="text-xs text-muted-foreground mt-1">consultas concluidas</p>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="border-red-200 dark:border-red-900 bg-red-50/50 dark:bg-red-950/20">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium text-red-700 dark:text-red-400">Faturamento Perdido</CardTitle>
-                      <TrendingDown className="h-4 w-4 text-red-500" />
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-3xl font-bold text-red-600">{formatCurrency(m.estimated_lost_revenue)}</div>
-                      <p className="text-xs text-red-600/80 mt-1">estimativa de receita perdida</p>
-                    </CardContent>
-                  </Card>
+              {/* Hero: Faturamento Perdido + Taxa de Comparecimento */}
+              <div className="py-4 flex flex-col md:flex-row md:items-end md:justify-between gap-6">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground mb-1">Faturamento Perdido</p>
+                  <p className="text-4xl md:text-5xl font-bold tracking-tight text-red-600">{formatCurrency(m.estimated_lost_revenue)}</p>
+                  <p className="text-sm text-muted-foreground mt-2">nos {getPeriodLabel(period)?.toLowerCase()}</p>
+                </div>
+                <div className="md:text-right">
+                  <p className="text-sm font-medium text-muted-foreground mb-1">Taxa de Comparecimento</p>
+                  <p className="text-3xl font-bold">{m.attendance_rate.toFixed(1)}%</p>
+                  <div className="w-48 bg-secondary h-2 rounded-full overflow-hidden mt-2">
+                    <div className="bg-green-500 h-full rounded-full transition-all duration-500" style={{ width: `${m.attendance_rate}%` }} />
+                  </div>
                 </div>
               </div>
 
-              {/* Resumo de Agendamentos */}
-              {m.appointments_summary && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base font-medium flex items-center gap-2">
-                      <Calendar className="h-4 w-4" />
-                      Resumo de Agendamentos
-                    </CardTitle>
-                    <CardDescription>Distribuicao dos agendamentos por status no periodo</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                      <div className="text-center p-3 bg-muted/50 rounded-lg">
-                        <div className="text-2xl font-bold">{m.appointments_summary.total}</div>
-                        <p className="text-xs text-muted-foreground">Total</p>
-                      </div>
-                      <div className="text-center p-3 bg-green-50 dark:bg-green-950/20 rounded-lg">
-                        <div className="text-2xl font-bold text-green-600">{m.appointments_summary.confirmed}</div>
-                        <p className="text-xs text-muted-foreground">Confirmados</p>
-                      </div>
-                      <div className="text-center p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
-                        <div className="text-2xl font-bold text-blue-600">{m.appointments_summary.completed}</div>
-                        <p className="text-xs text-muted-foreground">Realizados</p>
-                      </div>
-                      <div className="text-center p-3 bg-red-50 dark:bg-red-950/20 rounded-lg">
-                        <div className="text-2xl font-bold text-red-600">{m.appointments_summary.canceled}</div>
-                        <p className="text-xs text-muted-foreground">Cancelados</p>
-                      </div>
-                      <div className="text-center p-3 bg-orange-50 dark:bg-orange-950/20 rounded-lg">
-                        <div className="text-2xl font-bold text-orange-600">{m.appointments_summary.no_response}</div>
-                        <p className="text-xs text-muted-foreground">Sem Resposta</p>
-                      </div>
-                      <div className="text-center p-3 bg-red-50 dark:bg-red-950/20 rounded-lg">
-                        <div className="text-2xl font-bold text-red-600">{m.appointments_summary.no_show}</div>
-                        <p className="text-xs text-muted-foreground">No-Show</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
+              {/* Inline secondary metrics */}
+              <div className="flex items-center gap-3 text-sm text-muted-foreground pb-6 border-b flex-wrap">
+                <span><strong className="text-red-600">{m.no_shows}</strong> faltas</span>
+                <span className="text-border">|</span>
+                <span><strong className="text-orange-600">{formatHours(m.hours_lost)}</strong> horas perdidas</span>
+                <span className="text-border">|</span>
+                <span><strong className="text-green-600">{m.completed_sessions}</strong> sessoes realizadas</span>
+              </div>
 
-              {/* Confirmacoes WhatsApp */}
-              {m.whatsapp_metrics && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base font-medium flex items-center gap-2">
-                      <MessageSquare className="h-4 w-4 text-green-600" />
-                      Confirmacoes WhatsApp
-                    </CardTitle>
-                    <CardDescription>Metricas de mensagens de confirmacao enviadas</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                      <div className="text-center p-3 bg-muted/50 rounded-lg">
-                        <Send className="h-5 w-5 mx-auto mb-1 text-muted-foreground" />
-                        <div className="text-2xl font-bold">{m.whatsapp_metrics.messages_sent}</div>
-                        <p className="text-xs text-muted-foreground">Enviadas</p>
-                      </div>
-                      <div className="text-center p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
-                        <CheckCheck className="h-5 w-5 mx-auto mb-1 text-blue-600" />
-                        <div className="text-2xl font-bold text-blue-600">{m.whatsapp_metrics.delivered}</div>
-                        <p className="text-xs text-muted-foreground">Entregues</p>
-                      </div>
-                      <div className="text-center p-3 bg-green-50 dark:bg-green-950/20 rounded-lg">
-                        <Reply className="h-5 w-5 mx-auto mb-1 text-green-600" />
-                        <div className="text-2xl font-bold text-green-600">{m.whatsapp_metrics.replied}</div>
-                        <p className="text-xs text-muted-foreground">Respondidas</p>
-                      </div>
-                      <div className="text-center p-3 bg-red-50 dark:bg-red-950/20 rounded-lg">
-                        <XCircle className="h-5 w-5 mx-auto mb-1 text-red-600" />
-                        <div className="text-2xl font-bold text-red-600">{m.whatsapp_metrics.failed}</div>
-                        <p className="text-xs text-muted-foreground">Falharam</p>
-                      </div>
-                      <div className="text-center p-3 bg-orange-50 dark:bg-orange-950/20 rounded-lg">
-                        <AlertCircle className="h-5 w-5 mx-auto mb-1 text-orange-600" />
-                        <div className="text-2xl font-bold text-orange-600">{m.whatsapp_metrics.confirmation_timeout}</div>
-                        <p className="text-xs text-muted-foreground">Ignoradas</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
+              {/* Two-column detail: Agendamentos + WhatsApp */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Agendamentos */}
+                {m.appointments_summary && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-base font-medium flex items-center gap-2">
+                        <Calendar className="h-4 w-4" />
+                        Agendamentos
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-0">
+                      {[
+                        { label: 'Total', value: m.appointments_summary.total, color: '' },
+                        { label: 'Confirmados', value: m.appointments_summary.confirmed, color: 'text-green-600' },
+                        { label: 'Realizados', value: m.appointments_summary.completed, color: 'text-blue-600' },
+                        { label: 'Cancelados', value: m.appointments_summary.canceled, color: 'text-red-600' },
+                        { label: 'Sem Resposta', value: m.appointments_summary.no_response, color: 'text-orange-600' },
+                        { label: 'No-Show', value: m.appointments_summary.no_show, color: 'text-red-600' },
+                      ].map((item) => (
+                        <div key={item.label} className="flex items-center justify-between py-2.5 border-b border-border/40 last:border-0">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-2 h-2 rounded-full ${item.color ? item.color.replace('text-', 'bg-') : 'bg-muted-foreground'}`} />
+                            <span className="text-sm">{item.label}</span>
+                          </div>
+                          <span className={`text-sm font-semibold ${item.color}`}>{item.value}</span>
+                        </div>
+                      ))}
+                    </CardContent>
+                  </Card>
+                )}
 
-              {/* Taxa de Comparecimento */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base font-medium flex items-center gap-2">
-                    <Calendar className="h-4 w-4" />
-                    Taxa de Comparecimento
-                  </CardTitle>
-                  <CardDescription>Proporcao de pacientes que compareceram as consultas</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center gap-4">
-                    <div className="text-4xl font-bold">{m.attendance_rate.toFixed(1)}%</div>
-                    <div className="flex-1">
-                      <div className="w-full bg-secondary h-4 rounded-full overflow-hidden">
-                        <div
-                          className="bg-green-500 h-full rounded-full transition-all duration-500"
-                          style={{ width: `${m.attendance_rate}%` }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  <p className="text-sm text-muted-foreground mt-2">
-                    De cada 100 consultas agendadas, {m.attendance_rate.toFixed(0)} pacientes comparecem
-                  </p>
-                </CardContent>
-              </Card>
+                {/* WhatsApp */}
+                {m.whatsapp_metrics && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-base font-medium flex items-center gap-2">
+                        <MessageSquare className="h-4 w-4 text-green-600" />
+                        Confirmacoes WhatsApp
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-0">
+                      {[
+                        { label: 'Enviadas', value: m.whatsapp_metrics.messages_sent, color: '' },
+                        { label: 'Entregues', value: m.whatsapp_metrics.delivered, color: 'text-blue-600' },
+                        { label: 'Respondidas', value: m.whatsapp_metrics.replied, color: 'text-green-600' },
+                        { label: 'Falharam', value: m.whatsapp_metrics.failed, color: 'text-red-600' },
+                        { label: 'Ignoradas', value: m.whatsapp_metrics.confirmation_timeout, color: 'text-orange-600' },
+                      ].map((item) => (
+                        <div key={item.label} className="flex items-center justify-between py-2.5 border-b border-border/40 last:border-0">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-2 h-2 rounded-full ${item.color ? item.color.replace('text-', 'bg-') : 'bg-muted-foreground'}`} />
+                            <span className="text-sm">{item.label}</span>
+                          </div>
+                          <span className={`text-sm font-semibold ${item.color}`}>{item.value}</span>
+                        </div>
+                      ))}
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
 
               {/* Detalhamento Mensal */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base font-medium flex items-center gap-2">
-                    <DollarSign className="h-4 w-4" />
-                    Detalhamento Mensal
-                  </CardTitle>
-                  <CardDescription>Evolucao mes a mes das metricas</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {(m.monthly_breakdown || []).length === 0 ? (
-                    <p className="text-sm text-muted-foreground">Nenhum dado disponivel para o periodo selecionado.</p>
-                  ) : (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Mes</TableHead>
-                          <TableHead className="text-center">Faltas</TableHead>
-                          <TableHead className="text-center">Horas Perdidas</TableHead>
-                          <TableHead className="text-center">Sessoes</TableHead>
-                          <TableHead className="text-right">Faturamento Perdido</TableHead>
+              {(m.monthly_breakdown || []).length > 0 && (
+                <div>
+                  <h3 className="text-base font-medium mb-1">Detalhamento Mensal</h3>
+                  <p className="text-sm text-muted-foreground mb-4">Evolucao mes a mes das metricas</p>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Mes</TableHead>
+                        <TableHead className="text-center">Faltas</TableHead>
+                        <TableHead className="text-center">Horas Perdidas</TableHead>
+                        <TableHead className="text-center">Sessoes</TableHead>
+                        <TableHead className="text-right">Faturamento Perdido</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {m.monthly_breakdown.map((month, i) => (
+                        <TableRow key={i}>
+                          <TableCell className="font-medium">{month.month_name}/{month.year}</TableCell>
+                          <TableCell className="text-center">
+                            <span className={month.no_shows > 0 ? "text-red-600 font-semibold" : ""}>{month.no_shows}</span>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <span className={month.hours_lost > 0 ? "text-orange-600" : ""}>{formatHours(month.hours_lost)}</span>
+                          </TableCell>
+                          <TableCell className="text-center text-green-600">{month.completed_sessions}</TableCell>
+                          <TableCell className="text-right">
+                            <span className={month.lost_revenue > 0 ? "text-red-600 font-semibold" : ""}>{formatCurrency(month.lost_revenue)}</span>
+                          </TableCell>
                         </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {m.monthly_breakdown.map((month, i) => (
-                          <TableRow key={i}>
-                            <TableCell className="font-medium">{month.month_name}/{month.year}</TableCell>
-                            <TableCell className="text-center">
-                              <span className={month.no_shows > 0 ? "text-red-600 font-semibold" : ""}>{month.no_shows}</span>
-                            </TableCell>
-                            <TableCell className="text-center">
-                              <span className={month.hours_lost > 0 ? "text-orange-600" : ""}>{formatHours(month.hours_lost)}</span>
-                            </TableCell>
-                            <TableCell className="text-center text-green-600">{month.completed_sessions}</TableCell>
-                            <TableCell className="text-right">
-                              <span className={month.lost_revenue > 0 ? "text-red-600 font-semibold" : ""}>{formatCurrency(month.lost_revenue)}</span>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  )}
-                </CardContent>
-              </Card>
+                      ))}
+                      <TableRow className="bg-muted/30 font-bold">
+                        <TableCell>TOTAL</TableCell>
+                        <TableCell className="text-center text-red-600">{m.no_shows}</TableCell>
+                        <TableCell className="text-center text-orange-600">{formatHours(m.hours_lost)}</TableCell>
+                        <TableCell className="text-center text-green-600">{m.completed_sessions}</TableCell>
+                        <TableCell className="text-right text-red-600">{formatCurrency(m.estimated_lost_revenue)}</TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
             </div>
           )}
         </>
       )}
 
+      {pageTab === "recebiveis" && (
+        <RecebiveisTab parentRestricted={isRestricted} />
+      )}
+
+      {pageTab === "caixa" && (
+        <CaixaTab />
+      )}
+
       {pageTab === "repasse" && (
         <RepasseTab />
+      )}
+
+      {pageTab === "conciliacao" && (
+        <ConciliacaoTab parentRestricted={isRestricted} />
+      )}
+    </div>
+  )
+}
+
+// --- Financial Report Types ---
+
+interface FinancialSummary {
+  total_expected: number
+  total_received: number
+  total_pending: number
+  total_discount: number
+  total_sessions: number
+  paid_sessions: number
+  pending_sessions: number
+  conciliation_rate: number
+}
+
+interface DailyReceivable {
+  date: string
+  sessions: number
+  expected: number
+  received: number
+  pending: number
+}
+
+interface PaymentMethodBreakdownItem {
+  method_name: string
+  method_type: string
+  total: number
+  count: number
+  percentage: number
+}
+
+interface UnconciliatedAppointment {
+  appointment_id: string
+  date: string
+  patient_name: string
+  professional_name: string
+  price: number
+  payment_status: string
+}
+
+interface FinancialReport {
+  summary: FinancialSummary
+  daily_breakdown: DailyReceivable[]
+  payment_method_breakdown: PaymentMethodBreakdownItem[]
+  unconciliated_appointments: UnconciliatedAppointment[]
+}
+
+function useFinancialReport() {
+  const now = new Date()
+  const defaultMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+  const [month, setMonth] = useState(defaultMonth)
+  const [professionalId, setProfessionalId] = useState<string>('all')
+  const [professionals, setProfessionals] = useState<Professional[]>([])
+  const [report, setReport] = useState<FinancialReport | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    api.getProfessionals({ page: 1, limit: 100 }).then(res => {
+      setProfessionals(res.data || [])
+    }).catch(() => {})
+  }, [])
+
+  const fetchReport = useCallback(async () => {
+    setIsLoading(true)
+    try {
+      const data = await api.getFinancialReport({
+        month,
+        professional_id: professionalId === 'all' ? undefined : professionalId,
+      })
+      setReport(data)
+    } catch (err) {
+      handleApiError(err, 'Erro ao carregar relatório financeiro')
+    } finally {
+      setIsLoading(false)
+    }
+  }, [month, professionalId])
+
+  useEffect(() => {
+    fetchReport()
+  }, [fetchReport])
+
+  const monthOptions = Array.from({ length: 12 }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+    const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+    const label = d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
+    return { value, label: label.charAt(0).toUpperCase() + label.slice(1) }
+  })
+
+  return { month, setMonth, professionalId, setProfessionalId, professionals, report, isLoading, monthOptions }
+}
+
+const formatCurrencyShared = (value: number) =>
+  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
+
+const formatDateShared = (dateStr: string) => {
+  const [y, m, d] = dateStr.split('-')
+  return `${d}/${m}/${y}`
+}
+
+function UpgradeCard({ title, description }: { title: string; description: string }) {
+  return (
+    <div className="flex-1 p-8 flex items-center justify-center">
+      <Card className="max-w-lg w-full border-primary/20 bg-primary/5">
+        <CardHeader className="text-center">
+          <div className="mx-auto bg-primary/10 w-16 h-16 rounded-full flex items-center justify-center mb-4">
+            <DollarSign className="h-8 w-8 text-primary" />
+          </div>
+          <CardTitle className="text-xl font-bold">{title}</CardTitle>
+          <CardDescription className="text-base mt-2">{description}</CardDescription>
+        </CardHeader>
+        <CardContent className="text-center">
+          <a href="/pt-BR/faturamento" className="inline-flex items-center justify-center rounded-md text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 h-11 px-8">
+            Fazer Upgrade para Profissional
+          </a>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+function FinancialFilters({
+  month, setMonth, professionalId, setProfessionalId, professionals, monthOptions,
+}: {
+  month: string
+  setMonth: (v: string) => void
+  professionalId: string
+  setProfessionalId: (v: string) => void
+  professionals: Professional[]
+  monthOptions: { value: string; label: string }[]
+}) {
+  return (
+    <div className="flex items-center gap-2 flex-wrap">
+      <Filter className="h-4 w-4 text-muted-foreground" />
+      <Select value={month} onValueChange={setMonth}>
+        <SelectTrigger className="w-[220px]">
+          <SelectValue placeholder="Selecione o mes" />
+        </SelectTrigger>
+        <SelectContent>
+          {monthOptions.map(opt => (
+            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      {professionals.length > 0 && (
+        <Select value={professionalId} onValueChange={setProfessionalId}>
+          <SelectTrigger className="w-[200px]">
+            <SelectValue placeholder="Todos os profissionais" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos os profissionais</SelectItem>
+            {professionals.map(p => (
+              <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
+    </div>
+  )
+}
+
+// --- Recebiveis Tab ---
+
+function RecebiveisTab({ parentRestricted }: { parentRestricted: boolean }) {
+  const { month, setMonth, professionalId, setProfessionalId, professionals, report, isLoading, monthOptions } = useFinancialReport()
+
+  if (parentRestricted) {
+    return <UpgradeCard title="Controle de Recebiveis" description="Acompanhe receita esperada, recebida e pendente por periodo. Disponivel no Plano Profissional." />
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      </div>
+    )
+  }
+
+  const s = report?.summary || { total_expected: 0, total_received: 0, total_pending: 0, total_discount: 0, total_sessions: 0, paid_sessions: 0, pending_sessions: 0, conciliation_rate: 0 }
+  const daily = report?.daily_breakdown || []
+  const methods = report?.payment_method_breakdown || []
+
+  return (
+    <div className="flex-1 p-8 overflow-y-auto space-y-8">
+      <FinancialFilters month={month} setMonth={setMonth} professionalId={professionalId} setProfessionalId={setProfessionalId} professionals={professionals} monthOptions={monthOptions} />
+
+      {/* Hero number */}
+      <div className="py-4 flex flex-col md:flex-row md:items-end md:justify-between gap-6">
+        <div>
+          <p className="text-sm font-medium text-muted-foreground mb-1">Receita Esperada</p>
+          <p className="text-4xl md:text-5xl font-bold tracking-tight">{formatCurrencyShared(s.total_expected)}</p>
+        </div>
+        <div className="md:text-right">
+          <p className="text-sm font-medium text-muted-foreground mb-1">Recebido</p>
+          <p className="text-3xl font-bold text-emerald-600">{formatCurrencyShared(s.total_received)}</p>
+        </div>
+      </div>
+
+      {/* Inline metrics */}
+      <div className="flex items-center gap-3 text-sm text-muted-foreground pb-6 border-b flex-wrap">
+        <span><strong className="text-foreground">{s.total_sessions}</strong> sessoes</span>
+        <span className="text-border">|</span>
+        <span><strong className="text-emerald-600">{formatCurrencyShared(s.total_received)}</strong> recebido</span>
+        <span className="text-border">|</span>
+        <span><strong className="text-orange-600">{formatCurrencyShared(s.total_pending)}</strong> pendente</span>
+        {s.total_discount > 0 && (
+          <>
+            <span className="text-border">|</span>
+            <span><strong className="text-muted-foreground">{formatCurrencyShared(s.total_discount)}</strong> descontos</span>
+          </>
+        )}
+      </div>
+
+      {/* Payment method breakdown */}
+      {methods.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base font-medium">Por Forma de Pagamento</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-1">
+            {methods.map((m, i) => (
+              <div key={i} className="flex items-center justify-between py-2.5 border-b border-border/40 last:border-0">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-2 h-2 rounded-full bg-primary shrink-0" />
+                  <span className="text-sm truncate">{m.method_name}</span>
+                  <Badge variant="outline" className="text-xs shrink-0">{m.method_type}</Badge>
+                </div>
+                <div className="flex items-center gap-4 shrink-0">
+                  <div className="w-24 h-1.5 bg-secondary rounded-full overflow-hidden hidden sm:block">
+                    <div className="bg-primary h-full rounded-full" style={{ width: `${m.percentage}%` }} />
+                  </div>
+                  <span className="text-sm text-muted-foreground w-12 text-right">{m.percentage.toFixed(0)}%</span>
+                  <span className="text-sm font-semibold w-28 text-right">{formatCurrencyShared(m.total)}</span>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Daily breakdown table */}
+      {daily.length > 0 && (
+        <div>
+          <h3 className="text-base font-medium mb-1">Detalhamento Diario</h3>
+          <p className="text-sm text-muted-foreground mb-4">Receitas registradas por dia no periodo</p>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Data</TableHead>
+                <TableHead className="text-center">Sessoes</TableHead>
+                <TableHead className="text-right">Esperado</TableHead>
+                <TableHead className="text-right">Recebido</TableHead>
+                <TableHead className="text-right">Pendente</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {daily.map((d, i) => (
+                <TableRow key={i}>
+                  <TableCell className="font-medium">{formatDateShared(d.date)}</TableCell>
+                  <TableCell className="text-center">{d.sessions}</TableCell>
+                  <TableCell className="text-right">{formatCurrencyShared(d.expected)}</TableCell>
+                  <TableCell className="text-right text-emerald-600">{formatCurrencyShared(d.received)}</TableCell>
+                  <TableCell className="text-right">
+                    <span className={d.pending > 0 ? 'text-orange-600 font-semibold' : ''}>{formatCurrencyShared(d.pending)}</span>
+                  </TableCell>
+                </TableRow>
+              ))}
+              <TableRow className="bg-muted/30 font-bold">
+                <TableCell>TOTAL</TableCell>
+                <TableCell className="text-center">{daily.reduce((a, d) => a + d.sessions, 0)}</TableCell>
+                <TableCell className="text-right">{formatCurrencyShared(daily.reduce((a, d) => a + d.expected, 0))}</TableCell>
+                <TableCell className="text-right text-emerald-600">{formatCurrencyShared(daily.reduce((a, d) => a + d.received, 0))}</TableCell>
+                <TableCell className="text-right text-orange-600">{formatCurrencyShared(daily.reduce((a, d) => a + d.pending, 0))}</TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        </div>
+      )}
+
+      {daily.length === 0 && !isLoading && (
+        <p className="text-sm text-muted-foreground py-4">Nenhuma sessao concluida neste periodo.</p>
+      )}
+    </div>
+  )
+}
+
+// --- Caixa Tab ---
+
+function CaixaTab() {
+  const { month, setMonth, professionalId, setProfessionalId, professionals, report, isLoading, monthOptions } = useFinancialReport()
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      </div>
+    )
+  }
+
+  const s = report?.summary || { total_expected: 0, total_received: 0, total_pending: 0, total_discount: 0, total_sessions: 0, paid_sessions: 0, pending_sessions: 0, conciliation_rate: 0 }
+  const daily = report?.daily_breakdown || []
+  const methods = report?.payment_method_breakdown || []
+
+  const daysWithMovement = daily.filter(d => d.received > 0).length
+  const avgDaily = daysWithMovement > 0 ? s.total_received / daysWithMovement : 0
+
+  // Calculate accumulated values (reverse order since daily is DESC)
+  const dailyWithAccumulated = [...daily].reverse().reduce<(DailyReceivable & { accumulated: number })[]>((acc, d) => {
+    const prev = acc.length > 0 ? acc[acc.length - 1].accumulated : 0
+    acc.push({ ...d, accumulated: prev + d.received })
+    return acc
+  }, []).reverse()
+
+  return (
+    <div className="flex-1 p-8 overflow-y-auto space-y-8">
+      <FinancialFilters month={month} setMonth={setMonth} professionalId={professionalId} setProfessionalId={setProfessionalId} professionals={professionals} monthOptions={monthOptions} />
+
+      {/* Hero number */}
+      <div className="py-4">
+        <p className="text-sm font-medium text-muted-foreground mb-1">Total Recebido</p>
+        <p className="text-4xl md:text-5xl font-bold tracking-tight text-emerald-600">{formatCurrencyShared(s.total_received)}</p>
+      </div>
+
+      {/* Inline metrics */}
+      <div className="flex items-center gap-3 text-sm text-muted-foreground pb-6 border-b flex-wrap">
+        <span>media <strong className="text-foreground">{formatCurrencyShared(avgDaily)}</strong>/dia</span>
+        <span className="text-border">|</span>
+        <span><strong className="text-foreground">{daysWithMovement}</strong> dias com movimento</span>
+        <span className="text-border">|</span>
+        <span><strong className="text-foreground">{s.paid_sessions}</strong> sessoes pagas</span>
+      </div>
+
+      {/* Payment method breakdown */}
+      {methods.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base font-medium">Entradas por Forma de Pagamento</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-1">
+            {methods.map((m, i) => (
+              <div key={i} className="flex items-center justify-between py-2.5 border-b border-border/40 last:border-0">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                  <span className="text-sm truncate">{m.method_name}</span>
+                  <span className="text-xs text-muted-foreground shrink-0">{m.count} pgto{m.count !== 1 ? 's' : ''}</span>
+                </div>
+                <div className="flex items-center gap-4 shrink-0">
+                  <div className="w-24 h-1.5 bg-secondary rounded-full overflow-hidden hidden sm:block">
+                    <div className="bg-emerald-500 h-full rounded-full" style={{ width: `${m.percentage}%` }} />
+                  </div>
+                  <span className="text-sm text-muted-foreground w-12 text-right">{m.percentage.toFixed(0)}%</span>
+                  <span className="text-sm font-semibold w-28 text-right">{formatCurrencyShared(m.total)}</span>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Daily movement table */}
+      {dailyWithAccumulated.length > 0 && (
+        <div>
+          <h3 className="text-base font-medium mb-1">Movimentacao Diaria</h3>
+          <p className="text-sm text-muted-foreground mb-4">Entradas registradas por dia</p>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Data</TableHead>
+                <TableHead className="text-center">Sessoes</TableHead>
+                <TableHead className="text-right">Recebido</TableHead>
+                <TableHead className="text-right">Acumulado</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {dailyWithAccumulated.map((d, i) => (
+                <TableRow key={i}>
+                  <TableCell className="font-medium">{formatDateShared(d.date)}</TableCell>
+                  <TableCell className="text-center">{d.sessions}</TableCell>
+                  <TableCell className="text-right text-emerald-600">{formatCurrencyShared(d.received)}</TableCell>
+                  <TableCell className="text-right font-semibold">{formatCurrencyShared(d.accumulated)}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+
+      {daily.length === 0 && !isLoading && (
+        <p className="text-sm text-muted-foreground py-4">Nenhuma entrada registrada neste periodo.</p>
+      )}
+    </div>
+  )
+}
+
+// --- Conciliacao Tab ---
+
+function ConciliacaoTab({ parentRestricted }: { parentRestricted: boolean }) {
+  const { month, setMonth, professionalId, setProfessionalId, professionals, report, isLoading, monthOptions } = useFinancialReport()
+
+  if (parentRestricted) {
+    return <UpgradeCard title="Conciliacao Financeira" description="Identifique sessoes concluidas sem pagamento registrado. Disponivel no Plano Profissional." />
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      </div>
+    )
+  }
+
+  const s = report?.summary || { total_expected: 0, total_received: 0, total_pending: 0, total_discount: 0, total_sessions: 0, paid_sessions: 0, pending_sessions: 0, conciliation_rate: 0 }
+  const unconciliated = report?.unconciliated_appointments || []
+
+  return (
+    <div className="flex-1 p-8 overflow-y-auto space-y-8">
+      <FinancialFilters month={month} setMonth={setMonth} professionalId={professionalId} setProfessionalId={setProfessionalId} professionals={professionals} monthOptions={monthOptions} />
+
+      {/* Hero number */}
+      <div className="py-4 flex flex-col md:flex-row md:items-end md:justify-between gap-6">
+        <div>
+          <p className="text-sm font-medium text-muted-foreground mb-1">Taxa de Conciliacao</p>
+          <p className={`text-4xl md:text-5xl font-bold tracking-tight ${s.conciliation_rate >= 90 ? 'text-emerald-600' : s.conciliation_rate >= 70 ? 'text-orange-600' : 'text-red-600'}`}>
+            {s.conciliation_rate.toFixed(1)}%
+          </p>
+        </div>
+        <div className="md:text-right">
+          <div className="w-48 bg-secondary h-2.5 rounded-full overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all duration-500 ${s.conciliation_rate >= 90 ? 'bg-emerald-500' : s.conciliation_rate >= 70 ? 'bg-orange-500' : 'bg-red-500'}`}
+              style={{ width: `${Math.min(s.conciliation_rate, 100)}%` }}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Inline metrics */}
+      <div className="flex items-center gap-3 text-sm text-muted-foreground pb-6 border-b flex-wrap">
+        <span><strong className="text-foreground">{s.total_sessions}</strong> sessoes concluidas</span>
+        <span className="text-border">|</span>
+        <span><strong className="text-emerald-600">{s.paid_sessions}</strong> com pagamento</span>
+        <span className="text-border">|</span>
+        <span><strong className="text-orange-600">{s.pending_sessions}</strong> sem pagamento</span>
+      </div>
+
+      {/* Unconciliated appointments table */}
+      {unconciliated.length > 0 ? (
+        <div>
+          <h3 className="text-base font-medium mb-1">Sessoes Sem Pagamento</h3>
+          <p className="text-sm text-muted-foreground mb-4">Consultas concluidas que ainda nao tem pagamento completo registrado</p>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Data</TableHead>
+                <TableHead>Paciente</TableHead>
+                <TableHead>Profissional</TableHead>
+                <TableHead className="text-right">Valor</TableHead>
+                <TableHead>Status</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {unconciliated.map((a) => (
+                <TableRow key={a.appointment_id}>
+                  <TableCell className="font-medium">{formatDateShared(a.date)}</TableCell>
+                  <TableCell>{a.patient_name}</TableCell>
+                  <TableCell>{a.professional_name}</TableCell>
+                  <TableCell className="text-right font-semibold">{formatCurrencyShared(a.price)}</TableCell>
+                  <TableCell>
+                    <Badge variant={a.payment_status === 'partial' ? 'warning' : 'destructive'}>
+                      {a.payment_status === 'partial' ? 'Parcial' : 'Pendente'}
+                    </Badge>
+                  </TableCell>
+                </TableRow>
+              ))}
+              <TableRow className="bg-muted/30 font-bold">
+                <TableCell colSpan={3}>TOTAL</TableCell>
+                <TableCell className="text-right">{formatCurrencyShared(unconciliated.reduce((a, u) => a + u.price, 0))}</TableCell>
+                <TableCell>{unconciliated.length} sessao(oes)</TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        </div>
+      ) : (
+        <div className="text-center py-12">
+          <ShieldCheck className="h-12 w-12 text-emerald-500 mx-auto mb-3" />
+          <p className="text-lg font-medium">Tudo conciliado!</p>
+          <p className="text-sm text-muted-foreground">Todas as sessoes concluidas tem pagamento registrado.</p>
+        </div>
       )}
     </div>
   )
