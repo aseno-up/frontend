@@ -1,7 +1,24 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Plus, Minus, Loader2 } from "lucide-react";
+import { Plus, Minus, Loader2 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import type { Plan, CreatePlanRequest, UpdatePlanRequest } from "@/types/api";
 
 interface PlanFormModalProps {
@@ -31,7 +48,6 @@ export function PlanFormModal({
     is_active: true,
   });
 
-  // We'll manage cycles separately for simplicity
   const [cycles, setCycles] = useState<
     Array<{ cycle_type: "monthly" | "yearly" | "lifetime"; price_brl: string }>
   >([{ cycle_type: "monthly", price_brl: "0" }]);
@@ -77,8 +93,6 @@ export function PlanFormModal({
     }
   }, [plan, isOpen]);
 
-  if (!isOpen) return null;
-
   const handleFeatureChange = (index: number, value: string) => {
     const newFeatures = [...(formData.features || [])];
     newFeatures[index] = value;
@@ -122,11 +136,9 @@ export function PlanFormModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Clean up empty features
     const cleanFeatures =
       formData.features?.filter((f) => f.trim() !== "") || [];
 
-    // Parse cycles
     const cleanCycles = cycles.map((c) => ({
       cycle_type: c.cycle_type,
       price_brl: parseFloat(c.price_brl) || 0,
@@ -148,135 +160,60 @@ export function PlanFormModal({
   };
 
   return (
-    <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 1000,
-        background: "rgba(15, 17, 23, 0.4)",
-        backdropFilter: "blur(4px)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: 24,
-      }}
-    >
-      <div
-        style={{
-          background: "white",
-          borderRadius: 16,
-          width: "100%",
-          maxWidth: 640,
-          maxHeight: "90vh",
-          display: "flex",
-          flexDirection: "column",
-          boxShadow: "0 20px 40px rgba(0,0,0,0.1)",
-          overflow: "hidden",
-        }}
-      >
-        {/* Header */}
-        <div
-          style={{
-            padding: "20px 24px",
-            borderBottom: "1px solid #e8eaed",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <h2
-            style={{
-              fontSize: 18,
-              fontWeight: 700,
-              color: "#0f1117",
-              margin: 0,
-            }}
-          >
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-[640px] max-h-[90vh] overflow-hidden flex flex-col p-0 gap-0">
+        <DialogHeader className="px-6 pt-6 pb-5 border-b shrink-0">
+          <DialogTitle>
             {plan ? "Editar Plano" : "Novo Plano"}
-          </h2>
-          <button
-            onClick={onClose}
-            style={{
-              background: "transparent",
-              border: "none",
-              color: "#9ca3af",
-              cursor: "pointer",
-              display: "flex",
-            }}
-          >
-            <X style={{ width: 20, height: 20 }} />
-          </button>
-        </div>
+          </DialogTitle>
+        </DialogHeader>
 
-        {/* Content */}
-        <div
-          style={{
-            padding: "24px",
-            overflowY: "auto",
-            flex: 1,
-            fontFamily: "'DM Sans', sans-serif",
-          }}
-        >
+        <div className="flex-1 overflow-y-auto px-6 py-5">
           <form
             id="plan-form"
             onSubmit={handleSubmit}
-            style={{ display: "flex", flexDirection: "column", gap: 20 }}
+            className="flex flex-col gap-5"
           >
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: 16,
-              }}
-            >
-              <div>
-                <label style={labelStyle}>Nome do Plano *</label>
-                <input
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">Nome do Plano *</Label>
+                <Input
                   required
                   value={formData.name || ""}
                   onChange={(e) =>
                     setFormData((p) => ({ ...p, name: e.target.value }))
                   }
-                  style={inputStyle}
                   placeholder="Ex: Profissional"
                 />
               </div>
-              <div>
-                <label style={labelStyle}>Slug *</label>
-                <input
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">Slug *</Label>
+                <Input
                   required
                   value={formData.slug || ""}
                   onChange={(e) =>
                     setFormData((p) => ({ ...p, slug: e.target.value }))
                   }
-                  style={inputStyle}
                   placeholder="Ex: professional"
                 />
               </div>
             </div>
 
-            <div>
-              <label style={labelStyle}>Descrição</label>
-              <input
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Descricao</Label>
+              <Input
                 value={formData.description || ""}
                 onChange={(e) =>
                   setFormData((p) => ({ ...p, description: e.target.value }))
                 }
-                style={inputStyle}
-                placeholder="Ex: Ideal para clínicas em crescimento"
+                placeholder="Ex: Ideal para clinicas em crescimento"
               />
             </div>
 
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: 16,
-              }}
-            >
-              <div>
-                <label style={labelStyle}>Limite de Profissionais</label>
-                <input
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">Limite de Profissionais</Label>
+                <Input
                   type="number"
                   required
                   min="-1"
@@ -287,22 +224,14 @@ export function PlanFormModal({
                       max_professionals: parseInt(e.target.value) || 0,
                     }))
                   }
-                  style={inputStyle}
                 />
-                <span
-                  style={{
-                    fontSize: 11,
-                    color: "#9ca3af",
-                    marginTop: 4,
-                    display: "block",
-                  }}
-                >
+                <span className="text-[11px] text-muted-foreground">
                   -1 para ilimitado
                 </span>
               </div>
-              <div>
-                <label style={labelStyle}>Máx Conexões WhatsApp</label>
-                <input
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">Max Conexoes WhatsApp</Label>
+                <Input
                   type="number"
                   required
                   min="-1"
@@ -313,21 +242,14 @@ export function PlanFormModal({
                       max_whatsapp_connections: parseInt(e.target.value) || 0,
                     }))
                   }
-                  style={inputStyle}
                 />
               </div>
             </div>
 
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: 16,
-              }}
-            >
-              <div>
-                <label style={labelStyle}>Máx Calendários Google</label>
-                <input
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">Max Calendarios Google</Label>
+                <Input
                   type="number"
                   required
                   min="-1"
@@ -338,17 +260,9 @@ export function PlanFormModal({
                       max_google_calendars: parseInt(e.target.value) || 0,
                     }))
                   }
-                  style={inputStyle}
                 />
               </div>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  marginTop: 24,
-                }}
-              >
+              <div className="flex items-center gap-2 mt-6">
                 <input
                   type="checkbox"
                   id="has_api"
@@ -359,187 +273,103 @@ export function PlanFormModal({
                       has_api_access: e.target.checked,
                     }))
                   }
+                  className="rounded"
                 />
                 <label
                   htmlFor="has_api"
-                  style={{
-                    fontSize: 13,
-                    fontWeight: 500,
-                    color: "#0f1117",
-                    cursor: "pointer",
-                  }}
+                  className="text-[13px] font-medium cursor-pointer"
                 >
-                  Acesso à API
+                  Acesso a API
                 </label>
               </div>
             </div>
 
             {/* Features section */}
-            <div
-              style={{
-                marginTop: 8,
-                paddingTop: 20,
-                borderTop: "1px dashed #e8eaed",
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  marginBottom: 12,
-                }}
-              >
-                <label style={{ ...labelStyle, marginBottom: 0 }}>
-                  Funcionalidades (Lista)
-                </label>
-                <button
+            <div className="mt-2 pt-5 border-t border-dashed">
+              <div className="flex justify-between items-center mb-3">
+                <Label className="text-xs font-semibold">Funcionalidades (Lista)</Label>
+                <Button
                   type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs gap-1"
                   onClick={addFeature}
-                  style={{
-                    background: "transparent",
-                    border: "1px solid #e8eaed",
-                    borderRadius: 6,
-                    padding: "4px 8px",
-                    fontSize: 12,
-                    fontWeight: 600,
-                    color: "#1a1a2e",
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 4,
-                  }}
                 >
-                  <Plus style={{ width: 12, height: 12 }} /> Adicionar
-                </button>
+                  <Plus className="h-3 w-3" /> Adicionar
+                </Button>
               </div>
 
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <div className="flex flex-col gap-2">
                 {formData.features?.map((feat, index) => (
-                  <div key={index} style={{ display: "flex", gap: 8 }}>
-                    <input
+                  <div key={index} className="flex gap-2">
+                    <Input
                       value={feat}
                       onChange={(e) =>
                         handleFeatureChange(index, e.target.value)
                       }
-                      style={{ ...inputStyle, flex: 1 }}
+                      className="flex-1"
                       placeholder={`Funcionalidade ${index + 1}`}
                     />
-                    <button
+                    <Button
                       type="button"
+                      variant="outline"
+                      size="icon"
+                      className="h-9 w-9 text-destructive border-destructive/30 hover:bg-destructive/10 shrink-0"
                       onClick={() => removeFeature(index)}
-                      style={{
-                        background: "#fef2f2",
-                        border: "1px solid #fecaca",
-                        borderRadius: 8,
-                        width: 40,
-                        color: "#dc2626",
-                        cursor: "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
                     >
-                      <Minus style={{ width: 14, height: 14 }} />
-                    </button>
+                      <Minus className="h-3.5 w-3.5" />
+                    </Button>
                   </div>
                 ))}
               </div>
             </div>
 
             {/* Cycles section */}
-            <div
-              style={{
-                marginTop: 8,
-                paddingTop: 20,
-                borderTop: "1px dashed #e8eaed",
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  marginBottom: 12,
-                }}
-              >
-                <label style={{ ...labelStyle, marginBottom: 0 }}>
-                  Ciclos de Cobrança (Preços)
-                </label>
-                <button
+            <div className="mt-2 pt-5 border-t border-dashed">
+              <div className="flex justify-between items-center mb-3">
+                <Label className="text-xs font-semibold">Ciclos de Cobranca (Precos)</Label>
+                <Button
                   type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs gap-1"
                   onClick={addCycle}
-                  style={{
-                    background: "transparent",
-                    border: "1px solid #e8eaed",
-                    borderRadius: 6,
-                    padding: "4px 8px",
-                    fontSize: 12,
-                    fontWeight: 600,
-                    color: "#1a1a2e",
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 4,
-                  }}
                 >
-                  <Plus style={{ width: 12, height: 12 }} /> Adicionar
-                </button>
+                  <Plus className="h-3 w-3" /> Adicionar
+                </Button>
               </div>
 
-              <div
-                style={{ display: "flex", flexDirection: "column", gap: 12 }}
-              >
+              <div className="flex flex-col gap-3">
                 {cycles.map((cycle, index) => (
                   <div
                     key={index}
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "1fr 1fr auto",
-                      gap: 8,
-                      background: "#f9fafb",
-                      padding: 12,
-                      borderRadius: 8,
-                      border: "1px solid #e8eaed",
-                    }}
+                    className="grid grid-cols-[1fr_1fr_auto] gap-2 bg-muted/50 p-3 rounded-lg border"
                   >
-                    <div>
-                      <label
-                        style={{
-                          fontSize: 11,
-                          fontWeight: 600,
-                          color: "#6b7280",
-                          marginBottom: 4,
-                          display: "block",
-                        }}
-                      >
-                        Período
-                      </label>
-                      <select
+                    <div className="space-y-1">
+                      <Label className="text-[11px] font-semibold text-muted-foreground">
+                        Periodo
+                      </Label>
+                      <Select
                         value={cycle.cycle_type}
-                        onChange={(e) =>
-                          handleCycleChange(index, "cycle_type", e.target.value)
+                        onValueChange={(v) =>
+                          handleCycleChange(index, "cycle_type", v)
                         }
-                        style={inputStyle}
                       >
-                        <option value="monthly">Mensal</option>
-                        <option value="yearly">Anual</option>
-                        <option value="lifetime">Vitalício</option>
-                      </select>
+                        <SelectTrigger className="h-9">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="monthly">Mensal</SelectItem>
+                          <SelectItem value="yearly">Anual</SelectItem>
+                          <SelectItem value="lifetime">Vitalicio</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
-                    <div>
-                      <label
-                        style={{
-                          fontSize: 11,
-                          fontWeight: 600,
-                          color: "#6b7280",
-                          marginBottom: 4,
-                          display: "block",
-                        }}
-                      >
-                        Preço (R$)
-                      </label>
-                      <input
+                    <div className="space-y-1">
+                      <Label className="text-[11px] font-semibold text-muted-foreground">
+                        Preco (R$)
+                      </Label>
+                      <Input
                         type="number"
                         step="0.01"
                         min="0"
@@ -548,45 +378,27 @@ export function PlanFormModal({
                         onChange={(e) =>
                           handleCycleChange(index, "price_brl", e.target.value)
                         }
-                        style={inputStyle}
+                        className="h-9"
                       />
                     </div>
-                    <div style={{ display: "flex", alignItems: "flex-end" }}>
-                      <button
+                    <div className="flex items-end">
+                      <Button
                         type="button"
+                        variant="outline"
+                        size="icon"
+                        className={`h-9 w-9 ${cycles.length === 1 ? "opacity-40 cursor-not-allowed" : "text-destructive border-destructive/30 hover:bg-destructive/10"}`}
                         onClick={() => removeCycle(index)}
                         disabled={cycles.length === 1}
-                        style={{
-                          background:
-                            cycles.length === 1 ? "#f3f4f6" : "#fef2f2",
-                          border: `1px solid ${cycles.length === 1 ? "#e5e7eb" : "#fecaca"}`,
-                          borderRadius: 8,
-                          height: 40,
-                          width: 40,
-                          color: cycles.length === 1 ? "#9ca3af" : "#dc2626",
-                          cursor:
-                            cycles.length === 1 ? "not-allowed" : "pointer",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                        }}
                       >
-                        <Minus style={{ width: 14, height: 14 }} />
-                      </button>
+                        <Minus className="h-3.5 w-3.5" />
+                      </Button>
                     </div>
                   </div>
                 ))}
               </div>
             </div>
 
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                marginTop: 8,
-              }}
-            >
+            <div className="flex items-center gap-2 mt-2">
               <input
                 type="checkbox"
                 id="is_active"
@@ -594,99 +406,28 @@ export function PlanFormModal({
                 onChange={(e) =>
                   setFormData((p) => ({ ...p, is_active: e.target.checked }))
                 }
+                className="rounded"
               />
               <label
                 htmlFor="is_active"
-                style={{
-                  fontSize: 13,
-                  fontWeight: 500,
-                  color: "#0f1117",
-                  cursor: "pointer",
-                }}
+                className="text-[13px] font-medium cursor-pointer"
               >
-                Plano Ativo (Visível para clientes)
+                Plano Ativo (Visivel para clientes)
               </label>
             </div>
           </form>
         </div>
 
-        {/* Footer */}
-        <div
-          style={{
-            padding: "16px 24px",
-            borderTop: "1px solid #e8eaed",
-            background: "#f9fafb",
-            display: "flex",
-            gap: 12,
-            justifyContent: "flex-end",
-          }}
-        >
-          <button
-            type="button"
-            onClick={onClose}
-            style={{
-              padding: "8px 16px",
-              borderRadius: 8,
-              fontSize: 13,
-              fontWeight: 600,
-              background: "white",
-              color: "#1a1a2e",
-              border: "1px solid #d1d5db",
-              cursor: "pointer",
-            }}
-          >
+        <DialogFooter className="px-6 py-4 border-t bg-muted/30 shrink-0">
+          <Button type="button" variant="outline" onClick={onClose}>
             Cancelar
-          </button>
-          <button
-            type="submit"
-            form="plan-form"
-            disabled={isSaving}
-            style={{
-              padding: "8px 20px",
-              borderRadius: 8,
-              fontSize: 13,
-              fontWeight: 600,
-              background: "#1a1a2e",
-              color: "white",
-              border: "none",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-            }}
-          >
-            {isSaving && (
-              <Loader2
-                style={{
-                  width: 14,
-                  height: 14,
-                  animation: "spin 1s linear infinite",
-                }}
-              />
-            )}
+          </Button>
+          <Button type="submit" form="plan-form" disabled={isSaving}>
+            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Salvar Plano
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
-
-const labelStyle: React.CSSProperties = {
-  display: "block",
-  fontSize: 12,
-  fontWeight: 600,
-  color: "#4b5563",
-  marginBottom: 6,
-};
-
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  padding: "8px 12px",
-  borderRadius: 8,
-  border: "1.5px solid #e5e7eb",
-  fontSize: 14,
-  outline: "none",
-  fontFamily: "inherit",
-  transition: "border-color 150ms",
-};

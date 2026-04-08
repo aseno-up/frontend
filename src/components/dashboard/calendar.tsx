@@ -22,7 +22,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import type { Appointment, Professional } from "@/types/api"
+import type { Appointment, Professional, CalendarEvent as ApiCalendarEvent } from "@/types/api"
 
 // Status configuration with colors and icons
 const statusConfig: Record<string, { bg: string; border: string; text: string; label: string }> = {
@@ -56,7 +56,7 @@ const StatusIcon = ({ status }: { status: string }) => {
   }
 }
 
-interface CalendarEvent {
+interface CalendarEventInternal {
   id: string
   title: string
   start: string
@@ -64,10 +64,18 @@ interface CalendarEvent {
   backgroundColor: string
   borderColor: string
   textColor: string
+  classNames?: string[]
   extendedProps: {
-    appointment: Appointment
+    appointment?: Appointment
+    isVirtual: boolean
+    sessionPlanId?: string
+    virtualDate?: string
     professionalColor?: string
     professionalName?: string
+    patientName?: string
+    planType?: string
+    enrolledCount?: number
+    capacity?: number
     timeText?: string
   }
 }
@@ -98,7 +106,7 @@ export function Calendar({
   professionals,
 }: CalendarProps) {
   const calendarRef = useRef<FullCalendar>(null)
-  const [events, setEvents] = useState<CalendarEvent[]>([])
+  const [events, setEvents] = useState<CalendarEventInternal[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const [recurringDialog, setRecurringDialog] = useState<{
@@ -134,15 +142,68 @@ export function Calendar({
         const start = format(startDate, "yyyy-MM-dd")
         const end = format(endDate, "yyyy-MM-dd")
 
-        const response = await api.getAppointments({
+        const response = await api.getCalendarEvents({
           start_date: start,
           end_date: end,
           professional_id: selectedProfessionalId,
-          per_page: 500,
         })
 
-        const calendarEvents: CalendarEvent[] = response.data.map(
-          (apt: Appointment) => {
+        const calendarEvents: CalendarEventInternal[] = (response.data as ApiCalendarEvent[]).map(
+          (evt: ApiCalendarEvent) => {
+            if (evt.is_virtual) {
+              // Virtual event — RRULE-calculated, not yet in database
+              // Rendered identically to a pending appointment
+              const colors = statusConfig.pending
+              const professional = professionals.find(
+                (p) => p.id === evt.professional_id
+              )
+              const title = evt.plan_type === "group"
+                ? `${evt.title} (${evt.enrolled_count ?? 0}/${evt.capacity ?? "?"})`
+                : evt.patient_name || evt.title || "Sessao"
+
+              return {
+                id: `virtual_${evt.session_plan_id}_${evt.virtual_date}`,
+                title,
+                start: evt.start_time,
+                end: evt.end_time,
+                backgroundColor: colors.bg,
+                borderColor: colors.border,
+                textColor: colors.text,
+                extendedProps: {
+                  isVirtual: true,
+                  sessionPlanId: evt.session_plan_id,
+                  virtualDate: evt.virtual_date,
+                  professionalColor: professional?.color || evt.professional_color,
+                  professionalName: professional?.name || evt.professional_name,
+                  patientName: evt.patient_name,
+                  planType: evt.plan_type,
+                  enrolledCount: evt.enrolled_count,
+                  capacity: evt.capacity,
+                },
+              }
+            }
+
+            // Real appointment — same as before
+            const apt: Appointment = {
+              id: evt.id!,
+              clinic_id: "",
+              patient_id: evt.patient_id || "",
+              professional_id: evt.professional_id || "",
+              start_time: evt.start_time,
+              end_time: evt.end_time,
+              status: evt.status as Appointment["status"],
+              type: (evt.type || "regular") as Appointment["type"],
+              title: evt.title || "",
+              notes: evt.notes || "",
+              patient_notes: evt.patient_notes || "",
+              price: evt.price || 0,
+              payment_status: (evt.payment_status || "pending") as Appointment["payment_status"],
+              procedures: evt.procedure_name ? [{ appointment_id: "", procedure_id: "", price: evt.price || 0, procedure: { id: "", clinic_id: "", name: evt.procedure_name, description: "", price: evt.price || 0, duration_minutes: 0, created_at: "", updated_at: "" } }] : [],
+              created_at: "",
+              patient: evt.patient_name ? { id: evt.patient_id || "", name: evt.patient_name, phone: "", whatsapp: "" } : undefined,
+              professional: evt.professional_name ? { id: evt.professional_id || "", name: evt.professional_name, specialty: "", color: evt.professional_color || "" } : undefined,
+            }
+
             const colors = statusConfig[apt.status] || statusConfig.pending
             const professional = professionals.find(
               (p) => p.id === apt.professional_id
@@ -158,6 +219,8 @@ export function Calendar({
               textColor: colors.text,
               extendedProps: {
                 appointment: apt,
+                isVirtual: false,
+                sessionPlanId: evt.session_plan_id,
                 professionalColor: professional?.color,
                 professionalName: professional?.name,
               },
@@ -187,10 +250,34 @@ export function Calendar({
     fetchAppointments(dateInfo.start, dateInfo.end)
   }
 
-  const handleEventClick = (info: EventClickArg) => {
+  const handleEventClick = async (info: EventClickArg) => {
     setTooltip((t) => ({ ...t, visible: false }))
-    const appointment = info.event.extendedProps.appointment as Appointment
-    onEventClick(appointment)
+
+    const { isVirtual, sessionPlanId, virtualDate, appointment } = info.event.extendedProps
+
+    if (isVirtual && sessionPlanId && virtualDate) {
+      // Virtual event: materialize first, then open
+      try {
+        setIsLoading(true)
+        const result = await api.materializeAppointment(sessionPlanId, virtualDate)
+        onEventClick(result as Appointment)
+        // Refresh calendar to show the now-materialized event
+        const calendarApi = calendarRef.current?.getApi()
+        if (calendarApi) {
+          const view = calendarApi.view
+          fetchAppointments(view.activeStart, view.activeEnd)
+        }
+      } catch (error) {
+        console.error("Error materializing appointment:", error)
+      } finally {
+        setIsLoading(false)
+      }
+      return
+    }
+
+    if (appointment) {
+      onEventClick(appointment as Appointment)
+    }
   }
 
   const handleDateSelect = (selectInfo: DateSelectArg) => {
@@ -226,8 +313,31 @@ export function Calendar({
   }
 
   const handleEventDrop = async (info: EventDropArg) => {
-    const appointment = info.event.extendedProps.appointment as Appointment
-    
+    const { isVirtual, sessionPlanId, virtualDate, appointment } = info.event.extendedProps
+
+    if (isVirtual && sessionPlanId && virtualDate) {
+      // Virtual event moved — use rescheduleOccurrence to create exception
+      try {
+        setIsLoading(true)
+        if (info.event.start) {
+          await api.rescheduleOccurrence(sessionPlanId, virtualDate, info.event.start.toISOString())
+        }
+        const calendarApi = calendarRef.current?.getApi()
+        if (calendarApi) {
+          const view = calendarApi.view
+          fetchAppointments(view.activeStart, view.activeEnd)
+        }
+      } catch (error) {
+        console.error("Error rescheduling virtual occurrence:", error)
+        info.revert()
+      } finally {
+        setIsLoading(false)
+      }
+      return
+    }
+
+    if (!appointment) { info.revert(); return }
+
     if (appointment.type === 'recurring') {
       info.revert()
       setRecurringDialog({ open: true, info })
@@ -238,7 +348,30 @@ export function Calendar({
   }
 
   const handleEventResize = async (info: EventResizeDoneArg) => {
-    const appointment = info.event.extendedProps.appointment as Appointment
+    const { isVirtual, sessionPlanId, virtualDate, appointment } = info.event.extendedProps
+
+    if (isVirtual && sessionPlanId && virtualDate) {
+      // Virtual event resized — use rescheduleOccurrence to create exception
+      try {
+        setIsLoading(true)
+        if (info.event.start) {
+          await api.rescheduleOccurrence(sessionPlanId, virtualDate, info.event.start.toISOString())
+        }
+        const calendarApi = calendarRef.current?.getApi()
+        if (calendarApi) {
+          const view = calendarApi.view
+          fetchAppointments(view.activeStart, view.activeEnd)
+        }
+      } catch (error) {
+        console.error("Error rescheduling virtual occurrence:", error)
+        info.revert()
+      } finally {
+        setIsLoading(false)
+      }
+      return
+    }
+
+    if (!appointment) { info.revert(); return }
 
     if (appointment.type === 'recurring') {
       info.revert()
@@ -254,8 +387,28 @@ export function Calendar({
 
     const info = recurringDialog.info
     const appointment = info.event.extendedProps.appointment as Appointment
-    
-    await performUpdate(appointment.id, info.event.start, info.event.end, mode)
+    const sessionPlanId = info.event.extendedProps.sessionPlanId as string | undefined
+
+    if (mode === 'single' && sessionPlanId && info.event.start) {
+      // Use rescheduleOccurrence to create an exception for this single occurrence
+      try {
+        setIsLoading(true)
+        const originalDate = format(new Date(appointment.start_time), "yyyy-MM-dd")
+        await api.rescheduleOccurrence(sessionPlanId, originalDate, info.event.start.toISOString())
+        const calendarApi = calendarRef.current?.getApi()
+        if (calendarApi) {
+          const view = calendarApi.view
+          fetchAppointments(view.activeStart, view.activeEnd)
+        }
+      } catch (error) {
+        console.error("Error rescheduling single occurrence:", error)
+      } finally {
+        setIsLoading(false)
+      }
+    } else {
+      await performUpdate(appointment.id, info.event.start, info.event.end, mode)
+    }
+
     setRecurringDialog({ open: false, info: null })
   }
 
@@ -313,18 +466,11 @@ export function Calendar({
   // Custom event content renderer — no Tooltip/portal here
   const renderEventContent = (eventInfo: EventContentArg) => {
     const appointment = eventInfo.event.extendedProps?.appointment as Appointment | undefined
+    const isVirtual = eventInfo.event.extendedProps?.isVirtual as boolean | undefined
     const professionalColor = eventInfo.event.extendedProps?.professionalColor as string | undefined
 
-    // If no appointment data, return simple event rendering
-    if (!appointment) {
-      return (
-        <div className="p-1 text-xs truncate">
-          {eventInfo.event.title}
-        </div>
-      )
-    }
-
-    const status = appointment.status || "pending"
+    // Virtual events render identically to pending appointments
+    const status = appointment?.status || "pending"
     const config = statusConfig[status] || statusConfig.pending
 
     return (
@@ -403,6 +549,25 @@ export function Calendar({
                 <div className="flex items-center gap-2 text-xs text-muted-foreground border-t pt-1 mt-1">
                   <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: tooltip.professionalColor }} />
                   <span>Prof: {tooltip.professionalName}</span>
+                </div>
+              )}
+              {(tooltip.appointment.price > 0 || tooltip.appointment.procedures?.length > 0) && (
+                <div className="flex items-center justify-between gap-2 text-xs border-t pt-1 mt-1">
+                  <span className="text-muted-foreground">
+                    {tooltip.appointment.procedures?.[0]?.procedure?.name || "Valor"}
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-medium">R$ {(tooltip.appointment.price || 0).toFixed(2)}</span>
+                    {tooltip.appointment.payment_status === "paid" && (
+                      <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase bg-green-100 text-green-700">Pago</span>
+                    )}
+                    {tooltip.appointment.payment_status === "partial" && (
+                      <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase bg-amber-100 text-amber-700">Parcial</span>
+                    )}
+                    {tooltip.appointment.payment_status === "pending" && tooltip.appointment.price > 0 && (
+                      <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase bg-red-100 text-red-700">Pendente</span>
+                    )}
+                  </div>
                 </div>
               )}
             </div>

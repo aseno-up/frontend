@@ -33,6 +33,7 @@ const customStyles: StylesConfig<SelectOption, boolean, GroupBase<SelectOption>>
   menuList: (base) => ({
     ...base,
     padding: "4px",
+    maxHeight: "250px",
   }),
   option: (base, state) => ({
     ...base,

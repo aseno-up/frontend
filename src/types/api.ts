@@ -190,6 +190,40 @@ export type AppointmentStatus =
 
 export type AppointmentType = 'regular' | 'recurring' | 'return'
 
+export type PlanType = 'individual' | 'group'
+
+export interface CalendarEvent {
+  is_virtual: boolean
+  // Common fields
+  session_plan_id?: string
+  start_time: string
+  end_time: string
+  title: string
+  patient_id?: string
+  professional_id?: string
+  plan_type?: PlanType
+  duration_mins?: number
+  // Virtual-only
+  virtual_date?: string
+  // Group-only
+  enrolled_count?: number
+  capacity?: number
+  // Real appointment fields (only when is_virtual=false)
+  id?: string
+  status?: AppointmentStatus
+  type?: AppointmentType
+  notes?: string
+  patient_notes?: string
+  price?: number
+  payment_status?: string
+  is_exception?: boolean
+  // Relations
+  patient_name?: string
+  professional_name?: string
+  professional_color?: string
+  procedure_name?: string
+}
+
 export interface PatientInfo {
   id: string
   name: string
@@ -574,6 +608,7 @@ export interface SessionPlan {
   frequency: Frequency
   week_days: number[]
   preferred_time: string
+  day_times?: Record<string, string>
   duration_mins: number
   total_sessions: number
   sessions_done: number
@@ -599,6 +634,7 @@ export interface CreateSessionPlanRequest {
   frequency: Frequency
   week_days?: number[]
   preferred_time: string
+  day_times?: Record<string, string>
   duration_mins: number
   total_sessions: number
   start_date: string
@@ -622,6 +658,55 @@ export interface SessionPlanListResponse {
   page: number
   per_page: number
   total_pages: number
+}
+
+// Enrollment Types
+export type EnrollmentStatus = 'active' | 'suspended' | 'cancelled'
+
+export interface Enrollment {
+  id: string
+  session_plan_id: string
+  patient_id: string
+  status: EnrollmentStatus
+  total_sessions?: number | null
+  sessions_done: number
+  progress: number
+  payment_mode: 'per_session' | 'upfront' | 'monthly'
+  monthly_amount?: number | null
+  billing_day?: number | null
+  joined_at: string
+  left_at?: string | null
+  patient_name?: string
+}
+
+// Attendance Types
+export type AttendanceStatus = 'present' | 'absent' | 'substituted'
+
+export interface AttendanceRecord {
+  id: string
+  appointment_id: string
+  patient_id: string
+  enrollment_id?: string | null
+  status: AttendanceStatus
+  is_guest: boolean
+  patient_name?: string
+  created_at: string
+}
+
+// Plan Payment Types
+export interface PlanPayment {
+  id: string
+  session_plan_id: string
+  enrollment_id?: string | null
+  payment_method_id: string
+  amount: number
+  discount: number
+  installments: number
+  reference_month?: string | null
+  notes?: string
+  paid_at?: string | null
+  payment_method_name?: string
+  created_at: string
 }
 
 // Invite Types

@@ -639,6 +639,7 @@ class ApiClient {
     frequency: string
     week_days?: number[]
     preferred_time: string
+    day_times?: Record<string, string>
     duration_mins: number
     total_sessions: number
     start_date: string
@@ -679,10 +680,134 @@ class ApiClient {
     return response.data
   }
 
-  async generateSessionPlanAppointments(id: string, weeksAhead = 2) {
-    const response = await this.client.post(`/session-plans/${id}/generate`, {
-      weeks_ahead: weeksAhead,
-    })
+  async getCalendarEvents(params: {
+    start_date: string
+    end_date: string
+    professional_id?: string
+  }) {
+    const response = await this.client.get('/calendar/events', { params })
+    return response.data
+  }
+
+  async materializeAppointment(sessionPlanId: string, date: string) {
+    const response = await this.client.post(
+      `/session-plans/${sessionPlanId}/materialize`,
+      { date }
+    )
+    return response.data
+  }
+
+  async cancelOccurrence(sessionPlanId: string, date: string) {
+    const response = await this.client.post(
+      `/session-plans/${sessionPlanId}/cancel-occurrence`,
+      { date }
+    )
+    return response.data
+  }
+
+  async rescheduleOccurrence(sessionPlanId: string, originalDate: string, newStartTime: string) {
+    const response = await this.client.post(
+      `/session-plans/${sessionPlanId}/reschedule-occurrence`,
+      { original_date: originalDate, new_start_time: newStartTime }
+    )
+    return response.data
+  }
+
+  // Attendance endpoints
+  async recordAttendance(appointmentId: string, data: {
+    patient_id: string
+    status: 'present' | 'absent' | 'substituted'
+    is_guest?: boolean
+    payment_method_id?: string
+    payment_amount?: number
+  }) {
+    const response = await this.client.post(`/appointments/${appointmentId}/attendance`, data)
+    return response.data
+  }
+
+  async getAttendance(appointmentId: string) {
+    const response = await this.client.get(`/appointments/${appointmentId}/attendance`)
+    return response.data
+  }
+
+  // Enrollment endpoints
+  async enrollPatient(sessionPlanId: string, data: {
+    patient_id: string
+    total_sessions?: number
+    payment_mode?: string
+    monthly_amount?: number
+    billing_day?: number
+  }) {
+    const response = await this.client.post(`/session-plans/${sessionPlanId}/enrollments`, data)
+    return response.data
+  }
+
+  async getEnrollments(sessionPlanId: string) {
+    const response = await this.client.get(`/session-plans/${sessionPlanId}/enrollments`)
+    return response.data
+  }
+
+  async suspendEnrollment(sessionPlanId: string, enrollmentId: string) {
+    const response = await this.client.put(`/session-plans/${sessionPlanId}/enrollments/${enrollmentId}/suspend`)
+    return response.data
+  }
+
+  async reactivateEnrollment(sessionPlanId: string, enrollmentId: string) {
+    const response = await this.client.put(`/session-plans/${sessionPlanId}/enrollments/${enrollmentId}/reactivate`)
+    return response.data
+  }
+
+  async cancelEnrollment(sessionPlanId: string, enrollmentId: string) {
+    const response = await this.client.put(`/session-plans/${sessionPlanId}/enrollments/${enrollmentId}/cancel`)
+    return response.data
+  }
+
+  // Plan payment endpoints
+  async createPlanPayment(sessionPlanId: string, data: {
+    payment_method_id: string
+    amount: number
+    discount?: number
+    installments?: number
+    notes?: string
+  }) {
+    const response = await this.client.post(`/session-plans/${sessionPlanId}/payments`, data)
+    return response.data
+  }
+
+  async getPlanPayments(sessionPlanId: string) {
+    const response = await this.client.get(`/session-plans/${sessionPlanId}/payments`)
+    return response.data
+  }
+
+  async getPlanPaymentStatus(sessionPlanId: string) {
+    const response = await this.client.get(`/session-plans/${sessionPlanId}/payment-status`)
+    return response.data
+  }
+
+  async deletePlanPayment(sessionPlanId: string, paymentId: string) {
+    const response = await this.client.delete(`/session-plans/${sessionPlanId}/payments/${paymentId}`)
+    return response.data
+  }
+
+  async createEnrollmentPayment(sessionPlanId: string, enrollmentId: string, data: {
+    payment_method_id: string
+    amount: number
+    discount?: number
+    installments?: number
+    reference_month?: string
+    notes?: string
+  }) {
+    const response = await this.client.post(
+      `/session-plans/${sessionPlanId}/enrollments/${enrollmentId}/payments`,
+      data
+    )
+    return response.data
+  }
+
+  async getEnrollmentPayments(sessionPlanId: string, enrollmentId: string) {
+    const response = await this.client.get(
+      `/session-plans/${sessionPlanId}/enrollments/${enrollmentId}/payments`
+    )
     return response.data
   }
 
