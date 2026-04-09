@@ -228,8 +228,15 @@ export function PlanDetailModal({
     setEditDayTimes(plan.day_times || {})
     setIsEditing(true)
     try {
-      const resp = await api.getProfessionals({ limit: 100, status: "active" })
-      setProfessionals(resp?.data || resp || [])
+      // If plan has a procedure, only load professionals with commission for it
+      if (plan.procedure_id) {
+        const resp = await api.getProfessionalsByProcedure(plan.procedure_id)
+        const profsWithCommission = (resp?.data || []).map(p => ({ id: p.professional_id, name: p.professional_name }))
+        setProfessionals(profsWithCommission)
+      } else {
+        const resp = await api.getProfessionals({ limit: 100, status: "active" })
+        setProfessionals(resp?.data || resp || [])
+      }
     } catch {}
   }
 

@@ -942,7 +942,9 @@ interface CommissionSummary {
 
 interface CommissionDetail {
   id: string
-  appointment_id: string
+  appointment_id?: string | null
+  session_plan_id?: string | null
+  session_date?: string
   appointment_date: string
   patient_name: string
   procedure_name: string
@@ -952,6 +954,7 @@ interface CommissionDetail {
   commission_value: number
   status: 'pending' | 'paid'
   paid_at?: string
+  source?: 'appointment' | 'group_session'
 }
 
 function RepasseTab() {
@@ -1290,7 +1293,14 @@ function RepasseTab() {
                         )}
                       </TableCell>
                       <TableCell>{formatDate(d.appointment_date)}</TableCell>
-                      <TableCell>{d.patient_name}</TableCell>
+                      <TableCell>
+                        {d.source === 'group_session' ? (
+                          <span className="flex items-center gap-1.5">
+                            <Badge variant="outline" className="text-[10px] px-1 py-0">Grupo</Badge>
+                            {d.session_date || 'Sessão de grupo'}
+                          </span>
+                        ) : d.patient_name}
+                      </TableCell>
                       <TableCell>{d.procedure_name}</TableCell>
                       <TableCell className="text-right">{formatCurrency(d.session_price)}</TableCell>
                       <TableCell>

@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { ClipboardCheck, UserPlus, Check, X, Minus, Search, CreditCard } from "lucide-react"
+import { ClipboardCheck, UserPlus, Check, X, Minus, Search, CreditCard, User } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -77,6 +77,19 @@ export function GroupAttendanceDialog({ open, onOpenChange, appointmentId, sessi
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false)
   const [paymentEnrollmentId, setPaymentEnrollmentId] = useState<string | undefined>()
 
+  // Session professional state
+  const [sessionProfessionalId, setSessionProfessionalId] = useState<string | null>(null)
+  const [sessionProfessionalName, setSessionProfessionalName] = useState<string | null>(null)
+  const [planProfessionalId, setPlanProfessionalId] = useState<string | null>(null)
+  const [planProfessionalName, setPlanProfessionalName] = useState<string | null>(null)
+  const [professionals, setProfessionals] = useState<Array<{ id: string; name: string }>>([])
+  const [savingProfessional, setSavingProfessional] = useState(false)
+
+  const isFixedProfessional = !!planProfessionalId
+  const effectiveProfessionalId = sessionProfessionalId || planProfessionalId
+  const effectiveProfessionalName = sessionProfessionalName || planProfessionalName
+  const hasProfessional = !!effectiveProfessionalId
+
   const loadData = useCallback(async () => {
     if (!sessionPlanId) return
     setLoading(true)
@@ -141,13 +154,81 @@ export function GroupAttendanceDialog({ open, onOpenChange, appointmentId, sessi
 
   useEffect(() => {
     if (open) {
+      // Reset state on open to avoid stale data from previous dialog
+      setPlanProfessionalId(null)
+      setPlanProfessionalName(null)
+      setSessionProfessionalId(null)
+      setSessionProfessionalName(null)
+      setProfessionals([])
+
       loadData()
       // Load payment methods for guest payments
       api.getPaymentMethods().then((data: { data?: PaymentMethod[] }) => {
         setPaymentMethods(data.data || [])
       }).catch(() => {})
+
+      // Load session plan to check professional type and procedure
+      api.getSessionPlan(sessionPlanId).then((resp: { data?: { professional_id?: string; professional_name?: string; procedure_id?: string | null } }) => {
+        const plan = resp.data
+        console.log('[GroupAttendance] Plan loaded:', { professional_id: plan?.professional_id, professional_name: plan?.professional_name, procedure_id: plan?.procedure_id })
+        if (plan?.professional_id) {
+          setPlanProfessionalId(plan.professional_id)
+          setPlanProfessionalName(plan.professional_name || null)
+        } else {
+          setPlanProfessionalId(null)
+          setPlanProfessionalName(null)
+          // Load only professionals with commission for this procedure
+          if (plan?.procedure_id) {
+            api.getProfessionalsByProcedure(plan.procedure_id).then((pResp) => {
+              setProfessionals((pResp.data || []).map(p => ({ id: p.professional_id, name: p.professional_name })))
+            }).catch(() => {})
+          } else {
+            // Fallback: load all active professionals if no procedure
+            api.getProfessionals({ limit: 100, status: "active" }).then((pResp: { data?: Array<{ id: string; name: string }> }) => {
+              setProfessionals(pResp.data || [])
+            }).catch(() => {})
+          }
+        }
+      }).catch((err) => {
+        console.error('[GroupAttendance] Error loading plan:', err)
+      })
+
+      // Load session professional assignment (if any)
+      if (sessionDate) {
+        api.getSessionProfessional(sessionPlanId, sessionDate).then((resp) => {
+          const data = resp.data
+          console.log('[GroupAttendance] Session professional loaded:', data)
+          if (data) {
+            setSessionProfessionalId(data.professional_id)
+            setSessionProfessionalName(data.professional_name || null)
+          } else {
+            setSessionProfessionalId(null)
+            setSessionProfessionalName(null)
+          }
+        }).catch((err) => {
+          console.error('[GroupAttendance] Error loading session professional:', err)
+          setSessionProfessionalId(null)
+          setSessionProfessionalName(null)
+        })
+      }
     }
-  }, [open, loadData])
+  }, [open, loadData, sessionPlanId, sessionDate])
+
+  const handleProfessionalChange = async (professionalId: string) => {
+    if (!sessionDate) return
+    setSavingProfessional(true)
+    try {
+      const resp = await api.setSessionProfessional(sessionPlanId, sessionDate, professionalId)
+      const data = resp.data
+      setSessionProfessionalId(data.professional_id)
+      setSessionProfessionalName(data.professional_name || professionals.find(p => p.id === professionalId)?.name || null)
+      showToast.success("Profissional atribuído")
+    } catch (error) {
+      handleApiError(error, "Erro ao atribuir profissional")
+    } finally {
+      setSavingProfessional(false)
+    }
+  }
 
   const setStatus = (patientId: string, status: AttendanceStatus) => {
     setEntries(prev => prev.map(e => {
@@ -203,11 +284,18 @@ export function GroupAttendanceDialog({ open, onOpenChange, appointmentId, sessi
         // Group attendance flow (new endpoint)
         await api.recordGroupAttendance(sessionPlanId, {
           date: sessionDate,
-          entries: entriesToSave.map(entry => ({
-            patient_id: entry.patientId,
-            status: entry.status as AttendanceStatus,
-            is_guest: entry.isGuest,
-          })),
+          entries: entriesToSave.map(entry => {
+            const data: any = {
+              patient_id: entry.patientId,
+              status: entry.status as AttendanceStatus,
+              is_guest: entry.isGuest,
+            }
+            if (entry.isGuest && entry.status === "present" && entry.paymentMethodId && entry.paymentAmount && entry.paymentAmount > 0) {
+              data.payment_method_id = entry.paymentMethodId
+              data.payment_amount = entry.paymentAmount
+            }
+            return data
+          }),
         })
       }
       showToast.success("Presença registrada com sucesso!")
@@ -269,6 +357,31 @@ export function GroupAttendanceDialog({ open, onOpenChange, appointmentId, sessi
           <DialogDescription>
             {(appointmentId || sessionDate) ? "Marque a presença dos alunos nesta sessão" : "Alunos inscritos nesta turma"}
           </DialogDescription>
+
+          {/* Professional assignment section */}
+          {sessionDate && (
+            <div className="flex items-center gap-2 pt-2">
+              <User className="h-4 w-4 text-muted-foreground shrink-0" />
+              {isFixedProfessional ? (
+                <span className="text-sm font-medium">{effectiveProfessionalName || "Profissional fixo"}</span>
+              ) : (
+                <Select
+                  value={sessionProfessionalId || ""}
+                  onValueChange={handleProfessionalChange}
+                  disabled={savingProfessional}
+                >
+                  <SelectTrigger className="h-8 text-sm flex-1">
+                    <SelectValue placeholder="Selecione o profissional desta sessão" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {professionals.map(p => (
+                      <SelectItem key={p.id} value={p.id} className="text-sm">{p.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+          )}
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto space-y-3 py-2">
@@ -319,13 +432,15 @@ export function GroupAttendanceDialog({ open, onOpenChange, appointmentId, sessi
                       </div>
                     </div>
 
-                    {/* Per-session enrolled student: "Pagar" button always visible */}
+                    {/* Per-session enrolled student: "Pagar" button */}
                     {!entry.isGuest && entry.paymentMode === "per_session" && entry.enrollmentId && (
                       <div className="flex items-center gap-2 pt-1 border-t">
                         <Button
                           variant="outline"
                           size="sm"
                           className="h-7 text-xs gap-1.5"
+                          disabled={!hasProfessional}
+                          title={!hasProfessional ? "Selecione um profissional antes de registrar pagamento" : undefined}
                           onClick={() => {
                             setPaymentEnrollmentId(entry.enrollmentId)
                             setPaymentDialogOpen(true)
@@ -334,6 +449,9 @@ export function GroupAttendanceDialog({ open, onOpenChange, appointmentId, sessi
                           <CreditCard className="h-3 w-3" />
                           Pagar sessão
                         </Button>
+                        {!hasProfessional && (
+                          <span className="text-[10px] text-amber-600">Selecione o profissional acima</span>
+                        )}
                       </div>
                     )}
 

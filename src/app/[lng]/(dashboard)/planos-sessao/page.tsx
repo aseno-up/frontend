@@ -96,7 +96,7 @@ const sessionPlanSchema = z.object({
   is_indeterminate: z.boolean().default(false),
   start_date: z.string().min(1, "Data de início é obrigatória"),
   session_price: z.number().min(0, "Valor não pode ser negativo").optional(),
-  procedure_id: z.string().optional(),
+  procedure_id: z.string().min(1, "Procedimento é obrigatório"),
   capacity: z.number().min(1).max(50).optional(),
   payment_mode: z.enum(["per_session", "upfront", "monthly"]).default("per_session"),
   notes: z.string().optional(),
@@ -231,6 +231,9 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
   // Enrollment dialog state (group plans)
   const [enrollmentDialogOpen, setEnrollmentDialogOpen] = useState(false)
 
+  // Professionals with commission for selected procedure
+  const [professionalsWithCommission, setProfessionalsWithCommission] = useState<Set<string> | null>(null)
+
   // Group attendance dialog state
   const [attendanceDialogOpen, setAttendanceDialogOpen] = useState(false)
   const [attendanceAppointmentId, setAttendanceAppointmentId] = useState("")
@@ -284,6 +287,7 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
       is_indeterminate: false,
       start_date: format(new Date(), "yyyy-MM-dd"),
       session_price: 0,
+      procedure_id: "",
       notes: "",
       professional_mode: "fixed",
       generation_mode: "auto",
@@ -323,8 +327,11 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
   }, [patients])
 
   const professionalOptions: SelectOption[] = useMemo(() => {
-    return professionals.map((prof) => ({ value: prof.id, label: `${prof.name} - ${prof.specialty}`, color: prof.color }))
-  }, [professionals])
+    const filtered = professionalsWithCommission
+      ? professionals.filter(prof => professionalsWithCommission.has(prof.id))
+      : professionals
+    return filtered.map((prof) => ({ value: prof.id, label: `${prof.name} - ${prof.specialty}`, color: prof.color }))
+  }, [professionals, professionalsWithCommission])
 
   const procedureOptions: SelectOption[] = useMemo(() => {
     return procedures.map((proc: any) => ({
@@ -474,6 +481,18 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
     fetchPaymentMethods()
   }, [fetchPlans, fetchProfessionals, fetchPatients, fetchProcedures, fetchPaymentMethods])
 
+  // Load professionals with commission when procedure changes
+  useEffect(() => {
+    if (watchedProcedureId) {
+      api.getProfessionalsByProcedure(watchedProcedureId).then((resp) => {
+        const ids = new Set((resp.data || []).map(p => p.professional_id))
+        setProfessionalsWithCommission(ids)
+      }).catch(() => setProfessionalsWithCommission(null))
+    } else {
+      setProfessionalsWithCommission(null)
+    }
+  }, [watchedProcedureId])
+
   const handleNext = async () => {
     let fieldsToValidate: (keyof SessionPlanFormData)[] = []
     switch (currentStep) {
@@ -481,7 +500,7 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
         fieldsToValidate = ["plan_type"]
         if (watchedPlanType === "individual") fieldsToValidate.push("patient_id")
         break
-      case 2: fieldsToValidate = ["title", "frequency", "preferred_time", "duration_mins", "start_date", "total_sessions"]; break
+      case 2: fieldsToValidate = ["title", "procedure_id", "frequency", "preferred_time", "duration_mins", "start_date", "total_sessions"]; break
       case 3:
         fieldsToValidate = ["professional_mode"]
         if (watchedProfessionalMode === "fixed") fieldsToValidate.push("professional_id")
@@ -838,9 +857,10 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
                   }
                 }}
                 options={procedureOptions}
-                placeholder="Selecionar procedimento (opcional)..."
+                placeholder="Selecionar procedimento..."
                 isClearable
               />
+              {errors.procedure_id && <p className="text-sm text-destructive">{errors.procedure_id.message}</p>}
               <p className="text-xs text-muted-foreground">O preco sera preenchido automaticamente do cadastro de procedimentos.</p>
             </div>
             <div className="grid grid-cols-2 gap-4">

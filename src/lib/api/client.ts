@@ -737,6 +737,8 @@ class ApiClient {
       patient_id: string
       status: 'present' | 'absent' | 'substituted'
       is_guest: boolean
+      payment_method_id?: string
+      payment_amount?: number
     }>
   }) {
     const response = await this.client.post(`/session-plans/${sessionPlanId}/attendance`, data)
@@ -745,6 +747,25 @@ class ApiClient {
 
   async getGroupAttendance(sessionPlanId: string, date: string) {
     const response = await this.client.get(`/session-plans/${sessionPlanId}/attendance`, { params: { date } })
+    return response.data
+  }
+
+  // Group session professional endpoints
+  async getSessionProfessional(sessionPlanId: string, date: string): Promise<{ data: { session_plan_id: string; session_date: string; professional_id: string; professional_name?: string } | null }> {
+    const response = await this.client.get(`/session-plans/${sessionPlanId}/sessions/${date}/professional`)
+    return response.data
+  }
+
+  async setSessionProfessional(sessionPlanId: string, date: string, professionalId: string): Promise<{ data: { session_plan_id: string; session_date: string; professional_id: string; professional_name?: string } }> {
+    const response = await this.client.put(`/session-plans/${sessionPlanId}/sessions/${date}/professional`, {
+      professional_id: professionalId,
+    })
+    return response.data
+  }
+
+  // Professionals by procedure (with commission configured)
+  async getProfessionalsByProcedure(procedureId: string): Promise<{ data: Array<{ professional_id: string; professional_name: string; commission_type: string; commission_value: number }> }> {
+    const response = await this.client.get(`/procedures/${procedureId}/professionals`)
     return response.data
   }
 
