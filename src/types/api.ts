@@ -161,6 +161,7 @@ export interface Appointment {
   clinic_id: string
   patient_id: string
   professional_id: string
+  session_plan_id?: string
   start_time: string
   end_time: string
   status: AppointmentStatus

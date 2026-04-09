@@ -6,6 +6,7 @@ import { Plus } from "lucide-react"
 import { Header } from "@/components/dashboard/header"
 import { Calendar } from "@/components/dashboard/calendar"
 import { AppointmentDialog } from "@/components/dashboard/appointment-dialog"
+import { GroupAttendanceDialog } from "@/components/session-plans/group-attendance-dialog"
 import { Button } from "@/components/ui/button"
 import { ReactSelect, SelectOption } from "@/components/ui/react-select"
 import { api } from "@/lib/api/client"
@@ -24,6 +25,8 @@ export default function AgendaPage({ params }: AgendaPageProps) {
   const [defaultStart, setDefaultStart] = useState<Date>()
   const [defaultEnd, setDefaultEnd] = useState<Date>()
   const [refreshKey, setRefreshKey] = useState(0)
+  const [groupAttendanceOpen, setGroupAttendanceOpen] = useState(false)
+  const [groupAttendanceSessionPlanId, setGroupAttendanceSessionPlanId] = useState("")
 
   useEffect(() => {
     params.then(({ lng }) => setLng(lng))
@@ -83,6 +86,11 @@ export default function AgendaPage({ params }: AgendaPageProps) {
     setDialogOpen(true)
   }
 
+  const handleGroupEventClick = useCallback((sessionPlanId: string) => {
+    setGroupAttendanceSessionPlanId(sessionPlanId)
+    setGroupAttendanceOpen(true)
+  }, [])
+
   const handleSuccess = () => {
     setRefreshKey((k) => k + 1)
   }
@@ -118,12 +126,20 @@ export default function AgendaPage({ params }: AgendaPageProps) {
           <Calendar
             key={refreshKey}
             onEventClick={handleEventClick}
+            onGroupEventClick={handleGroupEventClick}
             onDateSelect={handleDateSelect}
             selectedProfessionalId={selectedProfessionalId}
             professionals={professionals}
           />
         </div>
       </div>
+
+      {/* Group Attendance Dialog */}
+      <GroupAttendanceDialog
+        open={groupAttendanceOpen}
+        onOpenChange={setGroupAttendanceOpen}
+        sessionPlanId={groupAttendanceSessionPlanId}
+      />
 
       {/* Appointment Dialog */}
       <AppointmentDialog

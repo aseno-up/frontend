@@ -19,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { TimePicker, TimePickerInline } from "@/components/ui/time-picker"
 import { cn } from "@/lib/utils"
 import { api } from "@/lib/api/client"
 import { handleApiError, showToast } from "@/lib/toast"
@@ -302,10 +303,9 @@ export function PlanDetailModal({
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs font-medium">Horário</Label>
-                  <Input
-                    type="time"
+                  <TimePicker
                     value={editPreferredTime}
-                    onChange={e => setEditPreferredTime(e.target.value)}
+                    onChange={val => setEditPreferredTime(val)}
                     className="h-9 text-sm"
                   />
                 </div>
@@ -315,45 +315,37 @@ export function PlanDetailModal({
                 <div className="space-y-1.5">
                   <Label className="text-xs font-medium">Dias da semana</Label>
                   <div className="flex gap-1.5">
-                    {WEEK_DAYS.map(d => (
-                      <button
-                        key={d.value}
-                        type="button"
-                        onClick={() => toggleWeekDay(d.value)}
-                        className={cn(
-                          "w-9 h-9 rounded-lg text-xs font-medium transition-colors border",
-                          editWeekDays.includes(d.value)
-                            ? "bg-primary text-primary-foreground border-primary"
-                            : "bg-background text-muted-foreground border-border hover:bg-muted"
-                        )}
-                      >
-                        {d.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {needsWeekDays && editWeekDays.length > 1 && (
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-medium">Horários por dia (opcional)</Label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {editWeekDays.map(d => {
-                      const day = WEEK_DAYS.find(w => w.value === d)
-                      if (!day) return null
+                    {WEEK_DAYS.map(d => {
+                      const isSelected = editWeekDays.includes(d.value)
                       return (
-                        <div key={d} className="flex items-center gap-2">
-                          <span className="text-xs font-medium w-8">{day.label}</span>
-                          <Input
-                            type="time"
-                            value={editDayTimes[day.abbr] || editPreferredTime}
-                            onChange={e => setEditDayTimes(prev => ({ ...prev, [day.abbr]: e.target.value }))}
-                            className="h-8 text-xs flex-1"
-                          />
+                        <div key={d.value} className="flex-1 flex flex-col items-stretch gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => toggleWeekDay(d.value)}
+                            className={cn(
+                              "h-9 rounded-lg text-xs font-medium transition-colors border",
+                              isSelected
+                                ? "bg-primary text-primary-foreground border-primary"
+                                : "bg-background text-muted-foreground border-border hover:bg-muted"
+                            )}
+                          >
+                            {d.label}
+                          </button>
+                          {isSelected && editWeekDays.length > 1 && (
+                            <TimePickerInline
+                              className="h-7 text-xs px-1"
+                              value={editDayTimes[d.abbr] || ""}
+                              onChange={val => setEditDayTimes(prev => ({ ...prev, [d.abbr]: val }))}
+                              placeholder={editPreferredTime || "09:00"}
+                            />
+                          )}
                         </div>
                       )
                     })}
                   </div>
+                  {editWeekDays.length > 1 && (
+                    <p className="text-xs text-muted-foreground">Defina o horário de cada dia. Se vazio, usa o horário padrão.</p>
+                  )}
                 </div>
               )}
 

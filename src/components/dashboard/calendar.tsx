@@ -82,6 +82,7 @@ interface CalendarEventInternal {
 
 interface CalendarProps {
   onEventClick: (appointment: Appointment) => void
+  onGroupEventClick?: (sessionPlanId: string, date: string) => void
   onDateSelect: (start: Date, end: Date, professionalId?: string) => void
   selectedProfessionalId?: string
   professionals: Professional[]
@@ -101,6 +102,7 @@ interface TooltipState {
 
 export function Calendar({
   onEventClick,
+  onGroupEventClick,
   onDateSelect,
   selectedProfessionalId,
   professionals,
@@ -191,6 +193,7 @@ export function Calendar({
               clinic_id: "",
               patient_id: evt.patient_id || "",
               professional_id: evt.professional_id || "",
+              session_plan_id: evt.session_plan_id,
               start_time: evt.start_time,
               end_time: evt.end_time,
               status: evt.status as Appointment["status"],
@@ -223,6 +226,7 @@ export function Calendar({
                 appointment: apt,
                 isVirtual: false,
                 sessionPlanId: evt.session_plan_id,
+                planType: evt.plan_type,
                 professionalColor: professional?.color,
                 professionalName: professional?.name,
               },
@@ -255,10 +259,17 @@ export function Calendar({
   const handleEventClick = async (info: EventClickArg) => {
     setTooltip((t) => ({ ...t, visible: false }))
 
-    const { isVirtual, sessionPlanId, virtualDate, appointment } = info.event.extendedProps
+    const { isVirtual, sessionPlanId, virtualDate, appointment, planType } = info.event.extendedProps
+
+    // Group events: open group panel directly, no materialization needed
+    if (planType === "group" && sessionPlanId && onGroupEventClick) {
+      const date = virtualDate || info.event.startStr.slice(0, 10)
+      onGroupEventClick(sessionPlanId, date)
+      return
+    }
 
     if (isVirtual && sessionPlanId && virtualDate) {
-      // Virtual event: materialize first, then open
+      // Virtual individual event: materialize first, then open
       try {
         setIsLoading(true)
         const result = await api.materializeAppointment(sessionPlanId, virtualDate)

@@ -48,6 +48,8 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { Switch } from "@/components/ui/switch"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { DatePicker } from "@/components/ui/date-picker"
+import { TimePicker, TimePickerInline } from "@/components/ui/time-picker"
 import { cn } from "@/lib/utils"
 import { api } from "@/lib/api/client"
 import { showToast, handleApiError } from "@/lib/toast"
@@ -747,69 +749,42 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
                     const isSelected = watchedWeekDays.includes(day.value)
                     const maxDays = FREQUENCY_DAY_COUNT[watchedFrequency]
                     const atLimit = maxDays !== null && !isSelected && watchedWeekDays.length >= (maxDays ?? 7)
+                    const currentDayTimes = watch("day_times") || {}
                     return (
-                      <button
-                        key={day.value}
-                        type="button"
-                        disabled={atLimit}
-                        className={cn(
-                          "flex-1 h-10 rounded-md border-2 text-sm font-semibold transition-all",
-                          isSelected
-                            ? "border-primary bg-primary text-primary-foreground"
-                            : atLimit
-                              ? "border-muted bg-muted text-muted-foreground/40 cursor-not-allowed"
-                              : "border-border bg-background text-foreground hover:border-primary/50 hover:bg-primary/5"
-                        )}
-                        onClick={() => {
-                          const current = [...watchedWeekDays]
-                          if (isSelected) {
-                            setValue("week_days", current.filter((d) => d !== day.value))
-                          } else {
-                            setValue("week_days", [...current, day.value].sort((a, b) => a - b))
-                          }
-                        }}
-                      >
-                        {day.label}
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-            )}
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="start_date">Início <span className="text-destructive">*</span></Label>
-                <Input id="start_date" type="date" {...register("start_date")} className={errors.start_date ? "border-destructive" : ""} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="preferred_time">Horário {watchedWeekDays.length <= 1 ? <span className="text-destructive">*</span> : <span className="text-xs text-muted-foreground">(padrão)</span>}</Label>
-                <Input id="preferred_time" type="time" {...register("preferred_time")} className={errors.preferred_time ? "border-destructive" : ""} />
-              </div>
-            </div>
-            {/* Per-day time overrides — shown when multiple weekdays are selected */}
-            {watchedWeekDays.length > 1 && (
-              <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
-                <Label>Horário por dia <span className="text-xs text-muted-foreground ml-1">(opcional — se vazio, usa o horário padrão acima)</span></Label>
-                <div className="grid grid-cols-2 gap-2">
-                  {watchedWeekDays
-                    .slice()
-                    .sort((a: number, b: number) => a - b)
-                    .map((dayValue: number) => {
-                      const day = WEEK_DAYS_MAP[dayValue]
-                      if (!day) return null
-                      const currentDayTimes = watch("day_times") || {}
-                      return (
-                        <div key={day.value} className="flex items-center gap-2">
-                          <span className="text-sm font-medium w-10">{day.label}</span>
-                          <Input
-                            type="time"
-                            className="flex-1 h-9"
-                            value={currentDayTimes[day.abbr] || ""}
-                            onChange={(e) => {
+                      <div key={day.value} className="flex-1 flex flex-col items-stretch gap-1.5">
+                        <button
+                          type="button"
+                          disabled={atLimit}
+                          className={cn(
+                            "h-10 rounded-md border-2 text-sm font-semibold transition-all",
+                            isSelected
+                              ? "border-primary bg-primary text-primary-foreground"
+                              : atLimit
+                                ? "border-muted bg-muted text-muted-foreground/40 cursor-not-allowed"
+                                : "border-border bg-background text-foreground hover:border-primary/50 hover:bg-primary/5"
+                          )}
+                          onClick={() => {
+                            const current = [...watchedWeekDays]
+                            if (isSelected) {
+                              setValue("week_days", current.filter((d) => d !== day.value))
                               const updated = { ...currentDayTimes }
-                              if (e.target.value) {
-                                updated[day.abbr] = e.target.value
+                              delete updated[day.abbr]
+                              setValue("day_times", Object.keys(updated).length > 0 ? updated : undefined)
+                            } else {
+                              setValue("week_days", [...current, day.value].sort((a, b) => a - b))
+                            }
+                          }}
+                        >
+                          {day.label}
+                        </button>
+                        {isSelected && watchedWeekDays.length > 1 && (
+                          <TimePickerInline
+                            className="h-8 text-xs px-1"
+                            value={currentDayTimes[day.abbr] || ""}
+                            onChange={(val) => {
+                              const updated = { ...currentDayTimes }
+                              if (val) {
+                                updated[day.abbr] = val
                               } else {
                                 delete updated[day.abbr]
                               }
@@ -817,12 +792,35 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
                             }}
                             placeholder={watchedPreferredTime || "09:00"}
                           />
-                        </div>
-                      )
-                    })}
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
+                {watchedWeekDays.length > 1 && (
+                  <p className="text-xs text-muted-foreground">Defina o horário de cada dia. Se vazio, usa o horário padrão.</p>
+                )}
               </div>
             )}
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Início <span className="text-destructive">*</span></Label>
+                <DatePicker
+                  value={watch("start_date")}
+                  onChange={(val) => setValue("start_date", val, { shouldValidate: true })}
+                  error={!!errors.start_date}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Horário {watchedWeekDays.length <= 1 ? <span className="text-destructive">*</span> : <span className="text-xs text-muted-foreground">(padrão)</span>}</Label>
+                <TimePicker
+                  value={watch("preferred_time")}
+                  onChange={(val) => setValue("preferred_time", val, { shouldValidate: true })}
+                  error={!!errors.preferred_time}
+                />
+              </div>
+            </div>
             <div className="space-y-2">
               <Label>Procedimento</Label>
               <ReactSelect

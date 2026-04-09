@@ -28,7 +28,7 @@ import { Enrollment, AttendanceRecord, AttendanceStatus, Patient } from "@/types
 interface GroupAttendanceDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  appointmentId: string
+  appointmentId?: string
   sessionPlanId: string
 }
 
@@ -68,12 +68,12 @@ export function GroupAttendanceDialog({ open, onOpenChange, appointmentId, sessi
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([])
 
   const loadData = useCallback(async () => {
-    if (!appointmentId || !sessionPlanId) return
+    if (!sessionPlanId) return
     setLoading(true)
     try {
       const [enrollmentsResp, attendanceResp] = await Promise.all([
         api.getEnrollments(sessionPlanId),
-        api.getAttendance(appointmentId),
+        appointmentId ? api.getAttendance(appointmentId) : Promise.resolve({ data: [] }),
       ])
 
       const enrollments: Enrollment[] = enrollmentsResp.data || enrollmentsResp || []
@@ -168,7 +168,7 @@ export function GroupAttendanceDialog({ open, onOpenChange, appointmentId, sessi
             data.payment_amount = entry.paymentAmount
           }
 
-          return api.recordAttendance(appointmentId, data)
+          return api.recordAttendance(appointmentId!, data)
         })
       )
       showToast.success("Presença registrada com sucesso!")
@@ -223,10 +223,10 @@ export function GroupAttendanceDialog({ open, onOpenChange, appointmentId, sessi
         <DialogHeader className="shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <ClipboardCheck className="h-5 w-5" />
-            Registro de Presença
+            {appointmentId ? "Registro de Presença" : "Alunos da Turma"}
           </DialogTitle>
           <DialogDescription>
-            Marque a presença dos alunos nesta sessão
+            {appointmentId ? "Marque a presença dos alunos nesta sessão" : "Alunos inscritos nesta turma"}
           </DialogDescription>
         </DialogHeader>
 
@@ -348,10 +348,14 @@ export function GroupAttendanceDialog({ open, onOpenChange, appointmentId, sessi
         </div>
 
         <div className="shrink-0 border-t pt-4 flex justify-end gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-          <Button onClick={handleSave} disabled={saving || entries.length === 0}>
-            {saving ? "Salvando..." : hasNewGuests ? "Salvar Presença e Pagamento" : "Salvar Presença"}
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            {appointmentId ? "Cancelar" : "Fechar"}
           </Button>
+          {appointmentId && (
+            <Button onClick={handleSave} disabled={saving || entries.length === 0}>
+              {saving ? "Salvando..." : hasNewGuests ? "Salvar Presença e Pagamento" : "Salvar Presença"}
+            </Button>
+          )}
         </div>
       </DialogContent>
     </Dialog>
