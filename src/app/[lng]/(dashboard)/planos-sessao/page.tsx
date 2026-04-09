@@ -237,6 +237,9 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
   // Plan payment dialog state
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false)
   const [paymentSessionPlanId, setPaymentSessionPlanId] = useState("")
+  const [paymentEnrollmentId, setPaymentEnrollmentId] = useState<string | undefined>(undefined)
+  const [detailEnrollments, setDetailEnrollments] = useState<Enrollment[]>([])
+  const [detailRefreshKey, setDetailRefreshKey] = useState(0)
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
@@ -514,9 +517,9 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
       }
       const plan = await api.createSessionPlan(payload)
 
-      // Create payments (split) if any were added
+      // Create payments (split) if any were added — skip for group plans (payment happens at enrollment)
       const planId = (plan as any)?.id || (plan as any)?.data?.id
-      if (planId && paymentEntries.length > 0) {
+      if (planId && paymentEntries.length > 0 && data.plan_type !== "group") {
         const validEntries = paymentEntries.filter((e) => e.method_id && e.amount > 0)
         for (const entry of validEntries) {
           try {
@@ -620,6 +623,15 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
 
       setDetailAppointments(planEvents)
       setDetailPayments((paymentsResp as any)?.data || paymentsResp || [])
+
+      // Fetch enrollments for group plans
+      if (plan.type === "group") {
+        api.getEnrollments(plan.id)
+          .then((resp: any) => setDetailEnrollments(resp?.data || resp || []))
+          .catch(() => setDetailEnrollments([]))
+      } else {
+        setDetailEnrollments([])
+      }
     } catch (err) {
       handleApiError(err, "Erro ao carregar detalhes")
     } finally {
@@ -898,6 +910,8 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
                     <p className="text-sm text-muted-foreground">
                       {watchedIsIndeterminate
                         ? "Nao disponivel para sessoes indeterminadas."
+                        : watchedPlanType === "group"
+                        ? "O aluno paga o valor total antecipadamente no momento da inscricao."
                         : "O paciente paga o valor total antecipadamente. Cada sessao aparecera como \"ja paga\"."}
                     </p>
                   </div>
@@ -915,8 +929,15 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
                 </div>
               </RadioGroup>
             </div>
-            {/* Split payment — shown for upfront and monthly */}
-            {(watchedPaymentMode === "upfront" || watchedPaymentMode === "monthly") && (
+            {/* For group plans, payment mode is just a recommendation — no actual payment at creation */}
+            {watchedPlanType === "group" && (watchedPaymentMode === "upfront" || watchedPaymentMode === "monthly") && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-200">
+                <p className="font-medium">Modo padrão para inscrições</p>
+                <p className="text-xs mt-1">Este modo será sugerido como padrão ao inscrever cada aluno na turma. O pagamento será registrado no momento da inscrição, não agora.</p>
+              </div>
+            )}
+            {/* Split payment — shown for upfront and monthly, only for individual plans */}
+            {watchedPlanType !== "group" && (watchedPaymentMode === "upfront" || watchedPaymentMode === "monthly") && (
               <div className="space-y-4 pt-4 border-t animate-in fade-in slide-in-from-top-2">
                 {watchedPaymentMode === "upfront" && !watchedIsIndeterminate && (
                   <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800 dark:border-blue-900/50 dark:bg-blue-950/20 dark:text-blue-200">
@@ -1096,7 +1117,8 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
                 <li>O plano será criado imediatamente.</li>
                 <li>As sessões aparecerão automaticamente no calendário.</li>
                 {watchedPlanType === "group" && <li>Você poderá <strong>inscrever pacientes</strong> na turma após criar o plano.</li>}
-                {watchedPaymentMode === "upfront" && <li>O pagamento total deverá ser registrado no plano. Cada sessão aparecerá como "já paga".</li>}
+                {watchedPaymentMode === "upfront" && watchedPlanType !== "group" && <li>O pagamento total deverá ser registrado no plano. Cada sessão aparecerá como "já paga".</li>}
+                {watchedPaymentMode === "upfront" && watchedPlanType === "group" && <li>O pagamento antecipado será registrado ao inscrever cada aluno.</li>}
                 {watch("whatsapp_confirmation") && <li>Confirmações via WhatsApp serão enviadas antes de cada sessão.</li>}
               </ul>
             </div>
@@ -1213,8 +1235,8 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
                         <div className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{plan.description || "—"}</div>
                       </TableCell>
                       <TableCell>
-                        {(plan as any).type === "group" ? (
-                          <div className="flex items-center gap-2"><Users className="h-3 w-3 text-muted-foreground" /><span>Turma ({(plan as any).capacity ?? "?"} vagas)</span></div>
+                        {plan.type === "group" ? (
+                          <div className="flex items-center gap-2"><Users className="h-3 w-3 text-muted-foreground" /><span>Turma ({plan.capacity ?? "?"} vagas)</span></div>
                         ) : (
                           <div className="flex items-center gap-2"><User className="h-3 w-3 text-muted-foreground" />{plan.patient_name}</div>
                         )}
@@ -1318,9 +1340,25 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
           setAttendanceDialogOpen(true)
         }}
         onOpenPayment={() => {
+          setPaymentEnrollmentId(undefined)
           setPaymentSessionPlanId(detailPlan!.id)
           setPaymentDialogOpen(true)
         }}
+        onOpenPaymentForEnrollment={(enrollmentId) => {
+          setPaymentEnrollmentId(enrollmentId)
+          setPaymentSessionPlanId(detailPlan!.id)
+          setPaymentDialogOpen(true)
+        }}
+        onPlanUpdated={async () => {
+          fetchPlans()
+          if (detailPlan) {
+            try {
+              const updated = await api.getSessionPlan(detailPlan.id)
+              setDetailPlan(updated?.data || updated)
+            } catch {}
+          }
+        }}
+        refreshKey={detailRefreshKey}
       />
 
       <ConfirmDialog
@@ -1340,13 +1378,30 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
       />
 
       {/* Enrollment Dialog (group plans) */}
-      {detailPlan && (detailPlan as any).type === "group" && (
+      {detailPlan && detailPlan.type === "group" && (
         <EnrollmentDialog
           open={enrollmentDialogOpen}
-          onOpenChange={setEnrollmentDialogOpen}
+          onOpenChange={(open) => {
+            setEnrollmentDialogOpen(open)
+            if (!open && detailPlan) {
+              setDetailRefreshKey(k => k + 1)
+              // Refresh enrollments when dialog closes
+              api.getEnrollments(detailPlan.id)
+                .then((resp: any) => setDetailEnrollments(resp?.data || resp || []))
+                .catch(() => {})
+            }
+          }}
           sessionPlanId={detailPlan.id}
           sessionPlanTitle={detailPlan.title}
-          capacity={(detailPlan as any).capacity}
+          capacity={detailPlan.capacity}
+          defaultPaymentMode={detailPlan.payment_mode}
+          planTotalSessions={detailPlan.total_sessions}
+          planPrice={detailPlan.price_override ?? detailPlan.session_price}
+          onOpenPaymentForEnrollment={(enrollmentId) => {
+            setPaymentEnrollmentId(enrollmentId)
+            setPaymentSessionPlanId(detailPlan.id)
+            setPaymentDialogOpen(true)
+          }}
         />
       )}
 
@@ -1363,15 +1418,28 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
         open={paymentDialogOpen}
         onOpenChange={(open) => {
           setPaymentDialogOpen(open)
-          if (!open && detailPlan) {
-            // Refresh payments when dialog closes
-            api.getPlanPayments(detailPlan.id).then(resp => {
-              setDetailPayments((resp as any)?.data || resp || [])
-            }).catch(() => {})
+          if (!open) {
+            setPaymentEnrollmentId(undefined)
+            setDetailRefreshKey(k => k + 1)
+            if (detailPlan) {
+              // Refresh payments when dialog closes
+              api.getPlanPayments(detailPlan.id).then(resp => {
+                setDetailPayments((resp as any)?.data || resp || [])
+              }).catch(() => {})
+              // Refresh enrollments for group plans (to update payment display)
+              if (detailPlan.type === "group") {
+                api.getEnrollments(detailPlan.id)
+                  .then((resp: any) => setDetailEnrollments(resp?.data || resp || []))
+                  .catch(() => {})
+              }
+            }
           }
         }}
         sessionPlanId={paymentSessionPlanId}
-        paymentMode={(detailPlan as any)?.payment_mode}
+        enrollmentId={paymentEnrollmentId}
+        paymentMode={detailPlan?.payment_mode}
+        isGroup={detailPlan?.type === "group"}
+        enrollments={detailEnrollments}
       />
     </div>
   )

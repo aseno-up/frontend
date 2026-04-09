@@ -112,7 +112,9 @@ export function Calendar({
   const [recurringDialog, setRecurringDialog] = useState<{
     open: boolean
     info: EventDropArg | EventResizeDoneArg | null
-  }>({ open: false, info: null })
+    newStart: Date | null
+    newEnd: Date | null
+  }>({ open: false, info: null, newStart: null, newEnd: null })
 
   // Custom tooltip state - rendered outside FullCalendar DOM
   const [tooltip, setTooltip] = useState<TooltipState>({
@@ -339,8 +341,10 @@ export function Calendar({
     if (!appointment) { info.revert(); return }
 
     if (appointment.type === 'recurring') {
+      const newStart = info.event.start
+      const newEnd = info.event.end
       info.revert()
-      setRecurringDialog({ open: true, info })
+      setRecurringDialog({ open: true, info, newStart, newEnd })
       return
     }
 
@@ -374,8 +378,10 @@ export function Calendar({
     if (!appointment) { info.revert(); return }
 
     if (appointment.type === 'recurring') {
+      const newStart = info.event.start
+      const newEnd = info.event.end
       info.revert()
-      setRecurringDialog({ open: true, info })
+      setRecurringDialog({ open: true, info, newStart, newEnd })
       return
     }
 
@@ -385,16 +391,17 @@ export function Calendar({
   const handleConfirmRecurring = async (mode: 'single' | 'all') => {
     if (!recurringDialog.info) return
 
+    const { newStart, newEnd } = recurringDialog
     const info = recurringDialog.info
     const appointment = info.event.extendedProps.appointment as Appointment
     const sessionPlanId = info.event.extendedProps.sessionPlanId as string | undefined
 
-    if (mode === 'single' && sessionPlanId && info.event.start) {
+    if (mode === 'single' && sessionPlanId && newStart) {
       // Use rescheduleOccurrence to create an exception for this single occurrence
       try {
         setIsLoading(true)
         const originalDate = format(new Date(appointment.start_time), "yyyy-MM-dd")
-        await api.rescheduleOccurrence(sessionPlanId, originalDate, info.event.start.toISOString())
+        await api.rescheduleOccurrence(sessionPlanId, originalDate, newStart.toISOString())
         const calendarApi = calendarRef.current?.getApi()
         if (calendarApi) {
           const view = calendarApi.view
@@ -405,11 +412,27 @@ export function Calendar({
       } finally {
         setIsLoading(false)
       }
+    } else if (mode === 'all' && sessionPlanId && newStart) {
+      // Update the session plan's preferred time for all future occurrences
+      try {
+        setIsLoading(true)
+        const newTime = format(newStart, "HH:mm")
+        await api.updateSessionPlan(sessionPlanId, { preferred_time: newTime })
+        const calendarApi = calendarRef.current?.getApi()
+        if (calendarApi) {
+          const view = calendarApi.view
+          fetchAppointments(view.activeStart, view.activeEnd)
+        }
+      } catch (error) {
+        console.error("Error updating session plan:", error)
+      } finally {
+        setIsLoading(false)
+      }
     } else {
-      await performUpdate(appointment.id, info.event.start, info.event.end, mode)
+      await performUpdate(appointment.id, newStart, newEnd, mode)
     }
 
-    setRecurringDialog({ open: false, info: null })
+    setRecurringDialog({ open: false, info: null, newStart: null, newEnd: null })
   }
 
   // Show tooltip on mouse enter — rendered at page level with position:fixed
@@ -640,7 +663,7 @@ export function Calendar({
         />
       </div>
 
-      <Dialog open={recurringDialog.open} onOpenChange={(open) => !open && setRecurringDialog(prev => ({ ...prev, open: false }))}>
+      <Dialog open={recurringDialog.open} onOpenChange={(open) => !open && setRecurringDialog({ open: false, info: null, newStart: null, newEnd: null })}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Atualizar Agendamento Recorrente</DialogTitle>
@@ -649,7 +672,7 @@ export function Calendar({
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setRecurringDialog({ open: false, info: null })}>
+            <Button variant="outline" onClick={() => setRecurringDialog({ open: false, info: null, newStart: null, newEnd: null })}>
               Cancelar
             </Button>
             <Button variant="secondary" onClick={() => handleConfirmRecurring('single')}>

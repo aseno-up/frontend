@@ -83,6 +83,10 @@ const customStyles: StylesConfig<SelectOption, boolean, GroupBase<SelectOption>>
     ...base,
     color: "hsl(var(--muted-foreground))",
   }),
+  menuPortal: (base) => ({
+    ...base,
+    zIndex: 9999,
+  }),
 }
 
 // Custom styles for option with color indicator

@@ -22,6 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { ReactSelect, SelectOption } from "@/components/ui/react-select"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { api } from "@/lib/api/client"
 import { showToast, handleApiError } from "@/lib/toast"
@@ -33,6 +34,10 @@ interface EnrollmentDialogProps {
   sessionPlanId: string
   sessionPlanTitle: string
   capacity?: number | null
+  defaultPaymentMode?: string
+  planTotalSessions?: number
+  planPrice?: number
+  onOpenPaymentForEnrollment?: (enrollmentId: string) => void
 }
 
 const statusVariants: Record<string, "default" | "secondary" | "destructive" | "success" | "warning"> = {
@@ -53,7 +58,17 @@ const paymentModeLabels: Record<string, string> = {
   monthly: "Mensal",
 }
 
-export function EnrollmentDialog({ open, onOpenChange, sessionPlanId, sessionPlanTitle, capacity }: EnrollmentDialogProps) {
+export function EnrollmentDialog({
+  open,
+  onOpenChange,
+  sessionPlanId,
+  sessionPlanTitle,
+  capacity,
+  defaultPaymentMode,
+  planTotalSessions,
+  planPrice,
+  onOpenPaymentForEnrollment,
+}: EnrollmentDialogProps) {
   const [enrollments, setEnrollments] = useState<Enrollment[]>([])
   const [loading, setLoading] = useState(false)
   const [patients, setPatients] = useState<Patient[]>([])
@@ -63,10 +78,9 @@ export function EnrollmentDialog({ open, onOpenChange, sessionPlanId, sessionPla
   const [showAddForm, setShowAddForm] = useState(false)
   const [selectedPatientId, setSelectedPatientId] = useState("")
   const [totalSessions, setTotalSessions] = useState<string>("")
-  const [paymentMode, setPaymentMode] = useState("per_session")
+  const [paymentMode, setPaymentMode] = useState(defaultPaymentMode || "per_session")
   const [monthlyAmount, setMonthlyAmount] = useState("")
   const [billingDay, setBillingDay] = useState("")
-  const [patientSearch, setPatientSearch] = useState("")
 
   // Confirm dialog
   const [confirmAction, setConfirmAction] = useState<{ type: string; enrollmentId: string; name: string } | null>(null)
@@ -97,6 +111,16 @@ export function EnrollmentDialog({ open, onOpenChange, sessionPlanId, sessionPla
     }
   }, [open, fetchEnrollments, fetchPatients])
 
+  // Pre-fill monthly amount when payment mode changes to monthly
+  useEffect(() => {
+    if (paymentMode === "monthly" && planPrice) {
+      setMonthlyAmount(planPrice.toString())
+    }
+    if (paymentMode !== "monthly") {
+      setMonthlyAmount("")
+    }
+  }, [paymentMode, planPrice])
+
   const activeCount = enrollments.filter(e => e.status === "active").length
 
   const handleEnroll = async () => {
@@ -105,9 +129,17 @@ export function EnrollmentDialog({ open, onOpenChange, sessionPlanId, sessionPla
       return
     }
 
+    // Validate total sessions against plan limit
+    if (totalSessions && planTotalSessions && planTotalSessions > 0) {
+      if (parseInt(totalSessions) > planTotalSessions) {
+        showToast.error(`Total de sessões não pode exceder ${planTotalSessions}`)
+        return
+      }
+    }
+
     setEnrolling(true)
     try {
-      await api.enrollPatient(sessionPlanId, {
+      const result = await api.enrollPatient(sessionPlanId, {
         patient_id: selectedPatientId,
         total_sessions: totalSessions ? parseInt(totalSessions) : undefined,
         payment_mode: paymentMode,
@@ -115,13 +147,22 @@ export function EnrollmentDialog({ open, onOpenChange, sessionPlanId, sessionPla
         billing_day: billingDay ? parseInt(billingDay) : undefined,
       })
       showToast.success("Paciente inscrito com sucesso!")
+
+      const enrollmentId = result?.id || result?.data?.id
+
       setShowAddForm(false)
       setSelectedPatientId("")
       setTotalSessions("")
-      setPaymentMode("per_session")
+      setPaymentMode(defaultPaymentMode || "per_session")
       setMonthlyAmount("")
       setBillingDay("")
       fetchEnrollments()
+
+      // For upfront payments, close enrollment dialog and open payment dialog
+      if (paymentMode === "upfront" && enrollmentId && onOpenPaymentForEnrollment) {
+        onOpenChange(false)
+        setTimeout(() => onOpenPaymentForEnrollment(enrollmentId), 200)
+      }
     } catch (error) {
       handleApiError(error, "Erro ao inscrever paciente")
     } finally {
@@ -157,9 +198,9 @@ export function EnrollmentDialog({ open, onOpenChange, sessionPlanId, sessionPla
   // Filter patients already enrolled
   const enrolledPatientIds = new Set(enrollments.map(e => e.patient_id))
   const availablePatients = patients.filter(p => !enrolledPatientIds.has(p.id))
-  const filteredPatients = patientSearch
-    ? availablePatients.filter(p => p.name.toLowerCase().includes(patientSearch.toLowerCase()))
-    : availablePatients
+  const patientOptions: SelectOption[] = availablePatients.map(p => ({ value: p.id, label: p.name }))
+
+  const hasSessionLimit = planTotalSessions != null && planTotalSessions > 0
 
   return (
     <>
@@ -199,28 +240,14 @@ export function EnrollmentDialog({ open, onOpenChange, sessionPlanId, sessionPla
 
                 <div className="space-y-2">
                   <Label className="text-xs">Paciente</Label>
-                  <Input
-                    placeholder="Buscar paciente..."
-                    value={patientSearch}
-                    onChange={e => setPatientSearch(e.target.value)}
-                    className="h-8 text-sm"
+                  <ReactSelect
+                    options={patientOptions}
+                    value={patientOptions.find(o => o.value === selectedPatientId) || null}
+                    onChange={(option) => setSelectedPatientId(option ? option.value : "")}
+                    placeholder="Selecione um paciente..."
+                    isClearable
+                    isSearchable
                   />
-                  {patientSearch && filteredPatients.length > 0 && (
-                    <div className="max-h-[120px] overflow-y-auto border rounded-md">
-                      {filteredPatients.slice(0, 10).map(p => (
-                        <button
-                          key={p.id}
-                          className={`w-full text-left px-3 py-1.5 text-sm hover:bg-accent transition-colors ${selectedPatientId === p.id ? "bg-accent font-medium" : ""}`}
-                          onClick={() => {
-                            setSelectedPatientId(p.id)
-                            setPatientSearch(p.name)
-                          }}
-                        >
-                          {p.name}
-                        </button>
-                      ))}
-                    </div>
-                  )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
@@ -228,11 +255,25 @@ export function EnrollmentDialog({ open, onOpenChange, sessionPlanId, sessionPla
                     <Label className="text-xs">Total de sessões</Label>
                     <Input
                       type="number"
-                      placeholder="Indeterminado"
+                      min={1}
+                      max={hasSessionLimit ? planTotalSessions : undefined}
+                      placeholder={hasSessionLimit ? `Máx: ${planTotalSessions}` : "Indeterminado"}
                       value={totalSessions}
-                      onChange={e => setTotalSessions(e.target.value)}
+                      onChange={e => {
+                        const val = e.target.value
+                        if (val && hasSessionLimit && parseInt(val) > planTotalSessions!) {
+                          setTotalSessions(planTotalSessions!.toString())
+                        } else {
+                          setTotalSessions(val)
+                        }
+                      }}
                       className="h-8 text-sm"
                     />
+                    <span className="text-[11px] text-muted-foreground">
+                      {hasSessionLimit
+                        ? `Limite do plano: ${planTotalSessions}. Deixe vazio para usar o limite do plano.`
+                        : "Limite individual deste aluno. Deixe vazio para indeterminado."}
+                    </span>
                   </div>
                   <div className="space-y-1">
                     <Label className="text-xs">Modo de pagamento</Label>

@@ -21,11 +21,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { ReactSelect, SelectOption } from "@/components/ui/react-select"
 import { CurrencyInput } from "@/components/ui/currency-input"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { api } from "@/lib/api/client"
 import { showToast, handleApiError } from "@/lib/toast"
-import { PlanPayment } from "@/types/api"
+import { PlanPayment, Enrollment } from "@/types/api"
 
 interface PlanPaymentDialogProps {
   open: boolean
@@ -33,14 +34,22 @@ interface PlanPaymentDialogProps {
   sessionPlanId: string
   enrollmentId?: string
   paymentMode?: string
+  isGroup?: boolean
+  enrollments?: Enrollment[]
 }
 
-export function PlanPaymentDialog({ open, onOpenChange, sessionPlanId, enrollmentId, paymentMode }: PlanPaymentDialogProps) {
+export function PlanPaymentDialog({ open, onOpenChange, sessionPlanId, enrollmentId, paymentMode, isGroup, enrollments }: PlanPaymentDialogProps) {
   const [payments, setPayments] = useState<PlanPayment[]>([])
   const [paymentMethods, setPaymentMethods] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [paymentStatus, setPaymentStatus] = useState<any>(null)
+
+  // Selected enrollment for group plans (when no enrollmentId is pre-set)
+  const [selectedEnrollmentId, setSelectedEnrollmentId] = useState("")
+
+  // The effective enrollment ID (from prop or user selection)
+  const effectiveEnrollmentId = enrollmentId || selectedEnrollmentId || ""
 
   // Form state
   const [methodId, setMethodId] = useState("")
@@ -53,13 +62,24 @@ export function PlanPaymentDialog({ open, onOpenChange, sessionPlanId, enrollmen
   // Delete confirmation
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
 
+  // Determine effective payment mode from selected enrollment or prop
+  const selectedEnrollment = enrollments?.find(e => e.id === effectiveEnrollmentId)
+  const effectivePaymentMode = selectedEnrollment?.payment_mode || paymentMode
+
+  // Reset selected enrollment when dialog opens/closes
+  useEffect(() => {
+    if (!open) {
+      setSelectedEnrollmentId("")
+    }
+  }, [open])
+
   const fetchData = useCallback(async () => {
     if (!sessionPlanId) return
     setLoading(true)
     try {
       const [paymentsResp, methodsResp, statusResp] = await Promise.all([
-        enrollmentId
-          ? api.getEnrollmentPayments(sessionPlanId, enrollmentId)
+        effectiveEnrollmentId
+          ? api.getEnrollmentPayments(sessionPlanId, effectiveEnrollmentId)
           : api.getPlanPayments(sessionPlanId),
         api.getActivePaymentMethods(),
         api.getPlanPaymentStatus(sessionPlanId).catch(() => null),
@@ -78,7 +98,7 @@ export function PlanPaymentDialog({ open, onOpenChange, sessionPlanId, enrollmen
     } finally {
       setLoading(false)
     }
-  }, [sessionPlanId, enrollmentId, methodId])
+  }, [sessionPlanId, effectiveEnrollmentId, methodId])
 
   useEffect(() => {
     if (open) {
@@ -95,6 +115,10 @@ export function PlanPaymentDialog({ open, onOpenChange, sessionPlanId, enrollmen
   }
 
   const handleSubmit = async () => {
+    if (isGroup && !enrollmentId && !selectedEnrollmentId) {
+      showToast.error("Selecione um paciente")
+      return
+    }
     if (!methodId) {
       showToast.error("Selecione um método de pagamento")
       return
@@ -115,8 +139,8 @@ export function PlanPaymentDialog({ open, onOpenChange, sessionPlanId, enrollmen
         notes: notes || undefined,
       }
 
-      if (enrollmentId) {
-        await api.createEnrollmentPayment(sessionPlanId, enrollmentId, data)
+      if (effectiveEnrollmentId) {
+        await api.createEnrollmentPayment(sessionPlanId, effectiveEnrollmentId, data)
       } else {
         await api.createPlanPayment(sessionPlanId, data)
       }
@@ -145,6 +169,15 @@ export function PlanPaymentDialog({ open, onOpenChange, sessionPlanId, enrollmen
 
   const totalPaid = payments.reduce((sum, p) => sum + (p.amount || 0) - (p.discount || 0), 0)
 
+  // Build enrollment options for group select
+  const activeEnrollments = enrollments?.filter(e => e.status === "active") || []
+  const enrollmentOptions: SelectOption[] = activeEnrollments.map(e => ({
+    value: e.id,
+    label: e.patient_name || "Paciente",
+  }))
+
+  const showEnrollmentSelector = isGroup && !enrollmentId
+
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -164,6 +197,21 @@ export function PlanPaymentDialog({ open, onOpenChange, sessionPlanId, enrollmen
             {/* New payment form */}
             <div className="rounded-lg border p-4 space-y-3 bg-muted/30">
               <Label className="text-sm font-semibold">Novo Pagamento</Label>
+
+              {/* Enrollment selector for group plans */}
+              {showEnrollmentSelector && (
+                <div className="space-y-1">
+                  <Label className="text-xs">Paciente</Label>
+                  <ReactSelect
+                    options={enrollmentOptions}
+                    value={enrollmentOptions.find(o => o.value === selectedEnrollmentId) || null}
+                    onChange={(option) => setSelectedEnrollmentId(option ? option.value : "")}
+                    placeholder="Selecione o paciente..."
+                    isClearable
+                    isSearchable
+                  />
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
@@ -209,7 +257,7 @@ export function PlanPaymentDialog({ open, onOpenChange, sessionPlanId, enrollmen
                     className="h-8 text-sm"
                   />
                 </div>
-                {paymentMode === "monthly" && (
+                {effectivePaymentMode === "monthly" && (
                   <div className="space-y-1">
                     <Label className="text-xs">Ref. mês</Label>
                     <Input

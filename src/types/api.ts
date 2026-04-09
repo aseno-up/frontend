@@ -605,6 +605,7 @@ export interface SessionPlan {
   title: string
   description: string
   status: PlanStatus
+  type?: 'individual' | 'group'
   frequency: Frequency
   week_days: number[]
   preferred_time: string
@@ -615,6 +616,10 @@ export interface SessionPlan {
   start_date: string
   end_date?: string
   session_price: number
+  price_override?: number | null
+  procedure_id?: string | null
+  capacity?: number | null
+  payment_mode?: string
   notes: string
   paused_at?: string
   cancelled_at?: string
@@ -650,6 +655,11 @@ export interface UpdateSessionPlanRequest {
   duration_mins?: number
   session_price?: number
   notes?: string
+  frequency?: Frequency
+  week_days?: number[]
+  day_times?: Record<string, string>
+  professional_id?: string
+  capacity?: number
 }
 
 export interface SessionPlanListResponse {
