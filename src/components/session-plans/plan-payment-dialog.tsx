@@ -1,12 +1,15 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
-import { DollarSign, CreditCard, Trash2 } from "lucide-react"
+import { useCallback, useEffect, useMemo, useState } from "react"
+import { format } from "date-fns"
+import { ptBR } from "date-fns/locale"
+import { DollarSign, CreditCard, Trash2, ChevronDown, Calendar, Check } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { Badge } from "@/components/ui/badge"
 import {
   Dialog,
   DialogContent,
@@ -27,6 +30,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { api } from "@/lib/api/client"
 import { showToast, handleApiError } from "@/lib/toast"
 import { PlanPayment, Enrollment } from "@/types/api"
+import { cn } from "@/lib/utils"
 
 interface PlanPaymentDialogProps {
   open: boolean
@@ -37,6 +41,18 @@ interface PlanPaymentDialogProps {
   isGroup?: boolean
   enrollments?: Enrollment[]
 }
+
+interface AppointmentGroup {
+  appointmentId: string
+  startTime: string
+  price: number
+  payments: PlanPayment[]
+  totalPaid: number
+  totalCovered: number
+}
+
+const formatCurrency = (value: number) =>
+  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value)
 
 export function PlanPaymentDialog({ open, onOpenChange, sessionPlanId, enrollmentId, paymentMode, isGroup, enrollments }: PlanPaymentDialogProps) {
   const [payments, setPayments] = useState<PlanPayment[]>([])
@@ -62,14 +78,19 @@ export function PlanPaymentDialog({ open, onOpenChange, sessionPlanId, enrollmen
   // Delete confirmation
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
 
+  // Accordion state for per-session groups
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
+
   // Determine effective payment mode from selected enrollment or prop
   const selectedEnrollment = enrollments?.find(e => e.id === effectiveEnrollmentId)
   const effectivePaymentMode = selectedEnrollment?.payment_mode || paymentMode
+
 
   // Reset selected enrollment when dialog opens/closes
   useEffect(() => {
     if (!open) {
       setSelectedEnrollmentId("")
+      setExpandedGroups(new Set())
     }
   }, [open])
 
@@ -167,7 +188,50 @@ export function PlanPaymentDialog({ open, onOpenChange, sessionPlanId, enrollmen
     }
   }
 
-  const totalPaid = payments.reduce((sum, p) => sum + (p.amount || 0) - (p.discount || 0), 0)
+  const toggleGroup = (groupId: string) => {
+    setExpandedGroups(prev => {
+      const next = new Set(prev)
+      if (next.has(groupId)) {
+        next.delete(groupId)
+      } else {
+        next.add(groupId)
+      }
+      return next
+    })
+  }
+
+  const isPerSession = effectivePaymentMode === "per_session"
+  const totalPaid = payments.reduce((sum, p) => sum + (p.amount || 0), 0)
+  const totalDiscount = payments.reduce((sum, p) => sum + (p.discount || 0), 0)
+
+  // Group payments by appointment for per_session mode
+  const appointmentGroups = useMemo((): AppointmentGroup[] => {
+    if (!isPerSession) return []
+
+    const groupMap = new Map<string, AppointmentGroup>()
+
+    for (const pay of payments) {
+      const aptId = pay.appointment_id || "unknown"
+      if (!groupMap.has(aptId)) {
+        groupMap.set(aptId, {
+          appointmentId: aptId,
+          startTime: pay.appointment_start_time || "",
+          price: pay.appointment_price || 0,
+          payments: [],
+          totalPaid: 0,
+          totalCovered: 0,
+        })
+      }
+      const group = groupMap.get(aptId)!
+      group.payments.push(pay)
+      group.totalPaid += pay.amount || 0
+      group.totalCovered += (pay.amount || 0) + (pay.discount || 0)
+    }
+
+    return Array.from(groupMap.values()).sort((a, b) =>
+      a.startTime.localeCompare(b.startTime)
+    )
+  }, [payments, isPerSession])
 
   // Build enrollment options for group select
   const activeEnrollments = enrollments?.filter(e => e.status === "active") || []
@@ -177,6 +241,23 @@ export function PlanPaymentDialog({ open, onOpenChange, sessionPlanId, enrollmen
   }))
 
   const showEnrollmentSelector = isGroup && !enrollmentId
+
+  const formatAppointmentDate = (dateStr: string) => {
+    try {
+      return format(new Date(dateStr), "dd 'de' MMM', ' HH:mm", { locale: ptBR })
+    } catch {
+      return "Data desconhecida"
+    }
+  }
+
+  const formatPaymentDate = (dateStr: string | null | undefined) => {
+    if (!dateStr) return ""
+    try {
+      return format(new Date(dateStr), "dd/MM/yy HH:mm")
+    } catch {
+      return ""
+    }
+  }
 
   return (
     <>
@@ -188,13 +269,22 @@ export function PlanPaymentDialog({ open, onOpenChange, sessionPlanId, enrollmen
               Pagamentos do Plano
             </DialogTitle>
             <DialogDescription>
-              Total pago: R$ {totalPaid.toFixed(2)}
+              Total pago: {formatCurrency(totalPaid)}
+              {totalDiscount > 0 && ` (desc. ${formatCurrency(totalDiscount)})`}
               {paymentStatus?.is_fully_paid && " — Plano quitado"}
             </DialogDescription>
           </DialogHeader>
 
           <div className="flex-1 overflow-y-auto space-y-4 py-2">
-            {/* New payment form */}
+            {isPerSession ? (
+              /* Per-session info banner */
+              <div className="rounded-lg border border-dashed p-3 text-center space-y-0.5 bg-muted/30">
+                <p className="text-xs text-muted-foreground">
+                  Pagamentos registrados nos agendamentos vinculados a este plano.
+                </p>
+              </div>
+            ) : (
+            /* Payment form for upfront/monthly */
             <div className="rounded-lg border p-4 space-y-3 bg-muted/30">
               <Label className="text-sm font-semibold">Novo Pagamento</Label>
 
@@ -284,15 +374,100 @@ export function PlanPaymentDialog({ open, onOpenChange, sessionPlanId, enrollmen
                 {submitting ? "Registrando..." : "Registrar Pagamento"}
               </Button>
             </div>
+            )}
 
             {/* Existing payments */}
             {loading ? (
               <div className="flex items-center justify-center py-4">
                 <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
               </div>
+            ) : isPerSession ? (
+              /* Per-session: grouped by appointment */
+              appointmentGroups.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-2 text-center">Nenhum pagamento registrado nos agendamentos.</p>
+              ) : (
+                <div className="space-y-2">
+                  {appointmentGroups.map((group) => {
+                    const isExpanded = expandedGroups.has(group.appointmentId)
+                    const isPaid = group.price > 0 && group.totalCovered >= group.price
+
+                    return (
+                      <div key={group.appointmentId} className="rounded-lg border overflow-hidden">
+                        {/* Accordion header */}
+                        <button
+                          type="button"
+                          onClick={() => toggleGroup(group.appointmentId)}
+                          className="w-full flex items-center gap-2 p-3 text-sm hover:bg-muted/50 transition-colors"
+                        >
+                          <Calendar className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                          <span className="font-medium">
+                            {formatAppointmentDate(group.startTime)}
+                          </span>
+                          <span className="text-xs text-muted-foreground ml-1">
+                            ({group.payments.length} pgto{group.payments.length !== 1 ? "s" : ""})
+                          </span>
+                          <div className="ml-auto flex items-center gap-2">
+                            {group.price > 0 && (
+                              <span className="text-xs text-muted-foreground">
+                                {formatCurrency(group.totalPaid)} / {formatCurrency(group.price)}
+                              </span>
+                            )}
+                            {isPaid ? (
+                              <Badge className="text-[10px] bg-green-600 h-5">
+                                <Check className="h-3 w-3 mr-0.5" />
+                                Pago
+                              </Badge>
+                            ) : group.totalPaid > 0 && group.price > 0 ? (
+                              <Badge variant="outline" className="text-[10px] h-5 text-amber-600 border-amber-300">
+                                Parcial
+                              </Badge>
+                            ) : null}
+                            <ChevronDown className={cn(
+                              "h-4 w-4 text-muted-foreground transition-transform",
+                              isExpanded && "rotate-180"
+                            )} />
+                          </div>
+                        </button>
+
+                        {/* Accordion content */}
+                        {isExpanded && (
+                          <div className="border-t bg-muted/20 divide-y">
+                            {group.payments.map((pay) => (
+                              <div key={pay.id} className="flex items-center justify-between px-3 py-2.5 text-sm">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <CreditCard className="h-3 w-3 text-muted-foreground shrink-0" />
+                                  <span className="text-xs font-medium truncate">{pay.payment_method_name || "Pagamento"}</span>
+                                  {pay.installments > 1 && (
+                                    <span className="text-[11px] text-muted-foreground">({pay.installments}x)</span>
+                                  )}
+                                  {pay.notes && (
+                                    <span className="text-[11px] text-muted-foreground truncate max-w-[100px]">{pay.notes}</span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-3 shrink-0">
+                                  <span className="text-[11px] text-muted-foreground/70">
+                                    {formatPaymentDate(pay.paid_at)}
+                                  </span>
+                                  <div className="text-right">
+                                    <span className="font-bold text-xs">{formatCurrency(pay.amount || 0)}</span>
+                                    {pay.discount > 0 && (
+                                      <span className="text-[11px] text-green-600 ml-1">(-{formatCurrency(pay.discount)})</span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )
             ) : payments.length === 0 ? (
               <p className="text-sm text-muted-foreground py-2 text-center">Nenhum pagamento registrado.</p>
             ) : (
+              /* Flat list for upfront/monthly */
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Histórico</Label>
                 {payments.map((pay) => (
@@ -305,8 +480,8 @@ export function PlanPaymentDialog({ open, onOpenChange, sessionPlanId, enrollmen
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       <div className="text-right">
-                        <span className="font-bold">R$ {(pay.amount || 0).toFixed(2)}</span>
-                        {pay.discount > 0 && <span className="text-xs text-green-600 ml-1">(-R$ {pay.discount.toFixed(2)})</span>}
+                        <span className="font-bold">{formatCurrency(pay.amount || 0)}</span>
+                        {pay.discount > 0 && <span className="text-xs text-green-600 ml-1">(-{formatCurrency(pay.discount)})</span>}
                       </div>
                       <Button
                         variant="ghost"

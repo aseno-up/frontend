@@ -718,6 +718,9 @@ export interface PlanPayment {
   paid_at?: string | null
   payment_method_name?: string
   created_at: string
+  appointment_id?: string | null
+  appointment_start_time?: string | null
+  appointment_price?: number
 }
 
 // Invite Types

@@ -1,9 +1,9 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
-import { X, Clock, ClipboardCheck, UserPlus, Plus, CreditCard, DollarSign, Pencil, Save, XCircle } from "lucide-react"
+import { X, Clock, ClipboardCheck, UserPlus, Plus, CreditCard, DollarSign, Pencil, Save, XCircle, ChevronDown, Calendar, Check } from "lucide-react"
 
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
@@ -105,6 +105,75 @@ export function PlanDetailModal({
   const [editDayTimes, setEditDayTimes] = useState<Record<string, string>>({})
 
   const isGroup = plan?.type === "group"
+  const isPerSession = plan?.payment_mode === "per_session"
+
+  // Accordion state for per-session payment groups
+  const [expandedPaymentGroups, setExpandedPaymentGroups] = useState<Set<string>>(new Set())
+
+  const togglePaymentGroup = (groupId: string) => {
+    setExpandedPaymentGroups(prev => {
+      const next = new Set(prev)
+      if (next.has(groupId)) next.delete(groupId)
+      else next.add(groupId)
+      return next
+    })
+  }
+
+  // Group payments by appointment for per_session mode
+  const appointmentPaymentGroups = useMemo(() => {
+    if (!isPerSession || !payments.length) return []
+
+    const groupMap = new Map<string, {
+      appointmentId: string
+      startTime: string
+      price: number
+      payments: any[]
+      totalPaid: number
+      totalCovered: number
+    }>()
+
+    for (const pay of payments) {
+      const aptId = pay.appointment_id || "unknown"
+      if (!groupMap.has(aptId)) {
+        groupMap.set(aptId, {
+          appointmentId: aptId,
+          startTime: pay.appointment_start_time || "",
+          price: pay.appointment_price || 0,
+          payments: [],
+          totalPaid: 0,
+          totalCovered: 0,
+        })
+      }
+      const group = groupMap.get(aptId)!
+      group.payments.push(pay)
+      group.totalPaid += pay.amount || 0
+      group.totalCovered += (pay.amount || 0) + (pay.discount || 0)
+    }
+
+    return Array.from(groupMap.values()).sort((a, b) =>
+      a.startTime.localeCompare(b.startTime)
+    )
+  }, [payments, isPerSession])
+
+  const formatCurrency = (value: number) =>
+    new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value)
+
+  const formatAppointmentDate = (dateStr: string) => {
+    try {
+      return format(new Date(dateStr), "dd 'de' MMM', ' HH:mm", { locale: ptBR })
+    } catch {
+      return "Data desconhecida"
+    }
+  }
+
+  const formatPaymentDate = (dateStr: string | null | undefined) => {
+    if (!dateStr) return ""
+    try {
+      return format(new Date(dateStr), "dd/MM/yy HH:mm")
+    } catch {
+      return ""
+    }
+  }
 
   useEffect(() => {
     if (open && plan && isGroup) {
@@ -766,18 +835,113 @@ export function PlanDetailModal({
                   <span className="text-[13px] font-medium text-muted-foreground uppercase tracking-wider">
                     Pagamentos
                   </span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-7 text-xs gap-1 bg-emerald-500 text-white border-transparent hover:bg-emerald-600 hover:text-white"
-                    onClick={onOpenPayment}
-                  >
-                    <Plus className="h-3 w-3" />
-                    Registrar
-                  </Button>
+                  {plan?.payment_mode !== "per_session" && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs gap-1 bg-emerald-500 text-white border-transparent hover:bg-emerald-600 hover:text-white"
+                      onClick={onOpenPayment}
+                    >
+                      <Plus className="h-3 w-3" />
+                      Registrar
+                    </Button>
+                  )}
                 </div>
 
-                {payments.length === 0 ? (
+                {isPerSession ? (
+                  /* Per-session: grouped by appointment accordion */
+                  appointmentPaymentGroups.length === 0 ? (
+                    <div className="text-center py-8">
+                      <div className="w-12 h-12 rounded-xl bg-muted/60 flex items-center justify-center mx-auto mb-3">
+                        <CreditCard className="h-5 w-5 text-muted-foreground" />
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Nenhum pagamento registrado nos agendamentos
+                      </p>
+                      <p className="text-xs text-muted-foreground/70 mt-1">
+                        Pagamentos por sessao sao registrados no agendamento de cada sessao.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {appointmentPaymentGroups.map((group) => {
+                        const isExpanded = expandedPaymentGroups.has(group.appointmentId)
+                        const isPaid = group.price > 0 && group.totalCovered >= group.price
+
+                        return (
+                          <div key={group.appointmentId} className="rounded-lg border overflow-hidden">
+                            {/* Accordion header */}
+                            <button
+                              type="button"
+                              onClick={() => togglePaymentGroup(group.appointmentId)}
+                              className="w-full flex items-center gap-2 p-3 text-sm hover:bg-muted/50 transition-colors"
+                            >
+                              <Calendar className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                              <span className="font-medium">
+                                {formatAppointmentDate(group.startTime)}
+                              </span>
+                              <span className="text-xs text-muted-foreground ml-1">
+                                ({group.payments.length} pgto{group.payments.length !== 1 ? "s" : ""})
+                              </span>
+                              <div className="ml-auto flex items-center gap-2">
+                                {group.price > 0 && (
+                                  <span className="text-xs text-muted-foreground">
+                                    {formatCurrency(group.totalPaid)} / {formatCurrency(group.price)}
+                                  </span>
+                                )}
+                                {isPaid ? (
+                                  <Badge className="text-[10px] bg-green-600 h-5">
+                                    <Check className="h-3 w-3 mr-0.5" />
+                                    Pago
+                                  </Badge>
+                                ) : group.totalPaid > 0 && group.price > 0 ? (
+                                  <Badge variant="outline" className="text-[10px] h-5 text-amber-600 border-amber-300">
+                                    Parcial
+                                  </Badge>
+                                ) : null}
+                                <ChevronDown className={cn(
+                                  "h-4 w-4 text-muted-foreground transition-transform",
+                                  isExpanded && "rotate-180"
+                                )} />
+                              </div>
+                            </button>
+
+                            {/* Accordion content */}
+                            {isExpanded && (
+                              <div className="border-t bg-muted/20 divide-y">
+                                {group.payments.map((pay: any) => (
+                                  <div key={pay.id} className="flex items-center justify-between px-3 py-2.5 text-sm">
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      <CreditCard className="h-3 w-3 text-muted-foreground shrink-0" />
+                                      <span className="text-xs font-medium truncate">{pay.payment_method_name || "Pagamento"}</span>
+                                      {pay.installments > 1 && (
+                                        <span className="text-[11px] text-muted-foreground">({pay.installments}x)</span>
+                                      )}
+                                      {pay.notes && (
+                                        <span className="text-[11px] text-muted-foreground truncate max-w-[100px]">{pay.notes}</span>
+                                      )}
+                                    </div>
+                                    <div className="flex items-center gap-3 shrink-0">
+                                      <span className="text-[11px] text-muted-foreground/70">
+                                        {formatPaymentDate(pay.paid_at)}
+                                      </span>
+                                      <div className="text-right">
+                                        <span className="font-bold text-xs">{formatCurrency(pay.amount || 0)}</span>
+                                        {pay.discount > 0 && (
+                                          <span className="text-[11px] text-emerald-600 ml-1">(-{formatCurrency(pay.discount)})</span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )
+                ) : payments.length === 0 ? (
                   <div className="text-center py-8">
                     <div className="w-12 h-12 rounded-xl bg-muted/60 flex items-center justify-center mx-auto mb-3">
                       <CreditCard className="h-5 w-5 text-muted-foreground" />
