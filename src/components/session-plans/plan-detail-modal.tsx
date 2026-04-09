@@ -175,6 +175,16 @@ export function PlanDetailModal({
     }
   }
 
+  const formatSessionDate = (dateStr: string) => {
+    if (!dateStr) return ""
+    try {
+      const [y, m, d] = dateStr.split("-")
+      return format(new Date(+y, +m - 1, +d), "dd/MM/yy")
+    } catch {
+      return dateStr
+    }
+  }
+
   useEffect(() => {
     if (open && plan && isGroup) {
       setEnrollmentsLoading(true)
@@ -806,18 +816,28 @@ export function PlanDetailModal({
                             </div>
 
                             {epayments.length > 0 && (
-                              <div className="space-y-1 pl-9">
+                              <div className="space-y-1.5 pl-9">
                                 {epayments.map((pay: any) => (
-                                  <div key={pay.id} className="flex items-center justify-between text-xs py-1">
-                                    <div className="flex items-center gap-1.5 text-muted-foreground">
-                                      <CreditCard className="h-3 w-3" />
-                                      <span>{pay.payment_method_name || "Pagamento"}</span>
-                                      {pay.reference_month && <span>ref: {pay.reference_month}</span>}
+                                  <div key={pay.id} className="text-xs py-1 space-y-0.5">
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex items-center gap-1.5 text-muted-foreground">
+                                        <CreditCard className="h-3 w-3" />
+                                        <span>{pay.payment_method_name || "Pagamento"}</span>
+                                        {pay.reference_month && <span>ref: {pay.reference_month}</span>}
+                                      </div>
+                                      <span className="font-medium tabular-nums">
+                                        R$ {(pay.amount || 0).toFixed(2)}
+                                        {pay.discount > 0 && <span className="text-emerald-600 ml-1">(-R$ {pay.discount.toFixed(2)})</span>}
+                                      </span>
                                     </div>
-                                    <span className="font-medium tabular-nums">
-                                      R$ {(pay.amount || 0).toFixed(2)}
-                                      {pay.discount > 0 && <span className="text-emerald-600 ml-1">(-R$ {pay.discount.toFixed(2)})</span>}
-                                    </span>
+                                    <div className="flex items-center gap-3 text-[10px] text-muted-foreground/70">
+                                      {pay.session_date && (
+                                        <span>Sessão: {formatSessionDate(pay.session_date)}</span>
+                                      )}
+                                      {pay.paid_at && (
+                                        <span>Pago em: {formatPaymentDate(pay.paid_at)}</span>
+                                      )}
+                                    </div>
                                   </div>
                                 ))}
                               </div>

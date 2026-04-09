@@ -23,23 +23,29 @@ import {
 } from "@/components/ui/select"
 import { api } from "@/lib/api/client"
 import { showToast, handleApiError } from "@/lib/toast"
-import { Enrollment, AttendanceRecord, AttendanceStatus, Patient } from "@/types/api"
+import { Enrollment, AttendanceStatus, Patient } from "@/types/api"
+import { PlanPaymentDialog } from "./plan-payment-dialog"
 
 interface GroupAttendanceDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   appointmentId?: string
   sessionPlanId: string
+  sessionDate?: string // YYYY-MM-DD for group attendance without appointment
 }
 
 interface AttendanceEntry {
   patientId: string
   patientName: string
-  status: AttendanceStatus
+  status: AttendanceStatus | null
   isGuest: boolean
   existing: boolean // true if already recorded in DB
+  enrollmentId?: string
   paymentMethodId?: string
   paymentAmount?: number
+  sessionsDone?: number
+  totalSessions?: number | null
+  paymentMode?: string // per_session, upfront, monthly
 }
 
 interface PaymentMethod {
@@ -54,7 +60,7 @@ const statusConfig: Record<AttendanceStatus, { label: string; icon: React.ReactN
   substituted: { label: "Substituto", icon: <Minus className="h-3.5 w-3.5" />, color: "bg-yellow-100 text-yellow-800 hover:bg-yellow-200" },
 }
 
-export function GroupAttendanceDialog({ open, onOpenChange, appointmentId, sessionPlanId }: GroupAttendanceDialogProps) {
+export function GroupAttendanceDialog({ open, onOpenChange, appointmentId, sessionPlanId, sessionDate }: GroupAttendanceDialogProps) {
   const [entries, setEntries] = useState<AttendanceEntry[]>([])
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -67,24 +73,33 @@ export function GroupAttendanceDialog({ open, onOpenChange, appointmentId, sessi
   // Payment methods for guest payment
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([])
 
+  // Payment dialog state (for per_session enrolled students)
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false)
+  const [paymentEnrollmentId, setPaymentEnrollmentId] = useState<string | undefined>()
+
   const loadData = useCallback(async () => {
     if (!sessionPlanId) return
     setLoading(true)
     try {
+      // Load enrollments + attendance (from appointment OR group attendance endpoint)
       const [enrollmentsResp, attendanceResp] = await Promise.all([
         api.getEnrollments(sessionPlanId),
-        appointmentId ? api.getAttendance(appointmentId) : Promise.resolve({ data: [] }),
+        appointmentId
+          ? api.getAttendance(appointmentId)
+          : sessionDate
+            ? api.getGroupAttendance(sessionPlanId, sessionDate)
+            : Promise.resolve({ data: [] }),
       ])
 
       const enrollments: Enrollment[] = enrollmentsResp.data || enrollmentsResp || []
-      const attendanceRecords: AttendanceRecord[] = attendanceResp.data || attendanceResp || []
+      const rawRecords: Array<{ patient_id: string; status: AttendanceStatus; is_guest: boolean; patient_name?: string }> = attendanceResp.data || []
 
-      const attendanceMap = new Map<string, AttendanceRecord>()
-      attendanceRecords.forEach(r => attendanceMap.set(r.patient_id, r))
+      const attendanceMap = new Map<string, { status: AttendanceStatus; is_guest: boolean; patient_name?: string }>()
+      rawRecords.forEach(r => attendanceMap.set(r.patient_id, r))
 
       const newEntries: AttendanceEntry[] = []
 
-      // Add all active enrollments
+      // Add all active enrollments with their session counts
       enrollments
         .filter(e => e.status === "active")
         .forEach(e => {
@@ -92,18 +107,22 @@ export function GroupAttendanceDialog({ open, onOpenChange, appointmentId, sessi
           newEntries.push({
             patientId: e.patient_id,
             patientName: e.patient_name || "Paciente",
-            status: existing?.status || "present",
+            status: existing?.status || null,
             isGuest: false,
             existing: !!existing,
+            enrollmentId: e.id,
+            sessionsDone: e.sessions_done,
+            totalSessions: e.total_sessions,
+            paymentMode: e.payment_mode,
           })
           attendanceMap.delete(e.patient_id)
         })
 
       // Add guest records (patients not in enrollment but with attendance)
-      attendanceMap.forEach(record => {
+      attendanceMap.forEach((record, patientId) => {
         if (record.is_guest) {
           newEntries.push({
-            patientId: record.patient_id,
+            patientId,
             patientName: record.patient_name || "Convidado",
             status: record.status,
             isGuest: true,
@@ -118,7 +137,7 @@ export function GroupAttendanceDialog({ open, onOpenChange, appointmentId, sessi
     } finally {
       setLoading(false)
     }
-  }, [appointmentId, sessionPlanId])
+  }, [appointmentId, sessionPlanId, sessionDate])
 
   useEffect(() => {
     if (open) {
@@ -131,14 +150,18 @@ export function GroupAttendanceDialog({ open, onOpenChange, appointmentId, sessi
   }, [open, loadData])
 
   const setStatus = (patientId: string, status: AttendanceStatus) => {
-    setEntries(prev => prev.map(e => e.patientId === patientId ? { ...e, status } : e))
+    setEntries(prev => prev.map(e => {
+      if (e.patientId !== patientId) return e
+      // Toggle: clicking the same status deselects it
+      return { ...e, status: e.status === status ? null : status }
+    }))
   }
 
   const markAllPresent = () => {
     setEntries(prev => prev.map(e => ({ ...e, status: "present" as AttendanceStatus })))
   }
 
-  const updateGuestPayment = (patientId: string, field: 'paymentMethodId' | 'paymentAmount', value: string | number) => {
+  const updatePayment = (patientId: string, field: 'paymentMethodId' | 'paymentAmount', value: string | number) => {
     setEntries(prev => prev.map(e => {
       if (e.patientId !== patientId) return e
       return { ...e, [field]: value }
@@ -146,31 +169,47 @@ export function GroupAttendanceDialog({ open, onOpenChange, appointmentId, sessi
   }
 
   const handleSave = async () => {
+    // Only send entries that have a status selected
+    const entriesToSave = entries.filter(e => e.status !== null)
+    if (entriesToSave.length === 0) return
+
     setSaving(true)
     try {
-      await Promise.all(
-        entries.map(entry => {
-          const data: {
-            patient_id: string
-            status: AttendanceStatus
-            is_guest: boolean
-            payment_method_id?: string
-            payment_amount?: number
-          } = {
+      if (appointmentId) {
+        // Individual appointment flow (existing)
+        await Promise.all(
+          entriesToSave.map(entry => {
+            const data: {
+              patient_id: string
+              status: AttendanceStatus
+              is_guest: boolean
+              payment_method_id?: string
+              payment_amount?: number
+            } = {
+              patient_id: entry.patientId,
+              status: entry.status as AttendanceStatus,
+              is_guest: entry.isGuest,
+            }
+
+            if (entry.status === "present" && entry.paymentMethodId && entry.paymentAmount && entry.paymentAmount > 0) {
+              data.payment_method_id = entry.paymentMethodId
+              data.payment_amount = entry.paymentAmount
+            }
+
+            return api.recordAttendance(appointmentId, data)
+          })
+        )
+      } else if (sessionDate) {
+        // Group attendance flow (new endpoint)
+        await api.recordGroupAttendance(sessionPlanId, {
+          date: sessionDate,
+          entries: entriesToSave.map(entry => ({
             patient_id: entry.patientId,
-            status: entry.status,
+            status: entry.status as AttendanceStatus,
             is_guest: entry.isGuest,
-          }
-
-          // Include payment info for present guests with payment data
-          if (entry.isGuest && entry.status === "present" && entry.paymentMethodId && entry.paymentAmount && entry.paymentAmount > 0) {
-            data.payment_method_id = entry.paymentMethodId
-            data.payment_amount = entry.paymentAmount
-          }
-
-          return api.recordAttendance(appointmentId!, data)
+          })),
         })
-      )
+      }
       showToast.success("Presença registrada com sucesso!")
       onOpenChange(false)
     } catch (error) {
@@ -215,18 +254,20 @@ export function GroupAttendanceDialog({ open, onOpenChange, appointmentId, sessi
     ? allPatients.filter(p => p.name.toLowerCase().includes(guestSearch.toLowerCase()) && !entries.some(e => e.patientId === p.id))
     : []
 
-  const hasNewGuests = entries.some(e => e.isGuest && !e.existing && e.status === "present")
+  const hasGuestPayments = entries.some(e => e.isGuest && e.status === "present" && e.paymentMethodId && e.paymentAmount && e.paymentAmount > 0)
+  const hasSelectedEntries = entries.some(e => e.status !== null)
 
   return (
+  <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[550px] max-h-[85vh] overflow-hidden flex flex-col">
         <DialogHeader className="shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <ClipboardCheck className="h-5 w-5" />
-            {appointmentId ? "Registro de Presença" : "Alunos da Turma"}
+            {(appointmentId || sessionDate) ? "Registro de Presença" : "Alunos da Turma"}
           </DialogTitle>
           <DialogDescription>
-            {appointmentId ? "Marque a presença dos alunos nesta sessão" : "Alunos inscritos nesta turma"}
+            {(appointmentId || sessionDate) ? "Marque a presença dos alunos nesta sessão" : "Alunos inscritos nesta turma"}
           </DialogDescription>
         </DialogHeader>
 
@@ -257,13 +298,18 @@ export function GroupAttendanceDialog({ open, onOpenChange, appointmentId, sessi
                             <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Convidado</Badge>
                           )}
                         </div>
+                        {!entry.isGuest && entry.sessionsDone != null && (
+                          <div className="text-[10px] text-muted-foreground">
+                            {entry.sessionsDone}/{entry.totalSessions != null ? entry.totalSessions : "∞"} sessões
+                          </div>
+                        )}
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
                         {(["present", "absent", "substituted"] as AttendanceStatus[]).map(s => (
                           <button
                             key={s}
                             className={`px-2 py-1 rounded text-[10px] font-bold uppercase transition-colors ${
-                              entry.status === s ? statusConfig[s].color : "bg-muted text-muted-foreground hover:bg-muted/80"
+                              entry.status === s ? statusConfig[s].color : "bg-muted/50 text-muted-foreground/60 hover:bg-muted hover:text-muted-foreground"
                             }`}
                             onClick={() => setStatus(entry.patientId, s)}
                           >
@@ -273,13 +319,31 @@ export function GroupAttendanceDialog({ open, onOpenChange, appointmentId, sessi
                       </div>
                     </div>
 
-                    {/* Guest payment fields — shown for new guests marked as present */}
-                    {entry.isGuest && !entry.existing && entry.status === "present" && paymentMethods.length > 0 && (
+                    {/* Per-session enrolled student: "Pagar" button always visible */}
+                    {!entry.isGuest && entry.paymentMode === "per_session" && entry.enrollmentId && (
+                      <div className="flex items-center gap-2 pt-1 border-t">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs gap-1.5"
+                          onClick={() => {
+                            setPaymentEnrollmentId(entry.enrollmentId)
+                            setPaymentDialogOpen(true)
+                          }}
+                        >
+                          <CreditCard className="h-3 w-3" />
+                          Pagar sessão
+                        </Button>
+                      </div>
+                    )}
+
+                    {/* Guest payment: inline fields (guests don't have enrollments) */}
+                    {entry.status === "present" && entry.isGuest && !entry.existing && paymentMethods.length > 0 && (
                       <div className="flex items-center gap-2 pt-1 border-t">
                         <CreditCard className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                         <Select
                           value={entry.paymentMethodId || ""}
-                          onValueChange={(v) => updateGuestPayment(entry.patientId, 'paymentMethodId', v)}
+                          onValueChange={(v) => updatePayment(entry.patientId, 'paymentMethodId', v)}
                         >
                           <SelectTrigger className="h-7 text-xs flex-1">
                             <SelectValue placeholder="Forma de pagamento" />
@@ -296,7 +360,7 @@ export function GroupAttendanceDialog({ open, onOpenChange, appointmentId, sessi
                           min="0"
                           placeholder="Valor"
                           value={entry.paymentAmount || ""}
-                          onChange={(e) => updateGuestPayment(entry.patientId, 'paymentAmount', parseFloat(e.target.value) || 0)}
+                          onChange={(e) => updatePayment(entry.patientId, 'paymentAmount', parseFloat(e.target.value) || 0)}
                           className="h-7 text-xs w-24"
                         />
                       </div>
@@ -349,15 +413,27 @@ export function GroupAttendanceDialog({ open, onOpenChange, appointmentId, sessi
 
         <div className="shrink-0 border-t pt-4 flex justify-end gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            {appointmentId ? "Cancelar" : "Fechar"}
+            {(appointmentId || sessionDate) ? "Cancelar" : "Fechar"}
           </Button>
-          {appointmentId && (
-            <Button onClick={handleSave} disabled={saving || entries.length === 0}>
-              {saving ? "Salvando..." : hasNewGuests ? "Salvar Presença e Pagamento" : "Salvar Presença"}
+          {(appointmentId || sessionDate) && (
+            <Button onClick={handleSave} disabled={saving || !hasSelectedEntries}>
+              {saving ? "Salvando..." : hasGuestPayments ? "Salvar Presença e Pagamento" : "Salvar Presença"}
             </Button>
           )}
         </div>
       </DialogContent>
     </Dialog>
+
+    {/* Payment dialog for per_session enrolled students */}
+    <PlanPaymentDialog
+      open={paymentDialogOpen}
+      onOpenChange={setPaymentDialogOpen}
+      sessionPlanId={sessionPlanId}
+      enrollmentId={paymentEnrollmentId}
+      paymentMode="per_session"
+      sessionDate={sessionDate}
+      isGroup
+    />
+  </>
   )
 }

@@ -1243,17 +1243,23 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
                         <div className="flex items-center gap-2 text-muted-foreground"><Clock className="h-3 w-3" /><span>{frequencyLabels[plan.frequency]} às {plan.preferred_time}</span></div>
                       </TableCell>
                       <TableCell>
-                        <div className="w-[100px] space-y-1.5">
-                          <div className="flex justify-between text-[11px] font-medium text-muted-foreground">
-                            <span>{plan.sessions_done}/{plan.total_sessions === -1 ? "∞" : plan.total_sessions}</span>
-                            {plan.total_sessions !== -1 && <span>{Math.round(plan.progress)}%</span>}
+                        {plan.type === "group" ? (
+                          <div className="w-[100px] text-[11px] text-muted-foreground">
+                            <span className="font-medium">Por aluno</span>
                           </div>
-                          {plan.total_sessions !== -1 ? (
-                            <Progress value={plan.progress} className="h-1.5" />
-                          ) : (
-                            <span className="text-[10px] text-muted-foreground">Contínuo</span>
-                          )}
-                        </div>
+                        ) : (
+                          <div className="w-[100px] space-y-1.5">
+                            <div className="flex justify-between text-[11px] font-medium text-muted-foreground">
+                              <span>{plan.sessions_done}/{plan.total_sessions === -1 ? "∞" : plan.total_sessions}</span>
+                              {plan.total_sessions !== -1 && <span>{Math.round(plan.progress)}%</span>}
+                            </div>
+                            {plan.total_sessions !== -1 ? (
+                              <Progress value={plan.progress} className="h-1.5" />
+                            ) : (
+                              <span className="text-[10px] text-muted-foreground">Contínuo</span>
+                            )}
+                          </div>
+                        )}
                       </TableCell>
                       <TableCell>
                          <Badge variant={statusVariants[plan.status]} className="font-medium px-2 py-0.5">{statusLabels[plan.status]}</Badge>

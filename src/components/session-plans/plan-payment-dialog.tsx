@@ -40,6 +40,7 @@ interface PlanPaymentDialogProps {
   paymentMode?: string
   isGroup?: boolean
   enrollments?: Enrollment[]
+  sessionDate?: string // YYYY-MM-DD — locks payment to a specific session date
 }
 
 interface AppointmentGroup {
@@ -54,12 +55,13 @@ interface AppointmentGroup {
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value)
 
-export function PlanPaymentDialog({ open, onOpenChange, sessionPlanId, enrollmentId, paymentMode, isGroup, enrollments }: PlanPaymentDialogProps) {
+export function PlanPaymentDialog({ open, onOpenChange, sessionPlanId, enrollmentId, paymentMode, isGroup, enrollments, sessionDate }: PlanPaymentDialogProps) {
   const [payments, setPayments] = useState<PlanPayment[]>([])
   const [paymentMethods, setPaymentMethods] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [paymentStatus, setPaymentStatus] = useState<any>(null)
+  const [sessionPrice, setSessionPrice] = useState(0)
 
   // Selected enrollment for group plans (when no enrollmentId is pre-set)
   const [selectedEnrollmentId, setSelectedEnrollmentId] = useState("")
@@ -98,18 +100,30 @@ export function PlanPaymentDialog({ open, onOpenChange, sessionPlanId, enrollmen
     if (!sessionPlanId) return
     setLoading(true)
     try {
-      const [paymentsResp, methodsResp, statusResp] = await Promise.all([
+      const [paymentsResp, methodsResp, statusResp, planResp] = await Promise.all([
         effectiveEnrollmentId
           ? api.getEnrollmentPayments(sessionPlanId, effectiveEnrollmentId)
           : api.getPlanPayments(sessionPlanId),
         api.getActivePaymentMethods(),
         api.getPlanPaymentStatus(sessionPlanId).catch(() => null),
+        api.getSessionPlan(sessionPlanId).catch(() => null),
       ])
 
       setPayments((paymentsResp as any)?.data || paymentsResp || [])
       const methods = (methodsResp as any)?.data || methodsResp || []
       setPaymentMethods(methods)
       setPaymentStatus(statusResp)
+
+      // Extract session price from plan (price_override takes precedence over session_price)
+      const plan = (planResp as any)?.data || planResp
+      if (plan) {
+        const price = plan.price_override ?? plan.session_price ?? 0
+        setSessionPrice(price)
+        // Pre-fill amount if not already set
+        if (amount === 0 && price > 0) {
+          setAmount(price)
+        }
+      }
 
       if (methods.length > 0 && !methodId) {
         setMethodId(methods[0].id)
@@ -119,7 +133,7 @@ export function PlanPaymentDialog({ open, onOpenChange, sessionPlanId, enrollmen
     } finally {
       setLoading(false)
     }
-  }, [sessionPlanId, effectiveEnrollmentId, methodId])
+  }, [sessionPlanId, effectiveEnrollmentId, methodId, amount])
 
   useEffect(() => {
     if (open) {
@@ -128,7 +142,7 @@ export function PlanPaymentDialog({ open, onOpenChange, sessionPlanId, enrollmen
   }, [open, fetchData])
 
   const resetForm = () => {
-    setAmount(0)
+    setAmount(sessionPrice || 0)
     setDiscount(0)
     setInstallments(1)
     setReferenceMonth("")
@@ -148,6 +162,13 @@ export function PlanPaymentDialog({ open, onOpenChange, sessionPlanId, enrollmen
       showToast.error("Valor deve ser maior que zero")
       return
     }
+    if (isPerSession && sessionDate && sessionPrice > 0) {
+      const remainingForSession = sessionPrice - totalPaid
+      if (amount > remainingForSession + 0.01) {
+        showToast.error(`Valor máximo para esta sessão: R$ ${remainingForSession.toFixed(2)}`)
+        return
+      }
+    }
 
     setSubmitting(true)
     try {
@@ -157,6 +178,7 @@ export function PlanPaymentDialog({ open, onOpenChange, sessionPlanId, enrollmen
         discount: discount || undefined,
         installments: installments || 1,
         reference_month: referenceMonth || undefined,
+        session_date: sessionDate || undefined,
         notes: notes || undefined,
       }
 
@@ -201,28 +223,36 @@ export function PlanPaymentDialog({ open, onOpenChange, sessionPlanId, enrollmen
   }
 
   const isPerSession = effectivePaymentMode === "per_session"
-  const totalPaid = payments.reduce((sum, p) => sum + (p.amount || 0), 0)
-  const totalDiscount = payments.reduce((sum, p) => sum + (p.discount || 0), 0)
 
-  // Group payments by appointment for per_session mode
+  // When viewing a specific session, only show payments for that date
+  const visiblePayments = sessionDate
+    ? payments.filter(p => p.session_date === sessionDate)
+    : payments
+
+  const totalPaid = visiblePayments.reduce((sum, p) => sum + (p.amount || 0), 0)
+  const totalDiscount = visiblePayments.reduce((sum, p) => sum + (p.discount || 0), 0)
+
+  // Group payments by session_date (group plans) or appointment (individual plans)
   const appointmentGroups = useMemo((): AppointmentGroup[] => {
     if (!isPerSession) return []
 
     const groupMap = new Map<string, AppointmentGroup>()
 
-    for (const pay of payments) {
-      const aptId = pay.appointment_id || "unknown"
-      if (!groupMap.has(aptId)) {
-        groupMap.set(aptId, {
-          appointmentId: aptId,
-          startTime: pay.appointment_start_time || "",
+    for (const pay of visiblePayments) {
+      // Use session_date as key for group plans, appointment_id for individual
+      const key = pay.session_date || pay.appointment_id || "unknown"
+      const dateDisplay = pay.session_date || pay.appointment_start_time || ""
+      if (!groupMap.has(key)) {
+        groupMap.set(key, {
+          appointmentId: key,
+          startTime: dateDisplay,
           price: pay.appointment_price || 0,
           payments: [],
           totalPaid: 0,
           totalCovered: 0,
         })
       }
-      const group = groupMap.get(aptId)!
+      const group = groupMap.get(key)!
       group.payments.push(pay)
       group.totalPaid += pay.amount || 0
       group.totalCovered += (pay.amount || 0) + (pay.discount || 0)
@@ -231,7 +261,7 @@ export function PlanPaymentDialog({ open, onOpenChange, sessionPlanId, enrollmen
     return Array.from(groupMap.values()).sort((a, b) =>
       a.startTime.localeCompare(b.startTime)
     )
-  }, [payments, isPerSession])
+  }, [visiblePayments, isPerSession])
 
   // Build enrollment options for group select
   const activeEnrollments = enrollments?.filter(e => e.status === "active") || []
@@ -243,7 +273,13 @@ export function PlanPaymentDialog({ open, onOpenChange, sessionPlanId, enrollmen
   const showEnrollmentSelector = isGroup && !enrollmentId
 
   const formatAppointmentDate = (dateStr: string) => {
+    if (!dateStr) return "Data desconhecida"
     try {
+      // session_date is YYYY-MM-DD (10 chars), appointment_start_time is ISO datetime
+      if (dateStr.length === 10) {
+        const [y, m, d] = dateStr.split("-")
+        return format(new Date(+y, +m - 1, +d), "dd 'de' MMM, yyyy", { locale: ptBR })
+      }
       return format(new Date(dateStr), "dd 'de' MMM', ' HH:mm", { locale: ptBR })
     } catch {
       return "Data desconhecida"
@@ -266,9 +302,12 @@ export function PlanPaymentDialog({ open, onOpenChange, sessionPlanId, enrollmen
           <DialogHeader className="shrink-0">
             <DialogTitle className="flex items-center gap-2">
               <DollarSign className="h-5 w-5" />
-              Pagamentos do Plano
+              {sessionDate ? "Pagamento da Sessão" : "Pagamentos do Plano"}
             </DialogTitle>
             <DialogDescription>
+              {sessionDate && sessionPrice > 0 && (
+                <span>Valor da sessão: {formatCurrency(sessionPrice)} · </span>
+              )}
               Total pago: {formatCurrency(totalPaid)}
               {totalDiscount > 0 && ` (desc. ${formatCurrency(totalDiscount)})`}
               {paymentStatus?.is_fully_paid && " — Plano quitado"}
@@ -276,11 +315,13 @@ export function PlanPaymentDialog({ open, onOpenChange, sessionPlanId, enrollmen
           </DialogHeader>
 
           <div className="flex-1 overflow-y-auto space-y-4 py-2">
-            {isPerSession ? (
-              /* Per-session info banner */
+            {isPerSession && !(effectiveEnrollmentId && sessionDate) ? (
+              /* Per-session read-only: no form, just history grouped by session/appointment */
               <div className="rounded-lg border border-dashed p-3 text-center space-y-0.5 bg-muted/30">
                 <p className="text-xs text-muted-foreground">
-                  Pagamentos registrados nos agendamentos vinculados a este plano.
+                  {effectiveEnrollmentId
+                    ? "Pagamentos por sessão — registre pelo calendário ao marcar presença."
+                    : "Pagamentos registrados nos agendamentos vinculados a este plano."}
                 </p>
               </div>
             ) : (
@@ -464,33 +505,43 @@ export function PlanPaymentDialog({ open, onOpenChange, sessionPlanId, enrollmen
                   })}
                 </div>
               )
-            ) : payments.length === 0 ? (
+            ) : visiblePayments.length === 0 ? (
               <p className="text-sm text-muted-foreground py-2 text-center">Nenhum pagamento registrado.</p>
             ) : (
               /* Flat list for upfront/monthly */
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Histórico</Label>
-                {payments.map((pay) => (
-                  <div key={pay.id} className="flex items-center justify-between rounded-lg border p-3 text-sm">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <CreditCard className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                      <span className="font-medium truncate">{pay.payment_method_name || "Pagamento"}</span>
-                      {pay.installments > 1 && <span className="text-xs text-muted-foreground">({pay.installments}x)</span>}
-                      {pay.reference_month && <span className="text-xs text-muted-foreground">ref: {pay.reference_month}</span>}
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <div className="text-right">
-                        <span className="font-bold">{formatCurrency(pay.amount || 0)}</span>
-                        {pay.discount > 0 && <span className="text-xs text-green-600 ml-1">(-{formatCurrency(pay.discount)})</span>}
+                {visiblePayments.map((pay) => (
+                  <div key={pay.id} className="rounded-lg border p-3 text-sm space-y-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <CreditCard className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        <span className="font-medium truncate">{pay.payment_method_name || "Pagamento"}</span>
+                        {pay.installments > 1 && <span className="text-xs text-muted-foreground">({pay.installments}x)</span>}
+                        {pay.reference_month && <span className="text-xs text-muted-foreground">ref: {pay.reference_month}</span>}
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 text-destructive"
-                        onClick={() => setDeleteTarget(pay.id)}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <div className="text-right">
+                          <span className="font-bold">{formatCurrency(pay.amount || 0)}</span>
+                          {pay.discount > 0 && <span className="text-xs text-green-600 ml-1">(-{formatCurrency(pay.discount)})</span>}
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-destructive"
+                          onClick={() => setDeleteTarget(pay.id)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
+                      {pay.session_date && (
+                        <span>Sessão: {formatAppointmentDate(pay.session_date)}</span>
+                      )}
+                      {pay.paid_at && (
+                        <span>Pago em: {formatPaymentDate(pay.paid_at)}</span>
+                      )}
                     </div>
                   </div>
                 ))}

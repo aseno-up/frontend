@@ -730,6 +730,24 @@ class ApiClient {
     return response.data
   }
 
+  // Group attendance endpoints
+  async recordGroupAttendance(sessionPlanId: string, data: {
+    date: string
+    entries: Array<{
+      patient_id: string
+      status: 'present' | 'absent' | 'substituted'
+      is_guest: boolean
+    }>
+  }) {
+    const response = await this.client.post(`/session-plans/${sessionPlanId}/attendance`, data)
+    return response.data
+  }
+
+  async getGroupAttendance(sessionPlanId: string, date: string) {
+    const response = await this.client.get(`/session-plans/${sessionPlanId}/attendance`, { params: { date } })
+    return response.data
+  }
+
   // Enrollment endpoints
   async enrollPatient(sessionPlanId: string, data: {
     patient_id: string
@@ -795,6 +813,7 @@ class ApiClient {
     discount?: number
     installments?: number
     reference_month?: string
+    session_date?: string
     notes?: string
   }) {
     const response = await this.client.post(
