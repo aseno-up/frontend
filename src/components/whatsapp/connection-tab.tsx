@@ -146,7 +146,6 @@ export function WhatsAppConnectionTab() {
       setStatus(null)
       setQRCode(null)
       setPollingStartTime(null)
-      fetchStatus(false)
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro ao desconectar WhatsApp'
       setError(message)
@@ -202,13 +201,6 @@ export function WhatsAppConnectionTab() {
     return () => clearInterval(interval)
   }, [qrCode, isConnected, fetchStatus, pollingStartTime, MAX_POLLING_TIME_MS])
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      fetchStatus(true)
-    }, 10000)
-
-    return () => clearInterval(interval)
-  }, [fetchStatus])
 
   const onSubmitTestMessage = async (data: TestMessageFormData) => {
     try {
