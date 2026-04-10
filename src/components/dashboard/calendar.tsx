@@ -165,13 +165,14 @@ export function Calendar({
                 ? `${evt.title} (${evt.enrolled_count ?? 0}/${evt.capacity ?? "?"})`
                 : evt.patient_name || evt.title || "Sessao"
 
+              const profColor = professional?.color || evt.professional_color
               return {
                 id: `virtual_${evt.session_plan_id}_${evt.virtual_date}`,
                 title,
                 start: evt.start_time,
                 end: evt.end_time,
                 backgroundColor: colors.bg,
-                borderColor: colors.border,
+                borderColor: profColor || colors.border,
                 textColor: colors.text,
                 extendedProps: {
                   isVirtual: true,
@@ -220,7 +221,7 @@ export function Calendar({
               start: apt.start_time,
               end: apt.end_time,
               backgroundColor: colors.bg,
-              borderColor: colors.border,
+              borderColor: professional?.color || colors.border,
               textColor: colors.text,
               extendedProps: {
                 appointment: apt,
@@ -507,18 +508,34 @@ export function Calendar({
     const status = appointment?.status || "pending"
     const config = statusConfig[status] || statusConfig.pending
 
-    return (
-      <div className="flex flex-col h-full w-full p-1 relative overflow-hidden rounded-md cursor-pointer">
-        {/* Professional color indicator (left border) */}
-        {professionalColor && (
-          <div
-            className="absolute left-0 top-0 bottom-0 w-1 rounded-l"
-            style={{ backgroundColor: professionalColor }}
-          />
-        )}
+    // Calculate event duration in minutes to decide layout
+    const start = eventInfo.event.start
+    const end = eventInfo.event.end
+    const durationMin = start && end ? Math.round((end.getTime() - start.getTime()) / 60000) : 60
 
+    // Compact: ≤30min — only patient name (inline with time)
+    // Normal: >30min — status + time + patient name
+    const isCompact = durationMin <= 50
+
+    if (isCompact) {
+      return (
+        <div className="flex items-center h-full w-full px-1.5 overflow-hidden rounded-md cursor-pointer">
+          <div className="flex items-center gap-1 min-w-0">
+            {/* <span className="text-[10px] font-medium text-foreground/60 shrink-0">
+              {eventInfo.timeText}
+            </span> */}
+            <span className="text-[11px] font-bold text-foreground truncate">
+              {eventInfo.event.title}
+            </span>
+          </div>
+        </div>
+      )
+    }
+
+    return (
+      <div className="flex flex-col h-full w-full p-1 overflow-hidden rounded-md cursor-pointer">
         {/* Main content */}
-        <div className={cn("flex flex-col h-full gap-0.5", professionalColor ? "pl-2" : "pl-1")}>
+        <div className="flex flex-col h-full gap-0.5 pl-1">
           {/* Status badge with icon */}
           <div className="flex items-center">
             <span
@@ -550,7 +567,7 @@ export function Calendar({
       {/* Custom tooltip — rendered at page root with position:fixed, always above everything */}
       {tooltip.visible && tooltip.appointment && (
         <div
-          className="fixed pointer-events-none bg-white text-foreground border border-border rounded-lg shadow-xl p-3 min-w-[220px]"
+          className="fixed pointer-events-none bg-card text-foreground border border-border/50 rounded-xl shadow-elevated p-3.5 min-w-[220px]"
           style={{
             left: tooltip.x,
             top: tooltip.y,

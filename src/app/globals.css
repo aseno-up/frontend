@@ -4,50 +4,61 @@
 
 @layer base {
   :root {
-    /* Light theme - Clean professional look */
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    /* Light theme — Refined professional palette
+       Inspired by Calendly/Stripe: off-white canvas, crisp whites, muted neutrals */
+    --background: 220 20% 97.5%;      /* #F7F8FA — subtle off-white canvas */
+    --foreground: 220 25% 10%;         /* #171B22 — rich near-black */
+    --card: 0 0% 100%;                 /* Pure white cards for contrast */
+    --card-foreground: 220 25% 10%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 202 100% 61%; /* Blue #38b6ff */
+    --popover-foreground: 220 25% 10%;
+    --primary: 210 100% 52%;           /* #0A84FF — deeper, more confident blue */
     --primary-foreground: 0 0% 100%;
-    --secondary: 220 14% 96%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 220 14% 96%;
-    --muted-foreground: 220 9% 46%;
-    --accent: 220 13% 91%; /* Soft gray for hover */
-    --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
+    --secondary: 220 16% 96%;          /* #F2F4F7 */
+    --secondary-foreground: 220 20% 18%;
+    --muted: 220 16% 96%;
+    --muted-foreground: 220 10% 52%;   /* #7B8494 — readable mid-gray */
+    --accent: 220 14% 93%;             /* #EBEEF2 — hover surface */
+    --accent-foreground: 220 20% 18%;
+    --destructive: 0 72% 51%;          /* #DD3344 — toned-down red */
     --destructive-foreground: 0 0% 100%;
-    --border: 220 13% 91%;
-    --input: 220 13% 60%;
-    --ring: 202 100% 61%; /* Blue #38b6ff */
-    --radius: 0.75rem;
+    --border: 220 14% 90%;             /* #E2E5EB — subtle border */
+    --input: 220 14% 78%;              /* #B8BDC8 — input border */
+    --ring: 210 100% 52%;
+    --radius: 0.625rem;                /* 10px — slightly tighter than 12 */
+
+    /* Extended palette for components */
+    --success: 152 60% 42%;            /* #2B9E5E */
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;             /* #F59E0B */
+    --warning-foreground: 0 0% 100%;
   }
 
   .dark {
-    /* Dark theme - Modern Aseno look */
-    --background: 224 71% 4%; /* Very dark blue */
+    /* Dark theme — Modern Aseno look */
+    --background: 224 71% 4%;
     --foreground: 213 31% 91%;
-    --card: 224 71% 6%;
+    --card: 224 50% 7%;
     --card-foreground: 213 31% 91%;
-    --popover: 224 71% 6%;
+    --popover: 224 50% 7%;
     --popover-foreground: 213 31% 91%;
-    --primary: 202 100% 61%; /* Blue #38b6ff */
+    --primary: 210 100% 56%;           /* Slightly brighter in dark */
     --primary-foreground: 0 0% 100%;
     --secondary: 223 47% 11%;
     --secondary-foreground: 213 31% 91%;
     --muted: 223 47% 11%;
     --muted-foreground: 215 20% 65%;
-    --accent: 220 13% 20%; /* Soft gray for hover */
+    --accent: 223 30% 15%;
     --accent-foreground: 213 31% 91%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 100%;
-    --border: 223 47% 15%;
-    --input: 223 30% 50%;
-    --ring: 202 100% 61%; /* Blue #38b6ff */
+    --border: 223 30% 16%;
+    --input: 223 30% 40%;
+    --ring: 210 100% 56%;
+    --success: 152 50% 38%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 80% 45%;
+    --warning-foreground: 0 0% 100%;
   }
 }
 
@@ -64,17 +75,37 @@
 
   body {
     @apply bg-background text-foreground font-sans;
-    /* Prevent text size adjustment on orientation change */
     -webkit-text-size-adjust: 100%;
-    /* Improve font rendering */
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    /* Prevent pull-to-refresh on mobile */
     overscroll-behavior-y: contain;
+    font-feature-settings: "cv11", "ss01";   /* Enable stylistic alternates if available */
+    letter-spacing: -0.011em;                 /* Tighter body text like Stripe */
   }
 
   h1, h2, h3, h4, h5, h6 {
-    @apply font-poppins font-semibold tracking-tight;
+    @apply font-poppins font-semibold;
+    letter-spacing: -0.025em;                 /* Tighter headings */
+  }
+
+  h1 { @apply text-2xl md:text-3xl; }
+  h2 { @apply text-xl md:text-2xl; }
+  h3 { @apply text-lg md:text-xl; }
+
+  /* Refined scrollbar for webkit browsers */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.3);
   }
 
   /* Mobile-specific optimizations */
@@ -125,79 +156,393 @@
   }
 }
 
-/* FullCalendar custom styles */
+/* ==========================================================================
+   Global component refinements — applies across all pages
+   ========================================================================== */
+
+/* Smooth transitions for all interactive elements */
+button, a, input, select, textarea,
+[role="button"], [role="tab"], [role="menuitem"] {
+  transition-property: color, background-color, border-color, box-shadow, transform, opacity;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+/* Table refinements */
+table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+/* Dialog/modal backdrop */
+[data-state="open"][role="dialog"] {
+  animation: fade-in 0.15s ease-out;
+}
+
+/* Selection color */
+::selection {
+  background: hsl(var(--primary) / 0.15);
+  color: hsl(var(--foreground));
+}
+
+/* ==========================================================================
+   FullCalendar — Google Calendar replica
+   Google Calendar color tokens:
+     Blue primary:   #1a73e8 / #1967d2 (hover)
+     Red (now):      #ea4335
+     Border:         #dadce0
+     Text primary:   #3c4043
+     Text secondary: #70757a
+     Today bg:       #e8f0fe (column tint)
+     Surface:        #ffffff
+   ========================================================================== */
+
 .fc {
-  --fc-border-color: hsl(var(--border));
-  --fc-button-bg-color: hsl(var(--primary));
-  --fc-button-border-color: hsl(var(--primary));
-  --fc-button-hover-bg-color: hsl(var(--primary) / 0.9);
-  --fc-button-hover-border-color: hsl(var(--primary) / 0.9);
-  --fc-button-active-bg-color: hsl(var(--primary) / 0.8);
-  --fc-button-active-border-color: hsl(var(--primary) / 0.8);
+  /* Core FC variable overrides — Google Calendar palette */
+  --fc-border-color: #dadce0;
+  --fc-button-bg-color: transparent;
+  --fc-button-border-color: #dadce0;
+  --fc-button-text-color: #3c4043;
+  --fc-button-hover-bg-color: #f1f3f4;
+  --fc-button-hover-border-color: #dadce0;
+  --fc-button-active-bg-color: #e8f0fe;
+  --fc-button-active-border-color: #dadce0;
   --fc-event-border-color: transparent;
-  --fc-today-bg-color: hsl(var(--primary) / 0.05);
-  --fc-now-indicator-color: hsl(var(--primary));
-  --fc-page-bg-color: transparent;
-  --fc-neutral-bg-color: hsl(var(--muted) / 0.3);
-  --fc-list-event-hover-bg-color: hsl(var(--muted));
+  --fc-today-bg-color: #f6fafe;
+  --fc-now-indicator-color: #ea4335;
+  --fc-page-bg-color: #ffffff;
+  --fc-neutral-bg-color: #fbfbfc;
+  --fc-list-event-hover-bg-color: #f1f3f4;
+  --fc-small-font-size: 0.8125rem;
+  font-family: 'Google Sans', 'Roboto', var(--font-inter), -apple-system, system-ui, sans-serif;
+  color: #3c4043;
+}
+
+/* --- Toolbar / Header --- */
+.fc .fc-toolbar {
+  @apply mb-4 gap-2;
 }
 
 .fc .fc-toolbar-title {
-  @apply text-lg font-semibold;
+  font-size: 1.375rem;
+  font-weight: 400;
+  color: #3c4043;
+  letter-spacing: 0;
 }
 
+/* Buttons: Google Calendar outlined style — flat, no elevation */
 .fc .fc-button {
-  @apply text-sm font-medium rounded-md px-3 py-1.5;
+  @apply text-sm font-medium px-3 py-1.5;
+  background: transparent;
+  color: #5f6368;
+  border: 1px solid #dadce0;
+  border-radius: 4px;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+  box-shadow: none;
+  text-transform: none;
+  line-height: 1.25rem;
 }
 
 .fc .fc-button:focus {
-  @apply ring-2 ring-primary ring-offset-2;
+  box-shadow: none;
+  outline: none;
+  background: #e8f0fe;
+}
+
+.fc .fc-button:not(:disabled):hover {
+  background: #f1f3f4;
+  border-color: #dadce0;
+  box-shadow: none;
+  transform: none;
+}
+
+.fc .fc-button:not(:disabled):active {
+  background: #e8f0fe;
+  transform: none;
+}
+
+/* Active / selected view button */
+.fc .fc-button-active {
+  background: #e8f0fe !important;
+  color: #1a73e8 !important;
+  border-color: #dadce0 !important;
+  font-weight: 500;
+}
+
+/* Button group: Google style — joined segments */
+.fc .fc-button-group {
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: none;
+  border: 1px solid #dadce0;
+}
+
+.fc .fc-button-group > .fc-button {
+  border-radius: 0;
+  margin: 0;
+  border: none;
+  border-right: 1px solid #dadce0;
+}
+
+.fc .fc-button-group > .fc-button:last-child {
+  border-right: none;
+}
+
+.fc .fc-button-group > .fc-button:first-child {
+  border-top-left-radius: 4px;
+  border-bottom-left-radius: 4px;
+}
+
+.fc .fc-button-group > .fc-button:last-child {
+  border-top-right-radius: 4px;
+  border-bottom-right-radius: 4px;
+}
+
+/* Navigation prev/next: icon-only circular buttons like Google */
+.fc .fc-prev-button,
+.fc .fc-next-button {
+  border: none !important;
+  border-radius: 50% !important;
+  width: 36px;
+  height: 36px;
+  padding: 0 !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #5f6368;
+}
+
+.fc .fc-prev-button:not(:disabled):hover,
+.fc .fc-next-button:not(:disabled):hover {
+  background: #f1f3f4 !important;
+}
+
+/* Today button: outlined Google style */
+.fc .fc-today-button {
+  background: transparent;
+  color: #1a73e8;
+  border: 1px solid #dadce0;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.fc .fc-today-button:not(:disabled):hover {
+  background: #f1f3f4;
+  color: #1a73e8;
   box-shadow: none;
 }
 
+.fc .fc-today-button:disabled {
+  background: transparent;
+  color: #70757a;
+  border-color: #dadce0;
+  opacity: 0.6;
+}
+
+/* --- Column headers (days) --- */
+.fc .fc-col-header {
+  background: #ffffff;
+}
+
+.fc .fc-col-header-cell {
+  border-bottom: 1px solid #dadce0;
+}
+
 .fc .fc-col-header-cell-cushion {
-  @apply py-2 text-xs font-medium uppercase text-muted-foreground;
+  @apply py-2;
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #70757a;
+  text-decoration: none;
 }
 
+/* Today column header — blue text with circle on day number */
+.fc .fc-day-today .fc-col-header-cell-cushion {
+  color: #1a73e8;
+  font-weight: 500;
+}
+
+/* --- Time slot labels --- */
 .fc .fc-timegrid-slot-label-cushion {
-  @apply text-xs text-muted-foreground;
+  font-size: 10px;
+  color: #70757a;
+  font-weight: 400;
+  padding-right: 8px;
 }
 
+/* --- Grid lines: Google Calendar ultra-light --- */
+.fc .fc-scrollgrid {
+  border: none;
+  border-radius: 0;
+  overflow: hidden;
+}
+
+.fc .fc-scrollgrid td,
+.fc .fc-scrollgrid th {
+  border-color: #dadce0;
+}
+
+/* Outer frame borders removed for clean Google look */
+.fc .fc-scrollgrid-section > td {
+  border-bottom: none;
+}
+
+.fc .fc-timegrid-slot {
+  height: 2.25rem !important;
+}
+
+/* Non-business hours: same as regular hours */
+.fc .fc-non-business {
+  background: transparent !important;
+}
+
+/* Half-hour marks: even more subtle */
+.fc .fc-timegrid-slot-minor {
+  border-top-style: none;
+}
+
+/* --- Events: Google Calendar style — soft fill, no heavy left border --- */
 .fc .fc-event {
-  @apply rounded-md px-2 py-1 text-xs font-medium border-l-4;
+  @apply text-xs;
+  font-weight: 500;
+  border-radius: 4px;
+  border-top: none;
+  border-right: none;
+  border-bottom: none;
+  border-left: 3px solid;
+  padding: 2px 6px;
+  transition: filter 0.12s ease;
+  box-shadow: none;
+  cursor: pointer;
+}
+
+.fc .fc-event:hover {
+  filter: brightness(0.92);
+  box-shadow: 0 1px 3px rgba(60, 64, 67, 0.15), 0 1px 2px rgba(60, 64, 67, 0.1);
+  transform: none;
+  z-index: 5;
 }
 
 .fc .fc-daygrid-event {
-  @apply rounded-md px-2 py-0.5;
+  border-radius: 4px;
+  padding: 1px 6px;
 }
 
 .fc .fc-timegrid-event {
-  @apply rounded-md;
+  border-radius: 4px;
 }
+
 
 /* Guarantee tooltip portal z-index wins over any FC stacking context */
 [data-radix-popper-content-wrapper] {
   z-index: 9999 !important;
 }
 
-
 .fc .fc-event-main {
-  @apply p-1;
+  @apply p-0.5;
 }
 
-.fc .fc-timegrid-slot {
-  height: 3.5rem !important;
-}
-
+/* --- Now indicator: Google Calendar red line + dot --- */
 .fc .fc-timegrid-now-indicator-line {
-  @apply border-2;
+  border: none;
+  border-top: 2px solid #ea4335;
+  position: relative;
+  z-index: 4;
+}
+
+.fc .fc-timegrid-now-indicator-line::before {
+  content: "";
+  position: absolute;
+  left: -6px;
+  top: -6px;
+  width: 10px;
+  height: 10px;
+  background: #ea4335;
+  border-radius: 50%;
 }
 
 .fc .fc-timegrid-now-indicator-arrow {
-  @apply border-l-primary;
+  display: none;
 }
 
-/* Mobile optimizations for FullCalendar */
+/* --- Today highlight --- */
+.fc .fc-day-today {
+  background: #f6fafe !important;
+}
+
+/* Day number (month view) */
+.fc .fc-daygrid-day-number {
+  @apply text-sm p-2;
+  color: #3c4043;
+}
+
+/* Today day number: Google blue circle */
+.fc .fc-day-today .fc-daygrid-day-number {
+  color: #ffffff;
+  font-weight: 500;
+  background: #1a73e8;
+  border-radius: 50%;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  margin: 4px;
+}
+
+/* --- Selection highlight: light blue like Google --- */
+.fc .fc-highlight {
+  background: rgba(26, 115, 232, 0.1) !important;
+  border: none;
+}
+
+/* --- List view: clean Google style --- */
+.fc .fc-list {
+  border-radius: 0;
+  overflow: hidden;
+  border: 1px solid #dadce0;
+}
+
+.fc .fc-list-day-cushion {
+  background: #f1f3f4;
+  padding: 8px 16px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #3c4043;
+}
+
+.fc .fc-list-event {
+  @apply cursor-pointer;
+  transition: background 0.1s ease;
+}
+
+.fc .fc-list-event:hover td {
+  background: #f1f3f4;
+}
+
+.fc .fc-list-event-time {
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: #70757a;
+}
+
+.fc .fc-list-event-title {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #3c4043;
+}
+
+.fc .fc-list-event-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: none;
+}
+
+/* --- Mobile optimizations --- */
 @media (max-width: 768px) {
   .fc .fc-toolbar {
     @apply flex-col gap-2 py-2;
@@ -208,7 +553,8 @@
   }
 
   .fc .fc-toolbar-title {
-    @apply text-base font-semibold;
+    font-size: 1.125rem;
+    font-weight: 400;
   }
 
   .fc .fc-button {
@@ -216,48 +562,46 @@
   }
 
   .fc .fc-button-group {
-    @apply flex justify-center gap-1;
-  }
-
-  /* List view optimizations for mobile */
-  .fc-list-event {
-    @apply cursor-pointer;
+    @apply flex justify-center gap-0;
   }
 
   .fc-list-event-time {
-    @apply font-semibold text-sm;
+    font-weight: 500;
+    font-size: 0.875rem;
   }
 
   .fc-list-event-title {
-    @apply text-sm;
+    font-size: 0.875rem;
   }
 
   .fc-list-event-dot {
-    @apply w-3 h-3;
+    width: 12px;
+    height: 12px;
   }
 
   .fc .fc-list-day-cushion {
-    @apply bg-muted/50 py-3 px-4;
+    background: #f1f3f4;
+    padding: 10px 16px;
   }
 
   .fc .fc-list-event-graphic {
     @apply pr-3;
   }
 
-  /* Time grid optimizations (when user switches to it) */
   .fc .fc-timegrid-slot {
-    height: 3rem !important;
+    height: 2.25rem !important;
   }
 
   .fc .fc-col-header-cell-cushion {
-    @apply text-[11px] py-3;
+    font-size: 11px;
+    padding: 10px 0;
   }
 
   .fc .fc-timegrid-slot-label-cushion {
-    @apply text-[11px] px-2;
+    font-size: 10px;
+    padding: 0 8px;
   }
 
-  /* Event styling for mobile */
   .fc .fc-event {
     @apply min-h-[44px] cursor-pointer;
     padding: 4px 6px !important;
@@ -268,14 +612,14 @@
   }
 
   .fc .fc-event-title {
-    @apply text-sm font-medium;
+    font-size: 0.875rem;
+    font-weight: 500;
   }
 
   .fc .fc-event-time {
-    @apply text-xs;
+    font-size: 0.75rem;
   }
 
-  /* Day grid (monthly view) optimizations */
   .fc .fc-daygrid-event {
     @apply px-2 py-1 mb-1;
   }

@@ -121,10 +121,10 @@ export function Sidebar({ lng }: SidebarProps) {
             onClick={onItemClick}
             data-tutorial={item.tutorialId}
             className={cn(
-              "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+              "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-150",
               isActive
-                ? "bg-primary/10 text-primary"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                ? "bg-primary/10 text-primary shadow-sm shadow-primary/5"
+                : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
             )}
           >
             <Icon className="h-5 w-5 shrink-0" />
@@ -232,7 +232,7 @@ export function Sidebar({ lng }: SidebarProps) {
       {/* Desktop Sidebar */}
       <aside
         className={cn(
-          "hidden md:flex h-screen flex-col border-r bg-card transition-all duration-300",
+          "hidden md:flex h-screen flex-col border-r border-border/50 bg-card transition-all duration-300",
           collapsed ? "w-16" : "w-64"
         )}
       >
