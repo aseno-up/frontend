@@ -51,7 +51,8 @@ import { api } from '@/lib/api/client'
 import { showToast, handleApiError } from '@/lib/toast'
 import { DynamicAnamneseForm } from '@/components/pacientes/DynamicAnamneseForm'
 import { PatientMergeModal } from '@/components/pacientes/PatientMergeModal'
-import type { Patient, PatientRecord, SessionNote, FullPatientRecord, Appointment, NoShowRisk, AnamneseTemplate } from '@/types/api'
+import { Switch } from '@/components/ui/switch'
+import type { Patient, PatientRecord, SessionNote, FullPatientRecord, Appointment, NoShowRisk, AnamneseTemplate, PatientWhatsAppConnection } from '@/types/api'
 
 // Helper function to get risk badge variant and label
 const getRiskInfo = (risk: NoShowRisk) => {
@@ -100,6 +101,8 @@ export default function PatientRecordPage() {
   const [editingNote, setEditingNote] = useState<SessionNote | null>(null)
   const [isSavingNote, setIsSavingNote] = useState(false)
   const [mergeModalOpen, setMergeModalOpen] = useState(false)
+  const [whatsappConn, setWhatsappConn] = useState<PatientWhatsAppConnection | null>(null)
+  const [isSavingWhatsappConn, setIsSavingWhatsappConn] = useState(false)
 
   // Dynamic Record state
   const [customFields, setCustomFields] = useState<Record<string, any>>({})
@@ -139,6 +142,16 @@ export default function PatientRecordPage() {
       ])
 
       setPatient(patientData)
+
+      // Fetch WhatsApp connection preferences
+      try {
+        const connData = await api.getPatientWhatsAppConnection(patientId)
+        setWhatsappConn(connData)
+      } catch {
+        // No connection yet — use defaults
+        setWhatsappConn({ patient_id: patientId, clinic_id: '', ai_scheduling_enabled: true, reminders_enabled: true })
+      }
+
       setRecord(fullRecord.record)
       setRecordHistory(historyData || [])
       setSessionNotes(fullRecord.session_notes || [])
@@ -257,6 +270,23 @@ export default function PatientRecordPage() {
       fetchData()
     } catch (error) {
       handleApiError(error, 'Erro ao excluir evolucao')
+    }
+  }
+
+  const handleToggleWhatsappConnField = async (field: 'ai_scheduling_enabled' | 'reminders_enabled', enabled: boolean) => {
+    if (!whatsappConn) return
+
+    try {
+      setIsSavingWhatsappConn(true)
+      setWhatsappConn({ ...whatsappConn, [field]: enabled })
+      const updated = await api.updatePatientWhatsAppConnection(patientId, { [field]: enabled })
+      setWhatsappConn(updated)
+      showToast.success(enabled ? 'Ativado com sucesso' : 'Desativado com sucesso')
+    } catch (err) {
+      setWhatsappConn({ ...whatsappConn, [field]: !enabled })
+      handleApiError(err)
+    } finally {
+      setIsSavingWhatsappConn(false)
     }
   }
 
@@ -380,6 +410,43 @@ export default function PatientRecordPage() {
           currentPatientId={patientId}
           onMergeComplete={() => fetchData()}
         />
+
+        {/* WhatsApp Connection Settings */}
+        {whatsappConn && (patient.whatsapp || patient.phone) && (
+          <Card className="mb-6">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Phone className="h-4 w-4" />
+                WhatsApp
+              </CardTitle>
+              <CardDescription>Configuracoes de notificacao e IA para este paciente</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium">Enviar lembretes de consulta</p>
+                  <p className="text-xs text-muted-foreground">Lembretes automaticos antes da consulta</p>
+                </div>
+                <Switch
+                  checked={whatsappConn.reminders_enabled}
+                  onCheckedChange={(enabled) => handleToggleWhatsappConnField('reminders_enabled', enabled)}
+                  disabled={isSavingWhatsappConn}
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium">Permitir agendamento por IA</p>
+                  <p className="text-xs text-muted-foreground">A IA pode agendar consultas para este paciente</p>
+                </div>
+                <Switch
+                  checked={whatsappConn.ai_scheduling_enabled}
+                  onCheckedChange={(enabled) => handleToggleWhatsappConnField('ai_scheduling_enabled', enabled)}
+                  disabled={isSavingWhatsappConn}
+                />
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Tabs for Record and Session Notes */}
         <Tabs defaultValue="record" className="space-y-4">

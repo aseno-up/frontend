@@ -241,6 +241,19 @@ class ApiClient {
     return response.data
   }
 
+  async getPatientWhatsAppConnection(patientId: string) {
+    const response = await this.client.get(`/patients/${patientId}/whatsapp-connection`)
+    return response.data
+  }
+
+  async updatePatientWhatsAppConnection(patientId: string, data: {
+    ai_scheduling_enabled?: boolean
+    reminders_enabled?: boolean
+  }) {
+    const response = await this.client.put(`/patients/${patientId}/whatsapp-connection`, data)
+    return response.data
+  }
+
   async deletePatient(id: string) {
     const response = await this.client.delete(`/patients/${id}`)
     return response.data
@@ -1152,6 +1165,7 @@ class ApiClient {
       whatsapp_reminders_enabled?: boolean
       email_reminders_enabled?: boolean
       require_payment_before_booking?: boolean
+      allow_ai_scheduling?: boolean
       ai_agent_enabled?: boolean
       ai_min_delay_between_messages?: number | null
       ai_min_delay_between_patients?: number | null

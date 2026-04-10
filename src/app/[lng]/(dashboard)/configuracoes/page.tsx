@@ -103,6 +103,9 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
   const [emailReminders, setEmailReminders] = useState(
     clinic?.settings?.email_reminders_enabled ?? false
   )
+  const [allowAIScheduling, setAllowAIScheduling] = useState(
+    clinic?.settings?.allow_ai_scheduling ?? false
+  )
   const [isSavingNotifications, setIsSavingNotifications] = useState(false)
 
   // AI agent state
@@ -382,6 +385,28 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
       showToast.success(enabled ? "Lembretes por email ativados" : "Lembretes por email desativados")
     } catch (err) {
       setEmailReminders(!enabled)
+      handleApiError(err)
+    } finally {
+      setIsSavingNotifications(false)
+    }
+  }
+
+  const handleToggleAllowAIScheduling = async (enabled: boolean) => {
+    if (!canEditClinic) return
+
+    try {
+      setIsSavingNotifications(true)
+      setAllowAIScheduling(enabled)
+      const updatedClinic = await api.updateClinic({
+        settings: {
+          ...clinic?.settings,
+          allow_ai_scheduling: enabled,
+        },
+      })
+      setClinic(updatedClinic)
+      showToast.success(enabled ? "Agendamento automatico ativado" : "Agendamento automatico desativado")
+    } catch (err) {
+      setAllowAIScheduling(!enabled)
       handleApiError(err)
     } finally {
       setIsSavingNotifications(false)
@@ -877,22 +902,36 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
                   <CardDescription>Configure as notificacoes automaticas</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <PlanRestriction requiredPlan="professional">
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-medium">WhatsApp</p>
-                          <p className="text-sm text-muted-foreground">Enviar lembretes de consulta via WhatsApp</p>
-                        </div>
-                        <Switch
-                          checked={whatsappReminders}
-                          onCheckedChange={handleToggleWhatsappReminders}
-                          disabled={isSavingNotifications || !canEditClinic}
-                        />
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">Confirmacao de agendamento</p>
+                        <p className="text-sm text-muted-foreground">Enviar confirmacao de consulta via WhatsApp</p>
                       </div>
+                      <Switch
+                        checked={whatsappReminders}
+                        onCheckedChange={handleToggleWhatsappReminders}
+                        disabled={isSavingNotifications || !canEditClinic}
+                      />
+                    </div>
 
-                      <Separator />
+                    <Separator />
 
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">Agendamento automatico</p>
+                        <p className="text-sm text-muted-foreground">Permitir que pacientes marquem consultas automaticamente pela IA</p>
+                      </div>
+                      <Switch
+                        checked={allowAIScheduling}
+                        onCheckedChange={handleToggleAllowAIScheduling}
+                        disabled={isSavingNotifications || !canEditClinic}
+                      />
+                    </div>
+
+                    <Separator />
+
+                    <PlanRestriction requiredPlan="professional">
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="font-medium">Email</p>
@@ -904,14 +943,14 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
                           disabled={isSavingNotifications || !canEditClinic}
                         />
                       </div>
+                    </PlanRestriction>
 
-                      {!canEditClinic && (
-                        <p className="text-xs text-muted-foreground">
-                          Apenas administradores podem alterar as configuracoes de notificacao.
-                        </p>
-                      )}
-                    </div>
-                  </PlanRestriction>
+                    {!canEditClinic && (
+                      <p className="text-xs text-muted-foreground">
+                        Apenas administradores podem alterar as configuracoes de notificacao.
+                      </p>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             </TabsContent>

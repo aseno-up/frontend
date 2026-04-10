@@ -40,6 +40,7 @@ export interface ClinicSettings {
   whatsapp_reminders_enabled?: boolean
   email_reminders_enabled?: boolean
   require_payment_before_booking?: boolean
+  allow_ai_scheduling?: boolean
   ai_agent_enabled?: boolean
   ai_min_delay_between_messages?: number | null
   ai_min_delay_between_patients?: number | null
@@ -68,6 +69,17 @@ export interface Account {
   }
   settings?: ClinicSettings
   booking_url?: string
+}
+
+export interface PatientWhatsAppConnection {
+  id?: string
+  clinic_id: string
+  patient_id: string
+  whatsapp_connection_id?: string
+  ai_scheduling_enabled: boolean
+  reminders_enabled: boolean
+  created_at?: string
+  updated_at?: string
 }
 
 export interface Professional {
