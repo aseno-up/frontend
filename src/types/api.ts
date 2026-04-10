@@ -40,7 +40,6 @@ export interface ClinicSettings {
   whatsapp_reminders_enabled?: boolean
   email_reminders_enabled?: boolean
   require_payment_before_booking?: boolean
-  allow_ai_scheduling?: boolean
   ai_agent_enabled?: boolean
   ai_min_delay_between_messages?: number | null
   ai_min_delay_between_patients?: number | null

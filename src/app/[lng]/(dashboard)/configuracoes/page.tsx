@@ -103,9 +103,6 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
   const [emailReminders, setEmailReminders] = useState(
     clinic?.settings?.email_reminders_enabled ?? false
   )
-  const [allowAIScheduling, setAllowAIScheduling] = useState(
-    clinic?.settings?.allow_ai_scheduling ?? false
-  )
   const [isSavingNotifications, setIsSavingNotifications] = useState(false)
 
   // AI agent state
@@ -385,28 +382,6 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
       showToast.success(enabled ? "Lembretes por email ativados" : "Lembretes por email desativados")
     } catch (err) {
       setEmailReminders(!enabled)
-      handleApiError(err)
-    } finally {
-      setIsSavingNotifications(false)
-    }
-  }
-
-  const handleToggleAllowAIScheduling = async (enabled: boolean) => {
-    if (!canEditClinic) return
-
-    try {
-      setIsSavingNotifications(true)
-      setAllowAIScheduling(enabled)
-      const updatedClinic = await api.updateClinic({
-        settings: {
-          ...clinic?.settings,
-          allow_ai_scheduling: enabled,
-        },
-      })
-      setClinic(updatedClinic)
-      showToast.success(enabled ? "Agendamento automatico ativado" : "Agendamento automatico desativado")
-    } catch (err) {
-      setAllowAIScheduling(!enabled)
       handleApiError(err)
     } finally {
       setIsSavingNotifications(false)
@@ -923,9 +898,9 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
                         <p className="text-sm text-muted-foreground">Permitir que pacientes marquem consultas automaticamente pela IA</p>
                       </div>
                       <Switch
-                        checked={allowAIScheduling}
-                        onCheckedChange={handleToggleAllowAIScheduling}
-                        disabled={isSavingNotifications || !canEditClinic}
+                        checked={aiAgentEnabled}
+                        onCheckedChange={handleToggleAIAgent}
+                        disabled={isSavingAiAgent || !canEditClinic}
                       />
                     </div>
 
