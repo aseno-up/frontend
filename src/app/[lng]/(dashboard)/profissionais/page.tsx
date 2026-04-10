@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { Plus, Search, Pencil, Trash2, Mail, Phone, User, Clock, CheckCircle2, MoreHorizontal, Users, Briefcase, DollarSign } from "lucide-react"
+import { Plus, Search, Pencil, Mail, Phone, User, Clock, CheckCircle2, Users, Briefcase, DollarSign, UserPlus, Link2 } from "lucide-react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -23,6 +23,7 @@ import { DataTablePagination } from "@/components/ui/data-table-pagination"
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -30,15 +31,13 @@ import {
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ReactSelect, SelectOption } from "@/components/ui/react-select"
-import { Checkbox } from "@/components/ui/checkbox"
-import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { api } from "@/lib/api/client"
 import { showToast, handleApiError } from "@/lib/toast"
 import { WorkingHoursEditor } from "@/components/professionals/working-hours-editor"
 import { CommissionTab } from "@/components/professionals/commission-tab"
-import type { Professional, PaginatedResponse, WorkingHours } from "@/types/api"
+import type { Professional, WorkingHours, User as UserType } from "@/types/api"
 
-// Schema
+// Schema for edit form
 const professionalSchema = z.object({
   name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres"),
   email: z.string().email("Email invalido").optional().or(z.literal("")),
@@ -80,7 +79,7 @@ export default function ProfissionaisPage({ params }: ProfissionaisPageProps) {
 
   const [lng, setLng] = useState("pt-BR")
   const [professionals, setProfessionals] = useState<Professional[]>([])
-  
+
   // Pagination / Meta
   const [total, setTotal] = useState(0)
   const [totalPages, setTotalPages] = useState(0)
@@ -89,7 +88,7 @@ export default function ProfissionaisPage({ params }: ProfissionaisPageProps) {
   const [specialtyCount, setSpecialtyCount] = useState(0)
 
   const [isLoading, setIsLoading] = useState(true)
-  
+
   // URL Params read
   const page = parseInt(searchParams.get("page") || "1", 10)
   const limit = parseInt(searchParams.get("limit") || "10", 10)
@@ -97,12 +96,23 @@ export default function ProfissionaisPage({ params }: ProfissionaisPageProps) {
   const statusParam = searchParams.get("status") || "all"
   const sortBy = searchParams.get("sort_by") || "name_asc"
 
-  const [dialogOpen, setDialogOpen] = useState(false)
+  // Edit dialog state
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [editingProfessional, setEditingProfessional] = useState<Professional | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [selectedColor, setSelectedColor] = useState(defaultColors[0])
   const [workingHours, setWorkingHours] = useState<WorkingHours>(DEFAULT_WORKING_HOURS)
-  const [activeTab, setActiveTab] = useState("info")
+  const [editActiveTab, setEditActiveTab] = useState("info")
+
+  // Create dialog state
+  const [createDialogOpen, setCreateDialogOpen] = useState(false)
+  const [createMode, setCreateMode] = useState<"invite" | "link">("invite")
+  const [inviteEmail, setInviteEmail] = useState("")
+  const [availableUsers, setAvailableUsers] = useState<SelectOption[]>([])
+  const [selectedUser, setSelectedUser] = useState<SelectOption | null>(null)
+  const [loadingUsers, setLoadingUsers] = useState(false)
+  const [isCreating, setIsCreating] = useState(false)
+
   const pageTab = searchParams.get("tab") || "profissionais"
 
   const setPageTab = useCallback((tab: string) => {
@@ -116,28 +126,6 @@ export default function ProfissionaisPage({ params }: ProfissionaisPageProps) {
   }, [searchParams, pathname, router])
 
   const [searchInput, setSearchInput] = useState(search)
-
-  // Bulk Actions & Delete state
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
-  const [deleteModalOpen, setDeleteModalOpen] = useState(false)
-  const [professionalToDelete, setProfessionalToDelete] = useState<Professional | null>(null)
-  const [bulkDeleteModalOpen, setBulkDeleteModalOpen] = useState(false)
-
-  const handleSelectAll = (checked: boolean) => {
-    if (checked) {
-      const allIds = new Set(professionals.map(p => p.id))
-      setSelectedIds(allIds)
-    } else {
-      setSelectedIds(new Set())
-    }
-  }
-
-  const handleSelectOne = (checked: boolean, id: string) => {
-    const newSet = new Set(selectedIds)
-    if (checked) newSet.add(id)
-    else newSet.delete(id)
-    setSelectedIds(newSet)
-  }
 
   const {
     register,
@@ -186,13 +174,11 @@ export default function ProfissionaisPage({ params }: ProfissionaisPageProps) {
         status: statusParam !== "all" ? statusParam : undefined,
         sort_by: sortBy
       })
-      
+
       setProfessionals(response.data || [])
       setTotal(response.meta?.total || 0)
       setTotalPages(response.meta?.total_pages || 1)
-      setSelectedIds(new Set()) // Reset selection on page change/fetch
-      
-      // Calculate local actives/inactives and specialties as mock 
+
       const activeList = (response.data || []).filter((p: Professional) => p.is_active)
       setActiveCount(activeList.length)
       setInactiveCount((response.data || []).length - activeList.length)
@@ -212,36 +198,27 @@ export default function ProfissionaisPage({ params }: ProfissionaisPageProps) {
     fetchProfessionals()
   }, [fetchProfessionals])
 
-  const handleOpenDialog = (professional?: Professional) => {
-    setActiveTab("info")
-    if (professional) {
-      setEditingProfessional(professional)
-      const color = professional.color || defaultColors[0]
-      setSelectedColor(color)
-      setWorkingHours(professional.working_hours || DEFAULT_WORKING_HOURS)
-      reset({
-        name: professional.name,
-        email: professional.email || "",
-        phone: professional.phone || "",
-        specialty: professional.specialty || "",
-        registration_number: professional.registration_number || "",
-        color: color,
-        is_active: professional.is_active,
-      })
-    } else {
-      setEditingProfessional(null)
-      const colorIndex = professionals.length % defaultColors.length
-      const color = defaultColors[colorIndex]
-      setSelectedColor(color)
-      setWorkingHours(DEFAULT_WORKING_HOURS)
-      reset({
-        name: "", email: "", phone: "", specialty: "", registration_number: "", color: color, is_active: true
-      })
-    }
-    setDialogOpen(true)
+  // Edit dialog handlers
+  const handleOpenEditDialog = (professional: Professional) => {
+    setEditActiveTab("info")
+    setEditingProfessional(professional)
+    const color = professional.color || defaultColors[0]
+    setSelectedColor(color)
+    setWorkingHours(professional.working_hours || DEFAULT_WORKING_HOURS)
+    reset({
+      name: professional.name,
+      email: professional.email || "",
+      phone: professional.phone || "",
+      specialty: professional.specialty || "",
+      registration_number: professional.registration_number || "",
+      color: color,
+      is_active: professional.is_active,
+    })
+    setEditDialogOpen(true)
   }
 
-  const onSubmit = async (data: ProfessionalFormData) => {
+  const onEditSubmit = async (data: ProfessionalFormData) => {
+    if (!editingProfessional) return
     setIsSaving(true)
     try {
       const payload = {
@@ -250,16 +227,9 @@ export default function ProfissionaisPage({ params }: ProfissionaisPageProps) {
         email: data.email || undefined,
         working_hours: workingHours,
       }
-
-      if (editingProfessional) {
-        await api.updateProfessional(editingProfessional.id, payload)
-        showToast.success("Profissional atualizado com sucesso!")
-      } else {
-        await api.createProfessional(payload)
-        showToast.success("Profissional criado com sucesso!")
-      }
-
-      setDialogOpen(false)
+      await api.updateProfessional(editingProfessional.id, payload)
+      showToast.success("Profissional atualizado com sucesso!")
+      setEditDialogOpen(false)
       fetchProfessionals()
     } catch (error) {
       handleApiError(error, "Erro ao salvar profissional")
@@ -268,32 +238,67 @@ export default function ProfissionaisPage({ params }: ProfissionaisPageProps) {
     }
   }
 
-  const confirmDelete = async () => {
-    if (!professionalToDelete) return
-    try {
-      await api.deleteProfessional(professionalToDelete.id)
-      showToast.success("Profissional excluído com sucesso!")
-      fetchProfessionals()
-    } catch (error) {
-      handleApiError(error, "Erro ao excluir profissional")
-    }
-  }
-
-  const confirmBulkDelete = async () => {
-    if (selectedIds.size === 0) return
-    try {
-      await api.bulkDeleteProfessionals(Array.from(selectedIds))
-      showToast.success(`${selectedIds.size} profissionais excluídos com sucesso!`)
-      setSelectedIds(new Set())
-      fetchProfessionals()
-    } catch (error) {
-      handleApiError(error, "Erro ao excluir profissionais em massa")
-    }
-  }
-
   const handleColorSelect = (color: string) => {
     setSelectedColor(color)
     setValue("color", color)
+  }
+
+  // Create dialog handlers
+  const handleOpenCreateDialog = () => {
+    setCreateMode("invite")
+    setInviteEmail("")
+    setSelectedUser(null)
+    setCreateDialogOpen(true)
+  }
+
+  // Load available users (owner/admin without professional) when switching to link mode
+  useEffect(() => {
+    if (createMode === "link" && createDialogOpen) {
+      setLoadingUsers(true)
+      api.getUsers({ limit: 100 })
+        .then((res: any) => {
+          const users = (res.data || [])
+            .filter((u: UserType) =>
+              u.is_active && (u.role === 'owner' || u.role === 'admin') && !u.professional_id
+            )
+            .map((u: UserType) => ({
+              value: u.id,
+              label: `${u.name} (${u.role === 'owner' ? 'Proprietario' : 'Administrador'})`,
+            }))
+          setAvailableUsers(users)
+        })
+        .catch(() => setAvailableUsers([]))
+        .finally(() => setLoadingUsers(false))
+    }
+  }, [createMode, createDialogOpen])
+
+  const handleCreateProfessional = async () => {
+    setIsCreating(true)
+    try {
+      if (createMode === "invite") {
+        if (!inviteEmail.trim()) {
+          showToast.error("Informe o email do profissional")
+          setIsCreating(false)
+          return
+        }
+        await api.createProfessional({ email: inviteEmail.trim() })
+        showToast.success("Convite enviado com sucesso!")
+      } else {
+        if (!selectedUser) {
+          showToast.error("Selecione um membro da equipe")
+          setIsCreating(false)
+          return
+        }
+        await api.createProfessional({ user_id: selectedUser.value })
+        showToast.success("Profissional criado com sucesso!")
+      }
+      setCreateDialogOpen(false)
+      fetchProfessionals()
+    } catch (error) {
+      handleApiError(error, "Erro ao criar profissional")
+    } finally {
+      setIsCreating(false)
+    }
   }
 
   const sortOptions: SelectOption[] = [
@@ -393,37 +398,27 @@ export default function ProfissionaisPage({ params }: ProfissionaisPageProps) {
           </div>
 
           <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
-            {selectedIds.size > 0 && (
-              <Button 
-                variant="destructive" 
-                className="h-9 px-4 font-semibold mr-2 animate-in fade-in"
-                onClick={() => setBulkDeleteModalOpen(true)}
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Excluir ({selectedIds.size})
-              </Button>
-            )}
             <div className="flex p-1 gap-1 items-center">
-              <Button 
-                variant="outline" 
-                size="sm" 
+              <Button
+                variant="outline"
+                size="sm"
                 className={`rounded-full h-8 px-4 text-xs font-semibold ${statusParam === "all" ? "border-primary text-primary" : "border-border text-muted-foreground"}`}
                 onClick={() => updateQueryParams({ status: "all" })}
               >
                 Todos
               </Button>
-              <Button 
-                variant="outline" 
-                size="sm" 
+              <Button
+                variant="outline"
+                size="sm"
                 className={`rounded-full h-8 px-4 text-xs font-semibold ${statusParam === "active" ? "border-emerald-500 text-emerald-500" : "border-border text-muted-foreground"}`}
                 onClick={() => updateQueryParams({ status: "active" })}
               >
                 <div className={`w-1.5 h-1.5 rounded-full mr-2 ${statusParam === "active" ? "bg-emerald-500" : "bg-emerald-500/50"}`} />
                 Ativos
               </Button>
-              <Button 
-                variant="outline" 
-                size="sm" 
+              <Button
+                variant="outline"
+                size="sm"
                 className={`rounded-full h-8 px-4 text-xs font-semibold ${statusParam === "inactive" ? "border-rose-500 text-rose-500" : "border-border text-muted-foreground"}`}
                 onClick={() => updateQueryParams({ status: "inactive" })}
               >
@@ -442,7 +437,7 @@ export default function ProfissionaisPage({ params }: ProfissionaisPageProps) {
               />
             </div>
 
-            <Button className="h-10 px-5 font-semibold bg-primary hover:bg-primary/90 rounded-lg ml-2" onClick={() => handleOpenDialog()}>
+            <Button className="h-10 px-5 font-semibold bg-primary hover:bg-primary/90 rounded-lg ml-2" onClick={handleOpenCreateDialog}>
               <Plus className="mr-2 h-4 w-4" />
               Novo Profissional
             </Button>
@@ -468,13 +463,6 @@ export default function ProfissionaisPage({ params }: ProfissionaisPageProps) {
             <Table className="text-sm" wrapperClassName="flex-1 overflow-auto">
               <TableHeader className="sticky top-0 bg-slate-50 z-20 shadow-sm dark:bg-slate-900 border-b">
                   <TableRow>
-                    <TableHead className="w-[40px] px-4">
-                      <Checkbox 
-                        checked={professionals.length > 0 && selectedIds.size === professionals.length}
-                        onCheckedChange={handleSelectAll}
-                        aria-label="Selecionar todos"
-                      />
-                    </TableHead>
                      <SortableTableHead sortKey="name" title="PROFISSIONAL" className="w-[350px]" />
                      <SortableTableHead sortKey="specialty" title="ESPECIALIDADE" />
                     <TableHead className="font-bold text-xs uppercase tracking-wider text-muted-foreground/70">CONTATO</TableHead>
@@ -483,20 +471,11 @@ export default function ProfissionaisPage({ params }: ProfissionaisPageProps) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {professionals.map((professional) => {
-                    const isSelected = selectedIds.has(professional.id)
-                    return (
-                    <TableRow key={professional.id} className="group" data-state={isSelected ? "selected" : undefined}>
-                      <TableCell className="px-4">
-                        <Checkbox 
-                          checked={isSelected}
-                          onCheckedChange={(checked) => handleSelectOne(!!checked, professional.id)}
-                          aria-label={`Selecionar ${professional.name}`}
-                        />
-                      </TableCell>
+                  {professionals.map((professional) => (
+                    <TableRow key={professional.id} className="group">
                       <TableCell>
                         <div className="flex items-center gap-3">
-                          <div 
+                          <div
                             className="flex items-center justify-center w-10 h-10 shrink-0 text-white font-bold rounded-full text-xs shadow-sm"
                             style={{ backgroundColor: professional.color || defaultColors[0] }}
                           >
@@ -550,36 +529,21 @@ export default function ProfissionaisPage({ params }: ProfissionaisPageProps) {
                         )}
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex justify-end gap-1">
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-8 w-8 rounded-md bg-transparent border-border text-muted-foreground hover:text-foreground"
-                            title="Editar"
-                            onClick={() => handleOpenDialog(professional)}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-8 w-8 rounded-md bg-transparent border-border text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                            title="Excluir"
-                            onClick={() => {
-                              setProfessionalToDelete(professional)
-                              setDeleteModalOpen(true)
-                            }}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-8 w-8 rounded-md bg-transparent border-border text-muted-foreground hover:text-foreground"
+                          title="Editar"
+                          onClick={() => handleOpenEditDialog(professional)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
                       </TableCell>
                     </TableRow>
-                    )
-                  })}
+                  ))}
                 </TableBody>
               </Table>
-            
+
             <div className="border-t p-4 shrink-0 bg-card">
               <DataTablePagination meta={{ page, limit, total, total_pages: totalPages }} entityName="profissionais" />
             </div>
@@ -588,16 +552,15 @@ export default function ProfissionaisPage({ params }: ProfissionaisPageProps) {
       </div>
       )}
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      {/* Edit Professional Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
         <DialogContent className="sm:max-w-[550px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>
-              {editingProfessional ? "Editar Profissional" : "Novo Profissional"}
-            </DialogTitle>
+            <DialogTitle>Editar Profissional</DialogTitle>
           </DialogHeader>
 
-          <form onSubmit={handleSubmit(onSubmit)}>
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <form onSubmit={handleSubmit(onEditSubmit)}>
+            <Tabs value={editActiveTab} onValueChange={setEditActiveTab} className="w-full">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="info" className="flex items-center gap-2">
                   <User className="h-4 w-4" />
@@ -712,7 +675,7 @@ export default function ProfissionaisPage({ params }: ProfissionaisPageProps) {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => setDialogOpen(false)}
+                onClick={() => setEditDialogOpen(false)}
                 disabled={isSaving}
               >
                 Cancelar
@@ -724,22 +687,93 @@ export default function ProfissionaisPage({ params }: ProfissionaisPageProps) {
           </form>
         </DialogContent>
       </Dialog>
-      
-      <ConfirmDialog 
-        open={deleteModalOpen}
-        onOpenChange={setDeleteModalOpen}
-        onConfirm={confirmDelete}
-        title="Excluir Profissional"
-        description={`Tem certeza que deseja excluir o profissional ${professionalToDelete?.name}? Esta ação não pode ser desfeita.`}
-      />
 
-      <ConfirmDialog 
-        open={bulkDeleteModalOpen}
-        onOpenChange={setBulkDeleteModalOpen}
-        onConfirm={confirmBulkDelete}
-        title="Excluir Profissionais"
-        description={`Tem certeza que deseja excluir ${selectedIds.size} profissionais selecionados? Esta ação não pode ser desfeita e todos os dados relacionados serão perdidos.`}
-      />
+      {/* Create Professional Dialog */}
+      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+        <DialogContent className="sm:max-w-[480px]">
+          <DialogHeader>
+            <DialogTitle>Novo Profissional</DialogTitle>
+            <DialogDescription>
+              Adicione um novo profissional enviando um convite por email ou vinculando a um membro existente da equipe.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setCreateMode("invite")}
+                className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-colors ${
+                  createMode === "invite"
+                    ? "border-primary bg-primary/5 text-primary"
+                    : "border-border text-muted-foreground hover:border-primary/50"
+                }`}
+              >
+                <UserPlus className="h-6 w-6" />
+                <span className="text-sm font-medium">Convidar por email</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setCreateMode("link")}
+                className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-colors ${
+                  createMode === "link"
+                    ? "border-primary bg-primary/5 text-primary"
+                    : "border-border text-muted-foreground hover:border-primary/50"
+                }`}
+              >
+                <Link2 className="h-6 w-6" />
+                <span className="text-sm font-medium">Vincular membro</span>
+              </button>
+            </div>
+
+            {createMode === "invite" ? (
+              <div className="space-y-2">
+                <Label htmlFor="invite_email">Email do profissional</Label>
+                <Input
+                  id="invite_email"
+                  type="email"
+                  placeholder="email@exemplo.com"
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Um convite sera enviado para este email. O profissional sera criado quando o convite for aceito.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Label>Membro da equipe</Label>
+                <ReactSelect
+                  options={availableUsers}
+                  value={selectedUser}
+                  onChange={(option) => setSelectedUser(option as SelectOption | null)}
+                  isLoading={loadingUsers}
+                  isClearable
+                  placeholder="Selecionar membro (owner ou admin)..."
+                  noOptionsMessage={() => "Nenhum membro disponivel sem profissional vinculado"}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Um perfil profissional sera criado e vinculado a este membro. Somente owners e admins sem profissional vinculado aparecem aqui.
+                </p>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setCreateDialogOpen(false)}
+              disabled={isCreating}
+            >
+              Cancelar
+            </Button>
+            <Button onClick={handleCreateProfessional} disabled={isCreating}>
+              {isCreating ? "Processando..." : createMode === "invite" ? "Enviar Convite" : "Criar Profissional"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
