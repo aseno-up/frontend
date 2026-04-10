@@ -163,10 +163,9 @@ export function PricingSection({ lng }: LandingClientProps) {
 
   return (
     <section className="sec sec-alt" id="precos">
-      <div className="sec-hd">
-        <span className="eyebrow">Planos</span>
-        <h2 className="sec-title">Simples e <span className="a1">transparente</span></h2>
-        <p className="sec-sub">Preço por clínica, não por profissional. {getTrialDays()} dias grátis no plano Profissional.</p>
+      <div className="sec-hd" style={{ textAlign: 'center' }}>
+        <h2 className="display-title">Preço por clínica, não por cabeça.</h2>
+        <p className="sec-sub">{getTrialDays()} dias grátis no plano Profissional. Sem cartão de crédito.</p>
       </div>
       <div className="ptoggle">
         <span style={{ fontWeight: billingCycle === 'monthly' ? 600 : 500, color: billingCycle === 'monthly' ? 'var(--ink)' : 'var(--ink-light)' }}>Mensal</span>
@@ -291,13 +290,13 @@ export function CtaSection({ lng }: LandingClientProps) {
 
   return (
     <section className="cta-sec">
-      <h2 className="sec-title">Pronto para reduzir<br/>as faltas na sua clínica?</h2>
-      <p className="cta-p">Junte-se a centenas de clínicas que já transformaram sua gestão com o Aseno.</p>
+      <h2 className="display-title">Sua clínica merece parar<br/>de perder dinheiro com faltas.</h2>
+      <p className="cta-p">Comece grátis. Sem cartão. Sem compromisso.</p>
       <div className="cta-acts">
         <button className="btn-cta-w" onClick={() => handlePlanSelect('trial')}>Testar grátis por {getTrialDays()} dias &rarr;</button>
-        <a href="#como-funciona" className="btn-cta-o">Ver demonstração</a>
+        <a href="#como-funciona" className="btn-cta-o">Ver como funciona</a>
       </div>
-      <p className="cta-note">Sem cartão de crédito. Ativação imediata.</p>
+      <p className="cta-note">Ativação imediata. Funciona no celular.</p>
     </section>
   )
 }

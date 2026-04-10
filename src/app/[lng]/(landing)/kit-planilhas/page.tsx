@@ -1,7 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { KitPlanilhasForm, ScrollToFormLink } from './kit-planilhas-form'
-import { LandingFooter } from '../landing-footer'
 import '../landing.css'
 import './kit-planilhas.css'
 
@@ -21,11 +20,6 @@ function CheckIcon() {
 export default function KitPlanilhasPage() {
   return (
     <div className="kp-body">
-      {/* TOPBAR */}
-      <div className="kp-topbar">
-        Grátis por tempo limitado <span>·</span> Sem cartão de crédito <span>·</span> Acesso imediato por e-mail
-      </div>
-
       {/* NAV */}
       <nav className="kp-nav">
         <Link href="/" className="kp-logo">
@@ -37,33 +31,25 @@ export default function KitPlanilhasPage() {
       {/* HERO */}
       <section className="kp-hero">
         <div className="kp-hero-inner">
-          {/* Left: copy */}
-          <div>
-            <div className="kp-badge">
-              <div className="kp-badge-dot" />
-              Kit gratuito para clínicas
-            </div>
-            <h1>Você sabe quanto perdeu esse mês com <em>no-show?</em></h1>
+          <div className="kp-hero-left">
+            <div className="kp-badge">Kit gratuito para clínicas</div>
+            <h1>Você sabe quanto perdeu<br/>esse mês com <em>no-show?</em></h1>
             <p className="kp-hero-sub">
               A maioria dos donos de clínica <strong>não sabe</strong> — e é exatamente por isso que continuam perdendo. Baixe grátis o kit com 3 planilhas prontas para <strong>mapear, controlar e recuperar</strong> a receita da sua clínica.
             </p>
-            <div className="kp-prova-bar">
-              <div className="kp-avatares">
+            <div className="kp-social-proof">
+              <div className="kp-avatars">
                 <div className="kp-av kp-av-1">AM</div>
                 <div className="kp-av kp-av-2">KF</div>
                 <div className="kp-av kp-av-3">RP</div>
                 <div className="kp-av kp-av-4">LC</div>
               </div>
-              <div className="kp-prova-txt">
-                <strong>+320 profissionais</strong> já baixaram este kit essa semana
-              </div>
+              <span><strong>+320 profissionais</strong> baixaram este kit essa semana</span>
             </div>
           </div>
 
-          {/* Right: form */}
           <div id="kp-form">
             <div className="kp-form-card">
-              {/* Kit preview */}
               <div className="kp-kit-preview">
                 <div className="kp-kit-item">
                   <div className="kp-kit-icon">
@@ -84,14 +70,13 @@ export default function KitPlanilhasPage() {
                   Calculadora de Precificação
                 </div>
               </div>
-
               <KitPlanilhasForm />
             </div>
           </div>
         </div>
       </section>
 
-      {/* O QUE VOCÊ RECEBE */}
+      {/* O QUE ESTA NO KIT */}
       <section className="kp-section">
         <div className="kp-section-inner">
           <p className="kp-section-label">O que está no kit</p>
@@ -99,7 +84,6 @@ export default function KitPlanilhasPage() {
           <p className="kp-section-desc">Cada planilha foi criada para atacar um problema específico que drena receita — e que a maioria das clínicas ainda controla no Excel bagunçado ou no caderno.</p>
 
           <div className="kp-planilhas-grid">
-            {/* Card 1 */}
             <div className="kp-planilha-card">
               <div className="kp-planilha-num">01</div>
               <h3>Controle de Agenda &amp; No-Show</h3>
@@ -112,7 +96,6 @@ export default function KitPlanilhasPage() {
               </ul>
             </div>
 
-            {/* Card 2 */}
             <div className="kp-planilha-card">
               <div className="kp-planilha-num">02</div>
               <h3>Controle Financeiro &amp; Repasse</h3>
@@ -125,7 +108,6 @@ export default function KitPlanilhasPage() {
               </ul>
             </div>
 
-            {/* Card 3 */}
             <div className="kp-planilha-card">
               <div className="kp-planilha-num">03</div>
               <h3>Calculadora de Precificação</h3>
@@ -157,7 +139,7 @@ export default function KitPlanilhasPage() {
             <div className="kp-stat-lbl">mais difícil recuperar um lead perdido do que manter o paciente confirmado</div>
           </div>
           <div>
-            <div className="kp-stat-val"><span>↓</span>73<span>%</span></div>
+            <div className="kp-stat-val"><span>&#8595;</span>73<span>%</span></div>
             <div className="kp-stat-lbl">de redução de no-show com confirmação ativa via WhatsApp</div>
           </div>
         </div>
@@ -204,7 +186,7 @@ export default function KitPlanilhasPage() {
       {/* FOOTER */}
       <footer className="kp-footer">
         <div className="kp-footer-logo">aseno</div>
-        <p className="kp-footer-txt">© 2025 Aseno. Software de gestão para clínicas. aseno.com.br</p>
+        <p className="kp-footer-txt">© 2026 Aseno. Software de gestão para clínicas. aseno.com.br</p>
         <div className="kp-footer-links">
           <Link href="/privacidade">Privacidade</Link>
           <Link href="/termos">Termos</Link>
