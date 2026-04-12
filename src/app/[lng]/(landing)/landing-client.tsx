@@ -191,7 +191,7 @@ export function PricingSection({ lng }: LandingClientProps) {
           <div className="price-per">por mês</div>
           <hr className="price-div" />
           <ul className="price-feats">
-            <li>Até 5 profissionais</li>
+            <li>Até 3 profissionais</li>
             <li>Agenda ilimitada</li>
             <li>Landing page pública da clínica</li>
             <li>Agendamento online (link na bio)</li>
@@ -214,7 +214,7 @@ export function PricingSection({ lng }: LandingClientProps) {
           <div className="price-per">por mês</div>
           <hr className="price-div" />
           <ul className="price-feats">
-            <li>Até 15 profissionais</li>
+            <li>Até 7 profissionais</li>
             <li>Tudo do Básico</li>
             <li>Pagamentos Online (PIX e Cartão)</li>
             <li>WhatsApp Oficial (sem risco de ban)</li>
@@ -237,7 +237,7 @@ export function PricingSection({ lng }: LandingClientProps) {
           <div className="price-per">por mês</div>
           <hr className="price-div" />
           <ul className="price-feats">
-            <li>Profissionais ilimitados</li>
+            <li>Até 14 profissionais</li>
             <li>Tudo do Profissional</li>
             <li>Múltiplas unidades (filiais)</li>
             <li>Relatórios avançados</li>

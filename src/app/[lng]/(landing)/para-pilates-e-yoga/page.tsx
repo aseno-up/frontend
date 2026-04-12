@@ -52,7 +52,7 @@ const data: SpecialtyData = {
   faqs: [
     { question: 'O Aseno funciona para turmas coletivas de Pilates e Yoga?', answer: 'Sim. Você configura horários por turma e por instrutor, com número máximo de alunos por sessão. Lista de espera e autoagendamento funcionam para esses formatos.' },
     { question: 'Preciso migrar todos os dados do meu sistema atual?', answer: 'No plano Avançado, a equipe do Aseno faz a importação. Nos demais planos, o onboarding guiado ajuda a configurar tudo do zero.' },
-    { question: 'Como funciona o preço? Pago por aluno ou por instrutor?', answer: 'O plano é fixo por clínica, não por profissional. Básico: até 5 instrutores. Profissional: até 15. Avançado: ilimitado.' },
+    { question: 'Como funciona o preço? Pago por aluno ou por instrutor?', answer: 'O plano é fixo por clínica, não por profissional. Básico: até 3 instrutores. Profissional: até 7. Avançado: até 14.' },
     { question: 'Preciso instalar algo?', answer: 'Não. O Aseno funciona 100% no navegador, sem instalação em nenhum dispositivo.' },
     { question: 'Funciona no celular?', answer: 'Sim. Interface totalmente responsiva em qualquer smartphone, tablet ou computador.' },
     { question: 'Preciso de cartão para testar?', answer: 'Não. 14 dias com acesso completo, sem cartão de crédito.' },

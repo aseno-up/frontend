@@ -52,7 +52,7 @@ const data: SpecialtyData = {
   faqs: [
     { question: 'O Aseno funciona para clínicas que têm vários tipos de protocolo ao mesmo tempo?', answer: 'Sim. Você cadastra quantos protocolos quiser — drenagem linfática, radiofrequência, criolipólise, skincare — e acompanha cada paciente de forma independente. Um paciente pode estar em dois protocolos ao mesmo tempo, e o sistema mantém o controle separado.' },
     { question: 'Preciso trocar meu número de WhatsApp para usar as confirmações automáticas?', answer: 'Não. No plano Profissional, você conecta um número dedicado com WhatsApp Oficial. Seu número pessoal fica separado e sem risco de bloqueio pelo Meta.' },
-    { question: 'Quanto custa para uma clínica com 4 profissionais?', answer: 'O plano Básico cobre até 5 profissionais com agenda ilimitada, agendamento online, portal do paciente e confirmações automáticas. O preço é por clínica, não por profissional.' },
+    { question: 'Quanto custa para uma clínica com 4 profissionais?', answer: 'Para 4 profissionais, o plano indicado é o Profissional (até 7 profissionais), com agenda ilimitada, agendamento online, portal do paciente e confirmações automáticas. O preço é por clínica, não por profissional.' },
     { question: 'Preciso instalar algo?', answer: 'Não. O Aseno funciona 100% no navegador, sem instalação em nenhum dispositivo.' },
     { question: 'Funciona no celular?', answer: 'Sim. Interface totalmente responsiva em qualquer smartphone, tablet ou computador.' },
     { question: 'Preciso de cartão para testar?', answer: 'Não. 14 dias com acesso completo, sem cartão de crédito.' },

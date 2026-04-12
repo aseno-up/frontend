@@ -50,7 +50,7 @@ const data: SpecialtyData = {
     { text: 'O agendamento online mudou tudo. Meus pacientes agendam pela bio do Instagram e eu só recebo a notificação.', author: 'Studio Massoterapia Integral', role: 'Massoterapia' },
   ],
   faqs: [
-    { question: 'O Aseno funciona para massoterapeuta autônomo, ou só para clínicas?', answer: 'Funciona para os dois. O plano Básico atende até 5 profissionais e já inclui agenda, confirmações automáticas e ficha de paciente.' },
+    { question: 'O Aseno funciona para massoterapeuta autônomo, ou só para clínicas?', answer: 'Funciona para os dois. O plano Básico atende até 3 profissionais e já inclui agenda, confirmações automáticas e ficha de paciente.' },
     { question: 'Preciso ter site para usar o agendamento online?', answer: 'Não. O Aseno gera uma landing page pública do seu consultório com link direto para agendamento.' },
     { question: 'Meus pacientes antigos precisam baixar algum aplicativo?', answer: 'Não. O paciente acessa o Portal pelo navegador, sem instalar nada. As confirmações chegam por WhatsApp.' },
     { question: 'Preciso instalar algo?', answer: 'Não. O Aseno funciona 100% no navegador, sem instalação em nenhum dispositivo.' },

@@ -50,7 +50,7 @@ const data: SpecialtyData = {
     { text: 'Não preciso mais cobrar pelo WhatsApp. O paciente recebe o link de pagamento e paga antes da sessão. Muito mais profissional.', author: 'Espaço Terapêutico Viver', role: 'Psicologia' },
   ],
   faqs: [
-    { question: 'O Aseno funciona para psicólogo autônomo, não só para clínicas?', answer: 'Sim. O plano Básico atende até 5 profissionais e é usado tanto por consultórios individuais quanto por clínicas pequenas.' },
+    { question: 'O Aseno funciona para psicólogo autônomo, não só para clínicas?', answer: 'Sim. O plano Básico atende até 3 profissionais e é usado tanto por consultórios individuais quanto por clínicas pequenas.' },
     { question: 'Preciso migrar todos os meus dados para começar a usar?', answer: 'Não. Você pode começar a cadastrar novos pacientes e ir organizando os ativos no seu ritmo. Importação disponível no plano Avançado.' },
     { question: 'O WhatsApp automático pode banir meu número?', answer: 'No plano Profissional, o Aseno usa a API Oficial do WhatsApp Business. Não há risco de bloqueio.' },
     { question: 'Preciso instalar algo?', answer: 'Não. O Aseno funciona 100% no navegador, sem instalação em nenhum dispositivo.' },

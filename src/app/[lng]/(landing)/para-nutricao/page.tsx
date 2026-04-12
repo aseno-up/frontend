@@ -50,7 +50,7 @@ const data: SpecialtyData = {
     { text: 'O pagamento online mudou tudo. Paciente paga na hora de agendar e eu não preciso mais ficar cobrando por PIX no WhatsApp.', author: 'NutriCenter Saúde', role: 'Nutrição' },
   ],
   faqs: [
-    { question: 'O Aseno funciona para nutricionista autônoma, sem clínica?', answer: 'Sim. O plano Básico atende até 5 profissionais e já inclui tudo que você precisa para começar.' },
+    { question: 'O Aseno funciona para nutricionista autônoma, sem clínica?', answer: 'Sim. O plano Básico atende até 3 profissionais e já inclui tudo que você precisa para começar.' },
     { question: 'Consigo migrar minha agenda atual para o Aseno?', answer: 'No plano Avançado, a importação de dados do sistema anterior está incluída com suporte da equipe.' },
     { question: 'Meus pacientes precisam baixar algum aplicativo?', answer: 'Não. O paciente acessa o Portal pelo navegador do celular, sem instalar nada.' },
     { question: 'Preciso instalar algo?', answer: 'Não. O Aseno funciona 100% no navegador, sem instalação em nenhum dispositivo.' },

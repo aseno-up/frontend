@@ -50,7 +50,7 @@ const data: SpecialtyData = {
     { text: 'Ter o histórico clínico acessível em qualquer dispositivo economiza tempo entre atendimentos. Não preciso mais procurar fichas em papel.', author: 'Clínica Movimento & Saúde', role: 'Fisioterapia Esportiva' },
   ],
   faqs: [
-    { question: 'O Aseno funciona para fisioterapeuta autônomo, sem clínica?', answer: 'Sim. O plano Básico atende até 5 profissionais e é usado tanto por clínicas pequenas quanto por fisioterapeutas independentes.' },
+    { question: 'O Aseno funciona para fisioterapeuta autônomo, sem clínica?', answer: 'Sim. O plano Básico atende até 3 profissionais e é usado tanto por clínicas pequenas quanto por fisioterapeutas independentes.' },
     { question: 'Preciso migrar todos os dados do meu sistema atual?', answer: 'Não necessariamente. Você pode começar do zero. Se quiser importar sua base, isso está disponível no plano Avançado com suporte.' },
     { question: 'O WhatsApp automático pode ser banido?', answer: 'No plano Profissional, o Aseno usa o WhatsApp Oficial (API oficial da Meta), o que elimina o risco de banimento.' },
     { question: 'Preciso instalar algo?', answer: 'Não. O Aseno funciona 100% no navegador, sem instalação em nenhum dispositivo.' },
