@@ -122,6 +122,7 @@ export function PricingSection({ lng }: LandingClientProps) {
   const { isAuthenticated } = useAuthStore()
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'annually'>('annually')
   const [publicConfig, setPublicConfig] = useState<PublicConfig | null>(null)
+  const [advancedUnits, setAdvancedUnits] = useState<number>(2)
 
   useEffect(() => {
     const fetchConfig = async () => {
@@ -150,6 +151,14 @@ export function PricingSection({ lng }: LandingClientProps) {
     return Math.round((planData.price_monthly * 10) / 12).toString()
   }
 
+  const advancedTotal = (): string => {
+    const unit = calculateMonthlyPrice('advanced')
+    if (unit === '—') return '—'
+    const parsed = parseInt(unit, 10)
+    if (Number.isNaN(parsed)) return '—'
+    return (parsed * advancedUnits).toString()
+  }
+
   const handlePlanSelect = (plan: string) => {
     if (typeof window !== 'undefined' && (window as unknown as { fbq?: (...args: unknown[]) => void }).fbq) {
       (window as unknown as { fbq: (...args: unknown[]) => void }).fbq('track', 'Lead', { plan })
@@ -162,6 +171,10 @@ export function PricingSection({ lng }: LandingClientProps) {
     if (plan === 'trial') cycle = 'MONTHLY'
 
     url.searchParams.set('billing', cycle)
+
+    if (plan === 'advanced') {
+      url.searchParams.set('units', String(Math.max(2, advancedUnits)))
+    }
 
     const currentParams = new URLSearchParams(window.location.search)
     const offer = currentParams.get('offer')
@@ -182,7 +195,7 @@ export function PricingSection({ lng }: LandingClientProps) {
         <span style={{ fontWeight: billingCycle === 'annually' ? 600 : 500, color: billingCycle === 'annually' ? 'var(--ink)' : 'var(--ink-light)' }}>Anual {billingCycle === 'annually' && <span className="toggle-bdg">2 meses grátis</span>}</span>
       </div>
       <div className="price-grid">
-        <div className="price-card">
+        <div className="price-card trial">
           <div className="price-nm">Teste Grátis</div>
           <div className="price-amt">R$ 0</div>
           <div className="price-per">por {getTrialDays()} dias</div>
@@ -242,13 +255,36 @@ export function PricingSection({ lng }: LandingClientProps) {
         </div>
         <div className="price-card">
           <div className="price-nm">Avançado</div>
-          <div className="price-amt"><sup>R$</sup> {calculateMonthlyPrice('advanced')}</div>
+          <div className="price-amt"><sup>R$</sup> {calculateMonthlyPrice('advanced')}<span className="price-unit">/Unidade</span></div>
           <div className="price-per">por mês</div>
+          <div className="units-stepper" role="group" aria-label="Quantidade de unidades">
+            <span className="units-label">Unidades</span>
+            <div className="units-ctrl">
+              <button
+                type="button"
+                className="units-btn"
+                aria-label="Diminuir unidades"
+                onClick={() => setAdvancedUnits(u => Math.max(2, u - 1))}
+                disabled={advancedUnits <= 2}
+              >−</button>
+              <span className="units-val" aria-live="polite">{advancedUnits}</span>
+              <button
+                type="button"
+                className="units-btn"
+                aria-label="Aumentar unidades"
+                onClick={() => setAdvancedUnits(u => u + 1)}
+              >+</button>
+            </div>
+          </div>
+          <div className="units-total">Total: <strong>R$ {advancedTotal()}</strong>/mês</div>
           <hr className="price-div" />
           <ul className="price-feats">
-            <li>Até 14 profissionais</li>
+            <li>Até 14 profissionais por unidade</li>
             <li>Tudo do Profissional</li>
             <li>Múltiplas unidades (filiais)</li>
+            <li>Dashboard consolidado entre unidades</li>
+            <li>Relatório comparativo de filiais</li>
+            <li>Mínimo 2 unidades na contratação</li>
             <li>Relatórios avançados</li>
             <li>Onboarding com treinamento da equipe</li>
             <li>Importação de dados do sistema anterior</li>

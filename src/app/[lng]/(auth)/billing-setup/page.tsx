@@ -47,6 +47,8 @@ function BillingSetupContent() {
   const selectedPlan = searchParams.get("plan") || "professional"
   const selectedBilling = searchParams.get("billing") || "MONTHLY"
   const offerToken = searchParams.get("offer") || ""
+  const initialUnits = Math.max(2, parseInt(searchParams.get("units") || "2", 10) || 2)
+  const [units, setUnits] = useState<number>(initialUnits)
 
   const [step, setStep] = useState<Step>("billing")
   const [loading, setLoading] = useState(false)
@@ -183,6 +185,7 @@ function BillingSetupContent() {
           billing_type: "PIX",
           cycle: selectedBilling,
           offer_token: coupon || undefined,
+          units: selectedPlan === "advanced" ? units : undefined,
         })
 
         // Step 3: Get subscription payments to find the first pending payment
@@ -206,6 +209,7 @@ function BillingSetupContent() {
           billing_type: "CREDIT_CARD",
           cycle: selectedBilling,
           offer_token: coupon || undefined,
+          units: selectedPlan === "advanced" ? units : undefined,
           credit_card: {
             holderName: cardHolderName,
             number: cardNumber.replace(/\s/g, ""),
@@ -284,14 +288,20 @@ function BillingSetupContent() {
   const inputClass = "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary dark:border-slate-600 dark:bg-slate-800 dark:text-white"
 
   const getPlanPrice = (): number => {
+    let base: number
     if (couponApplied && discountedPrice !== null) {
-      return discountedPrice
+      base = discountedPrice
+    } else if (!publicConfig?.plans?.[selectedPlan]) {
+      return 0
+    } else if (selectedBilling === 'YEARLY') {
+      base = publicConfig.plans[selectedPlan].price_yearly
+    } else {
+      base = publicConfig.plans[selectedPlan].price_monthly
     }
-    if (!publicConfig?.plans?.[selectedPlan]) return 0
-    if (selectedBilling === 'YEARLY') {
-      return publicConfig.plans[selectedPlan].price_yearly
+    if (selectedPlan === 'advanced') {
+      return base * Math.max(2, units)
     }
-    return publicConfig.plans[selectedPlan].price_monthly
+    return base
   }
 
   const priceBRL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(getPlanPrice())
@@ -329,12 +339,37 @@ function BillingSetupContent() {
           <h3 className="font-semibold text-blue-900 dark:text-blue-100 text-lg">Total a pagar</h3>
           <p className="text-sm text-blue-700 dark:text-blue-300">
             Plano {planLabels[selectedPlan] || selectedPlan} ({selectedBilling === "YEARLY" ? "Anual" : "Mensal"})
+            {selectedPlan === 'advanced' && ` · ${units} unidades`}
           </p>
         </div>
         <div className="text-2xl font-bold text-blue-900 dark:text-blue-100">
           {publicConfig ? priceBRL : 'Calculando...'}
         </div>
       </div>
+      {selectedPlan === 'advanced' && step !== 'process' && (
+        <div className="mt-3 flex items-center justify-between rounded-md bg-white/60 dark:bg-blue-950/30 p-3 border border-blue-100 dark:border-blue-800">
+          <div>
+            <div className="text-sm font-semibold text-blue-900 dark:text-blue-100">Quantidade de unidades</div>
+            <div className="text-xs text-blue-700 dark:text-blue-300">Mínimo 2 unidades</div>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setUnits(u => Math.max(2, u - 1))}
+              disabled={units <= 2}
+              aria-label="Diminuir unidades"
+              className="h-8 w-8 inline-flex items-center justify-center rounded-full border border-blue-200 dark:border-blue-700 bg-white dark:bg-blue-900 text-blue-700 dark:text-blue-200 font-bold text-lg disabled:opacity-40 disabled:cursor-not-allowed hover:bg-blue-600 hover:text-white transition-colors"
+            >−</button>
+            <span aria-live="polite" className="min-w-[1.5rem] text-center font-bold tabular-nums text-blue-900 dark:text-blue-100">{units}</span>
+            <button
+              type="button"
+              onClick={() => setUnits(u => u + 1)}
+              aria-label="Aumentar unidades"
+              className="h-8 w-8 inline-flex items-center justify-center rounded-full border border-blue-200 dark:border-blue-700 bg-white dark:bg-blue-900 text-blue-700 dark:text-blue-200 font-bold text-lg hover:bg-blue-600 hover:text-white transition-colors"
+            >+</button>
+          </div>
+        </div>
+      )}
       {couponApplied && coupon && (
         <div className="mt-2 flex items-center gap-2 text-sm text-green-700 dark:text-green-400">
           <Check className="h-4 w-4" />

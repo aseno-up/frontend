@@ -3,9 +3,10 @@
    Inspired by: Calendly, Stripe, Apple
    ═══════════════════════════════════════════ */
 
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+.landing-body,.landing-body *,.landing-body *::before,.landing-body *::after{box-sizing:border-box}
+.landing-body h1,.landing-body h2,.landing-body h3,.landing-body h4,.landing-body h5,.landing-body h6,.landing-body p,.landing-body ul,.landing-body ol,.landing-body figure,.landing-body blockquote{margin:0;padding:0}
 
-:root{
+.landing-body,.kp-body{
   --blue:#006BFF;
   --blue-hover:#0055d4;
   --blue-pale:#f0f6ff;
@@ -155,7 +156,10 @@ html{scroll-behavior:smooth}
   box-shadow:0 4px 16px rgba(0,107,255,.25);
   display:inline-flex;align-items:center;gap:.45rem;
   text-decoration:none;
+  outline:none;
 }
+.btn-lg:focus,.btn-lg-out:focus,.btn-p:focus,.units-btn:focus{outline:none}
+.btn-lg:focus-visible,.btn-lg-out:focus-visible,.btn-p:focus-visible,.units-btn:focus-visible{outline:2px solid var(--blue);outline-offset:3px}
 .btn-lg:hover{background:var(--blue-hover);transform:translateY(-1px);box-shadow:0 8px 24px rgba(0,107,255,.3)}
 .btn-lg-out{
   font-family:var(--font-body);font-size:1rem;font-weight:500;
@@ -585,7 +589,7 @@ html{scroll-behavior:smooth}
   display:grid;
   grid-template-columns:repeat(4,1fr);
   gap:1.25rem;
-  align-items:start;
+  align-items:stretch;
   max-width:var(--max-w);
   margin:0 auto;
 }
@@ -595,7 +599,11 @@ html{scroll-behavior:smooth}
   border-radius:16px;
   padding:2rem;
   position:relative;
+  display:flex;
+  flex-direction:column;
 }
+.price-card .price-feats{flex:1}
+.price-card.trial{align-self:start}
 .price-card.feat{
   border:2px solid var(--blue);
   box-shadow:0 8px 32px rgba(0,107,255,.1);
@@ -610,6 +618,17 @@ html{scroll-behavior:smooth}
 .price-nm{font-family:var(--font-head);font-size:1.1rem;font-weight:700;color:var(--ink);margin-bottom:.4rem}
 .price-amt{font-family:var(--font-head);font-size:2rem;font-weight:700;color:var(--blue);line-height:1}
 .price-amt sup{font-size:.9rem;vertical-align:top;margin-top:.25rem;display:inline-block}
+.price-amt .price-unit{font-size:.9rem;font-weight:500;color:var(--ink-hint)}
+.units-stepper{display:flex;align-items:center;justify-content:space-between;gap:.75rem;padding:.65rem .85rem;margin:.5rem 0 .6rem;border:1px solid var(--border);border-radius:10px;background:var(--bg-soft,#f7f7fb)}
+.units-label{font-size:.82rem;font-weight:600;color:var(--ink)}
+.units-ctrl{display:inline-flex;align-items:center;gap:.5rem}
+.units-btn{width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;border:1px solid var(--border);background:#fff;color:var(--blue);font-size:1.1rem;font-weight:700;line-height:1;cursor:pointer;transition:background .15s ease,transform .1s ease}
+.units-btn:hover:not(:disabled){background:var(--blue);color:#fff}
+.units-btn:active:not(:disabled){transform:scale(.92)}
+.units-btn:disabled{opacity:.4;cursor:not-allowed}
+.units-val{min-width:1.5rem;text-align:center;font-variant-numeric:tabular-nums;font-weight:700;color:var(--ink);font-size:.95rem}
+.units-total{font-size:.82rem;color:var(--ink-hint);margin-bottom:1rem}
+.units-total strong{color:var(--blue);font-weight:700}
 .price-per{font-size:.78rem;color:var(--ink-hint);margin-top:.3rem;margin-bottom:1.25rem}
 .price-div{border:none;border-top:1px solid var(--border);margin:1.25rem 0}
 .price-feats{padding:0;list-style:none;display:flex;flex-direction:column;gap:.5rem;margin-bottom:1.5rem}

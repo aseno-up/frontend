@@ -63,9 +63,15 @@ function RegisterContent({ params }: RegisterPageProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
 
-  // Capture plan and billing from URL
+  // Capture plan and billing from URL (normalize both legacy 'monthly|annually' and landing 'MONTHLY|YEARLY')
   const selectedPlan = searchParams.get('plan') as 'trial' | 'basic' | 'professional' | 'advanced' | null
-  const selectedBilling = searchParams.get('billing') as 'monthly' | 'annually' | null
+  const rawBilling = searchParams.get('billing')
+  const selectedBilling: 'monthly' | 'annually' | null =
+    rawBilling === 'YEARLY' || rawBilling === 'annually' ? 'annually'
+    : rawBilling === 'MONTHLY' || rawBilling === 'monthly' ? 'monthly'
+    : null
+  const unitsParam = parseInt(searchParams.get('units') || '', 10)
+  const selectedUnits = Number.isNaN(unitsParam) ? undefined : Math.max(2, unitsParam)
 
   const {
     register,
@@ -107,7 +113,13 @@ function RegisterContent({ params }: RegisterPageProps) {
 
       // If user selected a paid plan (anything except trial), redirect to billing setup
       if (selectedPlan && selectedPlan !== 'trial') {
-        router.push(`/${lng}/billing-setup?plan=${selectedPlan}&billing=${selectedBilling === 'annually' ? 'YEARLY' : 'MONTHLY'}`)
+        {
+          const params = new URLSearchParams()
+          params.set('plan', selectedPlan)
+          params.set('billing', selectedBilling === 'annually' ? 'YEARLY' : 'MONTHLY')
+          if (selectedPlan === 'advanced' && selectedUnits) params.set('units', String(selectedUnits))
+          router.push(`/${lng}/billing-setup?${params.toString()}`)
+        }
       } else {
         router.push(`/${lng}/agenda`)
       }
@@ -137,7 +149,13 @@ function RegisterContent({ params }: RegisterPageProps) {
 
       // Redirect to billing-setup for paid plans, otherwise to agenda
       if (selectedPlan && selectedPlan !== "trial") {
-        router.push(`/${lng}/billing-setup?plan=${selectedPlan}&billing=${selectedBilling === "annually" ? "YEARLY" : "MONTHLY"}`)
+        {
+          const params = new URLSearchParams()
+          params.set('plan', selectedPlan)
+          params.set('billing', selectedBilling === 'annually' ? 'YEARLY' : 'MONTHLY')
+          if (selectedPlan === 'advanced' && selectedUnits) params.set('units', String(selectedUnits))
+          router.push(`/${lng}/billing-setup?${params.toString()}`)
+        }
       } else {
         router.push(`/${lng}/agenda`)
       }

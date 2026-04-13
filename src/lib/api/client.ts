@@ -560,6 +560,7 @@ class ApiClient {
     billing_type: string
     cycle: string
     offer_token?: string
+    units?: number
     credit_card?: {
       holderName: string
       number: string
