@@ -17,6 +17,7 @@ import { useAuthStore } from "@/stores/auth-store"
 import { showToast, handleApiError } from "@/lib/toast"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
+import { FacebookPixel } from "@/components/facebook-pixel"
 
 const registerSchema = z.object({
   clinic_name: z.string().min(2, "Nome da clinica deve ter no minimo 2 caracteres"),
@@ -42,13 +43,16 @@ interface RegisterPageProps {
 
 export default function RegisterPage({ params }: RegisterPageProps) {
   return (
-    <Suspense fallback={
-      <div className="flex h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    }>
-      <RegisterContent params={params} />
-    </Suspense>
+    <>
+      <FacebookPixel />
+      <Suspense fallback={
+        <div className="flex h-screen items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      }>
+        <RegisterContent params={params} />
+      </Suspense>
+    </>
   )
 }
 

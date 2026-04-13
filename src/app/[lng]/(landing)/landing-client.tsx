@@ -43,6 +43,9 @@ export function HeroCTA({ lng }: LandingClientProps) {
   const getTrialDays = (): number => publicConfig?.trial_days || 14
 
   const handlePlanSelect = (plan: string) => {
+    if (typeof window !== 'undefined' && (window as unknown as { fbq?: (...args: unknown[]) => void }).fbq) {
+      (window as unknown as { fbq: (...args: unknown[]) => void }).fbq('track', 'Lead', { plan })
+    }
     const target = isAuthenticated ? 'billing-setup' : 'register'
     const url = new URL(`/${lng}/${target}`, window.location.origin)
     url.searchParams.set('plan', plan)
@@ -90,6 +93,9 @@ export function NavCTA({ lng }: LandingClientProps) {
   }, [])
 
   const handlePlanSelect = (plan: string) => {
+    if (typeof window !== 'undefined' && (window as unknown as { fbq?: (...args: unknown[]) => void }).fbq) {
+      (window as unknown as { fbq: (...args: unknown[]) => void }).fbq('track', 'Lead', { plan })
+    }
     const target = isAuthenticated ? 'billing-setup' : 'register'
     const url = new URL(`/${lng}/${target}`, window.location.origin)
     url.searchParams.set('plan', plan)
@@ -145,6 +151,9 @@ export function PricingSection({ lng }: LandingClientProps) {
   }
 
   const handlePlanSelect = (plan: string) => {
+    if (typeof window !== 'undefined' && (window as unknown as { fbq?: (...args: unknown[]) => void }).fbq) {
+      (window as unknown as { fbq: (...args: unknown[]) => void }).fbq('track', 'Lead', { plan })
+    }
     const target = isAuthenticated ? 'billing-setup' : 'register'
     const url = new URL(`/${lng}/${target}`, window.location.origin)
     url.searchParams.set('plan', plan)
@@ -276,6 +285,9 @@ export function CtaSection({ lng }: LandingClientProps) {
   const getTrialDays = (): number => publicConfig?.trial_days || 14
 
   const handlePlanSelect = (plan: string) => {
+    if (typeof window !== 'undefined' && (window as unknown as { fbq?: (...args: unknown[]) => void }).fbq) {
+      (window as unknown as { fbq: (...args: unknown[]) => void }).fbq('track', 'Lead', { plan })
+    }
     const target = isAuthenticated ? 'billing-setup' : 'register'
     const url = new URL(`/${lng}/${target}`, window.location.origin)
     url.searchParams.set('plan', plan)
