@@ -1,6 +1,6 @@
 import type { MetadataRoute } from 'next'
 
-const BASE_URL = 'https://app.aseno.com.br'
+const BASE_URL = 'https://aseno.com.br'
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const staticPages = [
