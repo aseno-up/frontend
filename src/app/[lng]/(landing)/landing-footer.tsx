@@ -21,6 +21,7 @@ export function LandingFooter() {
           <ul>
             <li><Link href="/sobre">Sobre</Link></li>
             <li><Link href="/contato">Contato</Link></li>
+            <li><a href="https://blog.aseno.com.br/" target="_blank">Blog</a></li>
           </ul>
         </div>
         <div className="ft-col">
