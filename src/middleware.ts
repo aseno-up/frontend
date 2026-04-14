@@ -30,7 +30,7 @@ export function middleware(request: NextRequest) {
     const newPath = pathname.replace(`/${fallbackLng}`, '')
     const redirectUrl = new URL(newPath || '/', request.url)
     redirectUrl.search = request.nextUrl.search
-    return NextResponse.redirect(redirectUrl)
+    return NextResponse.redirect(redirectUrl, 308)
   }
 
   // 2. If missing locale (e.g., /agenda)
