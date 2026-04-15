@@ -143,7 +143,7 @@ export default function LeadsPage({ params }: LeadsPageProps) {
 
   const [searchInput, setSearchInput] = useState(searchParams.get("search") || "");
 
-  const [activeTab, setActiveTab] = useState("leads");
+  const activeTab = searchParams.get("tab") === "dashboard" ? "dashboard" : "leads";
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [dashboardLoading, setDashboardLoading] = useState(false);
 
@@ -267,10 +267,10 @@ export default function LeadsPage({ params }: LeadsPageProps) {
         <div className="flex flex-col flex-1 overflow-hidden">
           <div className="flex items-center justify-between shrink-0 mb-4">
             <div style={{ display: "flex", gap: 8, borderBottom: "1px solid #e8eaed", paddingBottom: 16 }}>
-              <TabButton active={activeTab === "leads"} onClick={() => setActiveTab("leads")} icon={<Target style={{ width: 16, height: 16 }} />}>
+              <TabButton active={activeTab === "leads"} onClick={() => updateQueryParams({ tab: null })} icon={<Target style={{ width: 16, height: 16 }} />}>
                 Leads
               </TabButton>
-              <TabButton active={activeTab === "dashboard"} onClick={() => setActiveTab("dashboard")} icon={<TrendingUp style={{ width: 16, height: 16 }} />}>
+              <TabButton active={activeTab === "dashboard"} onClick={() => updateQueryParams({ tab: "dashboard" })} icon={<TrendingUp style={{ width: 16, height: 16 }} />}>
                 Dashboard
               </TabButton>
             </div>
