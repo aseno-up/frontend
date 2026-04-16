@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/select"
 import { ReactSelect, SelectOption } from "@/components/ui/react-select"
 import { CurrencyInput } from "@/components/ui/currency-input"
+import { DatePicker } from "@/components/ui/date-picker"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { api } from "@/lib/api/client"
 import { showToast, handleApiError } from "@/lib/toast"
@@ -74,8 +75,30 @@ export function PlanPaymentDialog({ open, onOpenChange, sessionPlanId, enrollmen
   const [amount, setAmount] = useState(0)
   const [discount, setDiscount] = useState(0)
   const [installments, setInstallments] = useState(1)
-  const [referenceMonth, setReferenceMonth] = useState("")
+  const [referenceMonth, setReferenceMonth] = useState("") // YYYY-MM
+  const [paidAt, setPaidAt] = useState<string>(() => new Date().toISOString().slice(0, 10)) // YYYY-MM-DD
   const [notes, setNotes] = useState("")
+
+  // Split reference month into month + year parts for the dual-select picker
+  const [refYear, refMonth] = referenceMonth ? referenceMonth.split("-") : ["", ""]
+  const currentYear = new Date().getFullYear()
+  const yearOptions = Array.from({ length: 5 }, (_, i) => String(currentYear - 2 + i))
+  const monthOptions = [
+    { v: "01", l: "Janeiro" },
+    { v: "02", l: "Fevereiro" },
+    { v: "03", l: "Março" },
+    { v: "04", l: "Abril" },
+    { v: "05", l: "Maio" },
+    { v: "06", l: "Junho" },
+    { v: "07", l: "Julho" },
+    { v: "08", l: "Agosto" },
+    { v: "09", l: "Setembro" },
+    { v: "10", l: "Outubro" },
+    { v: "11", l: "Novembro" },
+    { v: "12", l: "Dezembro" },
+  ]
+  const setRefMonthPart = (m: string) => setReferenceMonth(`${refYear || String(currentYear)}-${m}`)
+  const setRefYearPart = (y: string) => setReferenceMonth(`${y}-${refMonth || "01"}`)
 
   // Delete confirmation
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
@@ -146,6 +169,7 @@ export function PlanPaymentDialog({ open, onOpenChange, sessionPlanId, enrollmen
     setDiscount(0)
     setInstallments(1)
     setReferenceMonth("")
+    setPaidAt(new Date().toISOString().slice(0, 10))
     setNotes("")
   }
 
@@ -179,6 +203,7 @@ export function PlanPaymentDialog({ open, onOpenChange, sessionPlanId, enrollmen
         installments: installments || 1,
         reference_month: referenceMonth || undefined,
         session_date: sessionDate || undefined,
+        paid_at: paidAt ? new Date(paidAt + "T12:00:00").toISOString() : undefined,
         notes: notes || undefined,
       }
 
@@ -391,14 +416,46 @@ export function PlanPaymentDialog({ open, onOpenChange, sessionPlanId, enrollmen
                 {effectivePaymentMode === "monthly" && (
                   <div className="space-y-1">
                     <Label className="text-xs">Ref. mês</Label>
-                    <Input
-                      type="month"
-                      value={referenceMonth}
-                      onChange={e => setReferenceMonth(e.target.value)}
-                      className="h-8 text-sm"
-                    />
+                    <div className="flex gap-1.5">
+                      <Select value={refMonth} onValueChange={setRefMonthPart}>
+                        <SelectTrigger className="h-8 text-sm flex-1">
+                          <SelectValue placeholder="Mês" />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-[260px]">
+                          {monthOptions.map(m => (
+                            <SelectItem key={m.v} value={m.v}>
+                              {m.l}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Select value={refYear} onValueChange={setRefYearPart}>
+                        <SelectTrigger className="h-8 text-sm w-[82px]">
+                          <SelectValue placeholder="Ano" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {yearOptions.map(y => (
+                            <SelectItem key={y} value={y}>
+                              {y}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                 )}
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs">Data do pagamento</Label>
+                <DatePicker
+                  value={paidAt}
+                  onChange={(v) => setPaidAt(v)}
+                  className="h-8 text-sm"
+                />
+                <span className="text-[11px] text-muted-foreground">
+                  Quando o aluno efetivamente pagou (pode ser retroativo).
+                </span>
               </div>
 
               <div className="space-y-1">

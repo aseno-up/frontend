@@ -690,6 +690,7 @@ export interface Enrollment {
   session_plan_id: string
   patient_id: string
   status: EnrollmentStatus
+  week_days: number[]
   total_sessions?: number | null
   sessions_done: number
   progress: number

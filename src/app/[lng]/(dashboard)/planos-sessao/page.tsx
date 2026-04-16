@@ -338,6 +338,7 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
       value: proc.id,
       label: `${proc.name} (R$ ${(proc.price || 0).toFixed(2)})`,
       basePrice: proc.price,
+      duration: proc.duration_minutes || 0,
     }))
   }, [procedures])
 
@@ -744,6 +745,7 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
                         <SelectItem value="weekly">1x por semana</SelectItem>
                         <SelectItem value="biweekly">2x por semana</SelectItem>
                         <SelectItem value="triweekly">3x por semana</SelectItem>
+                        <SelectItem value="custom">Personalizado</SelectItem>
                         <SelectItem value="bimonthly">Quinzenal</SelectItem>
                         <SelectItem value="monthly">Mensal</SelectItem>
                       </SelectContent>
@@ -844,10 +846,13 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
               <Label>Procedimento</Label>
               <ReactSelect
                 value={selectedProcedureOption}
-                onChange={(option) => {
+                onChange={(option: any) => {
                   setValue("procedure_id", option?.value || "")
                   if (option?.basePrice) {
                     setValue("session_price", option.basePrice)
+                  }
+                  if (option?.duration && option.duration > 0) {
+                    setValue("duration_mins", option.duration)
                   }
                   // Auto-fill title from procedure name if title is empty
                   const currentTitle = getValues("title")
@@ -869,7 +874,7 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
                 <Input id="duration" type="number" {...register("duration_mins", { valueAsNumber: true })} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="session_price">Valor por Sessão</Label>
+                <Label htmlFor="session_price">Valor</Label>
                 <Controller name="session_price" control={control} render={({ field }) => <CurrencyInput id="session_price" value={field.value} onChange={field.onChange} />} />
               </div>
             </div>
@@ -1081,7 +1086,7 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
             <Card className="bg-muted/50">
               <CardContent className="pt-6 space-y-4">
                 <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div><span className="text-muted-foreground block mb-1">Tipo</span><span className="font-medium">{watchedPlanType === "individual" ? "Individual" : `Turma (${watchedCapacity} vagas)`}</span></div>
+                  <div><span className="text-muted-foreground block mb-1">Tipo</span><span className="font-medium">{watchedPlanType === "individual" ? "Individual" : `Turma (${watchedCapacity} vagas/dia)`}</span></div>
                   {watchedPlanType === "individual" && (
                     <div><span className="text-muted-foreground block mb-1">Paciente</span><span className="font-medium">{selectedPatientOption?.label}</span></div>
                   )}
@@ -1254,7 +1259,7 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
                       </TableCell>
                       <TableCell>
                         {plan.type === "group" ? (
-                          <div className="flex items-center gap-2"><Users className="h-3 w-3 text-muted-foreground" /><span>Turma ({plan.capacity ?? "?"} vagas)</span></div>
+                          <div className="flex items-center gap-2"><Users className="h-3 w-3 text-muted-foreground" /><span>Turma ({plan.capacity ?? "?"} vagas/dia)</span></div>
                         ) : (
                           <div className="flex items-center gap-2"><User className="h-3 w-3 text-muted-foreground" />{plan.patient_name}</div>
                         )}
@@ -1421,6 +1426,9 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
           defaultPaymentMode={detailPlan.payment_mode}
           planTotalSessions={detailPlan.total_sessions}
           planPrice={detailPlan.price_override ?? detailPlan.session_price}
+          planWeekDays={detailPlan.week_days || []}
+          planDayTimes={detailPlan.day_times}
+          planPreferredTime={detailPlan.preferred_time}
           onOpenPaymentForEnrollment={(enrollmentId) => {
             setPaymentEnrollmentId(enrollmentId)
             setPaymentSessionPlanId(detailPlan.id)

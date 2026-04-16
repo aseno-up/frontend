@@ -112,9 +112,21 @@ export function GroupAttendanceDialog({ open, onOpenChange, appointmentId, sessi
 
       const newEntries: AttendanceEntry[] = []
 
+      // If we have a session date, only include enrollments whose week_days cover that weekday.
+      // Date is parsed as UTC (YYYY-MM-DD) to avoid timezone drift shifting the weekday.
+      const weekDayFilter = sessionDate
+        ? new Date(sessionDate + "T00:00:00Z").getUTCDay()
+        : null
+
       // Add all active enrollments with their session counts
       enrollments
         .filter(e => e.status === "active")
+        .filter(e =>
+          weekDayFilter === null ||
+          !e.week_days ||
+          e.week_days.length === 0 ||
+          e.week_days.includes(weekDayFilter)
+        )
         .forEach(e => {
           const existing = attendanceMap.get(e.patient_id)
           newEntries.push({

@@ -28,6 +28,7 @@ import type { Appointment, Professional, CalendarEvent as ApiCalendarEvent } fro
 const statusConfig: Record<string, { bg: string; border: string; text: string; label: string }> = {
   awaiting_payment: { bg: "#FFF7ED", border: "#F97316", text: "#9A3412", label: "Aguardando Pagamento" },
   pending: { bg: "#FEF3C7", border: "#F59E0B", text: "#92400E", label: "Pendente" },
+  scheduled: { bg: "#E0F2FE", border: "#0EA5E9", text: "#075985", label: "Agendado" },
   confirmed: { bg: "#D1FAE5", border: "#10B981", text: "#065F46", label: "Confirmado" },
   canceled: { bg: "#FEE2E2", border: "#EF4444", text: "#991B1B", label: "Cancelado" },
   no_show: { bg: "#E5E7EB", border: "#6B7280", text: "#374151", label: "Faltou" },
@@ -155,9 +156,10 @@ export function Calendar({
         const calendarEvents: CalendarEventInternal[] = (response.data as ApiCalendarEvent[]).map(
           (evt: ApiCalendarEvent) => {
             if (evt.is_virtual) {
-              // Virtual event — RRULE-calculated, not yet in database
-              // Rendered identically to a pending appointment
-              const colors = statusConfig.pending
+              // Virtual event — RRULE-calculated, not yet in database.
+              // These are scheduled recurrences — not awaiting confirmation —
+              // so render with a neutral "scheduled" look, not the yellow "pending" one.
+              const colors = statusConfig.scheduled
               const professional = professionals.find(
                 (p) => p.id === evt.professional_id
               )
@@ -504,9 +506,10 @@ export function Calendar({
     const isVirtual = eventInfo.event.extendedProps?.isVirtual as boolean | undefined
     const professionalColor = eventInfo.event.extendedProps?.professionalColor as string | undefined
 
-    // Virtual events render identically to pending appointments
-    const status = appointment?.status || "pending"
-    const config = statusConfig[status] || statusConfig.pending
+    // Virtual events are scheduled recurrences — not pending confirmation.
+    const defaultStatus = isVirtual ? "scheduled" : "pending"
+    const status = appointment?.status || defaultStatus
+    const config = statusConfig[status] || statusConfig[defaultStatus]
 
     // Calculate event duration in minutes to decide layout
     const start = eventInfo.event.start

@@ -335,7 +335,7 @@ export function PlanDetailModal({
                 {isGroup && plan.capacity && (
                   <>
                     <span className="w-[3px] h-[3px] rounded-full bg-muted-foreground/50" />
-                    <span>{plan.capacity} vagas</span>
+                    <span>{plan.capacity} vagas/dia</span>
                   </>
                 )}
               </div>
@@ -660,6 +660,19 @@ export function PlanDetailModal({
                               Prof. {evt.professional_name}
                             </div>
                           )}
+                          {isGroup && (
+                            <div className="text-[11px] text-muted-foreground mt-0.5">
+                              {(() => {
+                                const dow = startDate.getDay()
+                                const enrolledForDay = enrollments.filter(
+                                  (e) => e.status === "active" && e.week_days && e.week_days.includes(dow)
+                                ).length
+                                return plan.capacity
+                                  ? `${enrolledForDay}/${plan.capacity} alunos`
+                                  : `${enrolledForDay} alunos`
+                              })()}
+                            </div>
+                          )}
                         </div>
 
                         {/* Badge */}
@@ -698,7 +711,7 @@ export function PlanDetailModal({
             <TabsContent value="alunos" className="flex-1 min-h-0 overflow-y-auto px-6 pb-6 pt-4 mt-0">
               <div className="flex items-center justify-between mb-3">
                 <span className="text-[13px] font-medium text-muted-foreground uppercase tracking-wider">
-                  Inscritos · {enrollments.filter((e) => e.status === "active").length} de {plan.capacity || "–"}
+                  Inscritos · {enrollments.filter((e) => e.status === "active").length}
                 </span>
                 <Button
                   variant="outline"
@@ -736,8 +749,13 @@ export function PlanDetailModal({
                         <div className="text-sm font-medium truncate">
                           {enrollment.patient_name || "Paciente"}
                         </div>
-                        <div className="text-xs text-muted-foreground mt-px">
-                          Desde {format(new Date(enrollment.joined_at), "dd/MM/yyyy")}
+                        <div className="text-xs text-muted-foreground mt-px flex items-center gap-2">
+                          <span>Desde {format(new Date(enrollment.joined_at), "dd/MM/yyyy")}</span>
+                          {enrollment.week_days && enrollment.week_days.length > 0 && (
+                            <span>
+                              · {enrollment.week_days.map(d => ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"][d]).join(", ")}
+                            </span>
+                          )}
                         </div>
                       </div>
 

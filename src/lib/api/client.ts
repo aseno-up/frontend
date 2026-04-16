@@ -786,6 +786,7 @@ class ApiClient {
   // Enrollment endpoints
   async enrollPatient(sessionPlanId: string, data: {
     patient_id: string
+    week_days: number[]
     total_sessions?: number
     payment_mode?: string
     monthly_amount?: number
@@ -822,6 +823,9 @@ class ApiClient {
     discount?: number
     installments?: number
     notes?: string
+    paid_at?: string
+    reference_month?: string
+    session_date?: string
   }) {
     const response = await this.client.post(`/session-plans/${sessionPlanId}/payments`, data)
     return response.data
@@ -850,6 +854,7 @@ class ApiClient {
     reference_month?: string
     session_date?: string
     notes?: string
+    paid_at?: string
   }) {
     const response = await this.client.post(
       `/session-plans/${sessionPlanId}/enrollments/${enrollmentId}/payments`,

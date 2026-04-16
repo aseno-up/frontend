@@ -37,7 +37,49 @@ interface EnrollmentDialogProps {
   defaultPaymentMode?: string
   planTotalSessions?: number
   planPrice?: number
+  planWeekDays?: number[]
+  planDayTimes?: Record<string, string>
+  planPreferredTime?: string
   onOpenPaymentForEnrollment?: (enrollmentId: string) => void
+}
+
+const WEEK_DAY_LABELS: Record<number, string> = {
+  0: "Dom",
+  1: "Seg",
+  2: "Ter",
+  3: "Qua",
+  4: "Qui",
+  5: "Sex",
+  6: "Sáb",
+}
+
+const WEEK_DAY_ABBR: Record<number, string> = {
+  0: "SU",
+  1: "MO",
+  2: "TU",
+  3: "WE",
+  4: "TH",
+  5: "FR",
+  6: "SA",
+}
+
+// Formats a BRL currency value from a free-typed string.
+// Accepts "1234,56" or "1234.56" and returns "1.234,56".
+function formatBRL(raw: string): string {
+  const digits = raw.replace(/\D/g, "")
+  if (!digits) return ""
+  const cents = digits.padStart(3, "0")
+  const reais = cents.slice(0, -2).replace(/^0+(?=\d)/, "")
+  const decimals = cents.slice(-2)
+  const withThousands = reais.replace(/\B(?=(\d{3})+(?!\d))/g, ".")
+  return `${withThousands || "0"},${decimals}`
+}
+
+function brlToNumber(formatted: string): number | null {
+  if (!formatted.trim()) return null
+  const cleaned = formatted.replace(/\./g, "").replace(",", ".")
+  const n = parseFloat(cleaned)
+  return isNaN(n) ? null : n
 }
 
 const statusVariants: Record<string, "default" | "secondary" | "destructive" | "success" | "warning"> = {
@@ -67,8 +109,17 @@ export function EnrollmentDialog({
   defaultPaymentMode,
   planTotalSessions,
   planPrice,
+  planWeekDays = [],
+  planDayTimes,
+  planPreferredTime,
   onOpenPaymentForEnrollment,
 }: EnrollmentDialogProps) {
+  const timeForDay = (day: number): string | null => {
+    const abbr = WEEK_DAY_ABBR[day]
+    if (planDayTimes && planDayTimes[abbr]) return planDayTimes[abbr]
+    return planPreferredTime || null
+  }
+
   const [enrollments, setEnrollments] = useState<Enrollment[]>([])
   const [loading, setLoading] = useState(false)
   const [patients, setPatients] = useState<Patient[]>([])
@@ -77,10 +128,17 @@ export function EnrollmentDialog({
   // Form state for adding a patient
   const [showAddForm, setShowAddForm] = useState(false)
   const [selectedPatientId, setSelectedPatientId] = useState("")
+  const [selectedWeekDays, setSelectedWeekDays] = useState<number[]>([])
   const [totalSessions, setTotalSessions] = useState<string>("")
   const [paymentMode, setPaymentMode] = useState(defaultPaymentMode || "per_session")
   const [monthlyAmount, setMonthlyAmount] = useState("")
   const [billingDay, setBillingDay] = useState("")
+
+  const toggleWeekDay = (day: number) => {
+    setSelectedWeekDays(prev =>
+      prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day].sort()
+    )
+  }
 
   // Confirm dialog
   const [confirmAction, setConfirmAction] = useState<{ type: string; enrollmentId: string; name: string } | null>(null)
@@ -114,7 +172,7 @@ export function EnrollmentDialog({
   // Pre-fill monthly amount when payment mode changes to monthly
   useEffect(() => {
     if (paymentMode === "monthly" && planPrice) {
-      setMonthlyAmount(planPrice.toString())
+      setMonthlyAmount(formatBRL(String(Math.round(planPrice * 100))))
     }
     if (paymentMode !== "monthly") {
       setMonthlyAmount("")
@@ -129,6 +187,11 @@ export function EnrollmentDialog({
       return
     }
 
+    if (selectedWeekDays.length === 0) {
+      showToast.error("Selecione pelo menos um dia da semana")
+      return
+    }
+
     // Validate total sessions against plan limit
     if (totalSessions && planTotalSessions && planTotalSessions > 0) {
       if (parseInt(totalSessions) > planTotalSessions) {
@@ -139,11 +202,13 @@ export function EnrollmentDialog({
 
     setEnrolling(true)
     try {
+      const amount = brlToNumber(monthlyAmount)
       const result = await api.enrollPatient(sessionPlanId, {
         patient_id: selectedPatientId,
+        week_days: selectedWeekDays,
         total_sessions: totalSessions ? parseInt(totalSessions) : undefined,
         payment_mode: paymentMode,
-        monthly_amount: monthlyAmount ? parseFloat(monthlyAmount) : undefined,
+        monthly_amount: amount ?? undefined,
         billing_day: billingDay ? parseInt(billingDay) : undefined,
       })
       showToast.success("Paciente inscrito com sucesso!")
@@ -152,6 +217,7 @@ export function EnrollmentDialog({
 
       setShowAddForm(false)
       setSelectedPatientId("")
+      setSelectedWeekDays([])
       setTotalSessions("")
       setPaymentMode(defaultPaymentMode || "per_session")
       setMonthlyAmount("")
@@ -212,7 +278,8 @@ export function EnrollmentDialog({
               Alunos Inscritos
             </DialogTitle>
             <DialogDescription>
-              {sessionPlanTitle} — {activeCount}{capacity ? `/${capacity}` : ""} vagas ocupadas
+              {sessionPlanTitle} — {activeCount} {activeCount === 1 ? "aluno ativo" : "alunos ativos"}
+              {capacity ? ` · capacidade ${capacity}/dia` : ""}
             </DialogDescription>
           </DialogHeader>
 
@@ -223,11 +290,10 @@ export function EnrollmentDialog({
                 variant="outline"
                 size="sm"
                 onClick={() => setShowAddForm(true)}
-                disabled={capacity != null && activeCount >= capacity}
                 className="w-full"
               >
                 <UserPlus className="h-4 w-4 mr-2" />
-                {capacity != null && activeCount >= capacity ? "Turma lotada" : "Adicionar Paciente"}
+                Adicionar Paciente
               </Button>
             ) : (
               <div className="rounded-lg border p-4 space-y-3 bg-muted/30">
@@ -248,6 +314,57 @@ export function EnrollmentDialog({
                     isClearable
                     isSearchable
                   />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs">Disponibilidade</Label>
+                    {planWeekDays.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setSelectedWeekDays(
+                            selectedWeekDays.length === planWeekDays.length ? [] : [...planWeekDays].sort()
+                          )
+                        }
+                        className="text-[11px] text-primary hover:underline"
+                      >
+                        {selectedWeekDays.length === planWeekDays.length ? "Limpar" : "Selecionar todos"}
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    {planWeekDays.length === 0 ? (
+                      <span className="text-xs text-muted-foreground">
+                        O plano não tem dias configurados.
+                      </span>
+                    ) : (
+                      planWeekDays.map(day => {
+                        const selected = selectedWeekDays.includes(day)
+                        const time = timeForDay(day)
+                        return (
+                          <button
+                            key={day}
+                            type="button"
+                            onClick={() => toggleWeekDay(day)}
+                            className={`flex items-center justify-between px-3 py-2 rounded-md text-xs border transition-colors ${
+                              selected
+                                ? "bg-primary/10 border-primary text-primary"
+                                : "bg-background hover:bg-muted border-input"
+                            }`}
+                          >
+                            <span className="font-medium">{WEEK_DAY_LABELS[day]}</span>
+                            {time && <span className="text-muted-foreground">{time}</span>}
+                          </button>
+                        )
+                      })
+                    )}
+                  </div>
+                  {selectedWeekDays.length > 0 && (
+                    <span className="text-[11px] text-muted-foreground">
+                      {selectedWeekDays.length === 1 ? "1 dia" : `${selectedWeekDays.length} dias`} por semana
+                    </span>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
@@ -293,25 +410,34 @@ export function EnrollmentDialog({
                 {paymentMode === "monthly" && (
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
-                      <Label className="text-xs">Valor mensal (R$)</Label>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={monthlyAmount}
-                        onChange={e => setMonthlyAmount(e.target.value)}
-                        className="h-8 text-sm"
-                      />
+                      <Label className="text-xs">Valor mensal</Label>
+                      <div className="relative">
+                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">
+                          R$
+                        </span>
+                        <Input
+                          inputMode="numeric"
+                          placeholder="0,00"
+                          value={monthlyAmount}
+                          onChange={e => setMonthlyAmount(formatBRL(e.target.value))}
+                          className="h-8 text-sm pl-8"
+                        />
+                      </div>
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs">Dia de cobrança</Label>
-                      <Input
-                        type="number"
-                        min={1}
-                        max={31}
-                        value={billingDay}
-                        onChange={e => setBillingDay(e.target.value)}
-                        className="h-8 text-sm"
-                      />
+                      <Select value={billingDay} onValueChange={setBillingDay}>
+                        <SelectTrigger className="h-8 text-sm">
+                          <SelectValue placeholder="Dia do mês" />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-[260px]">
+                          {Array.from({ length: 31 }, (_, i) => i + 1).map(d => (
+                            <SelectItem key={d} value={String(d)}>
+                              Dia {d}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
                 )}
@@ -348,6 +474,11 @@ export function EnrollmentDialog({
                         <span>
                           {enrollment.sessions_done}/{enrollment.total_sessions != null ? enrollment.total_sessions : "∞"} sessões
                         </span>
+                        {enrollment.week_days && enrollment.week_days.length > 0 && (
+                          <span>
+                            {enrollment.week_days.map(d => WEEK_DAY_LABELS[d]).join(", ")}
+                          </span>
+                        )}
                       </div>
                       {enrollment.total_sessions != null && enrollment.total_sessions > 0 && (
                         <Progress value={enrollment.progress} className="h-1 mt-1.5" />
