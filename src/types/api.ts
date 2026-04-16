@@ -51,6 +51,18 @@ export interface Clinic {
   name: string
   slug: string
   type?: string
+  email?: string
+  phone?: string
+  document?: string
+  address?: string
+  city?: string
+  state?: string
+  zip_code?: string
+  instagram?: string
+  business_info?: string
+  faq?: string
+  logo_url?: string
+  primary_color?: string
   created_at: string
   settings?: ClinicSettings
   booking_url?: string

@@ -5,11 +5,12 @@ import { useSearchParams, useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import { Building2, Bell, CreditCard, Users, Calendar, Loader2, Check, Copy, ExternalLink, Link2, Wallet, Plus, Pencil, Trash2, Store, CheckCircle2, Clock, XCircle, Eye, EyeOff, FileText, Layout } from "lucide-react"
+import { Building2, Bell, CreditCard, Users, Calendar, Loader2, Check, Copy, ExternalLink, Link2, Wallet, Plus, Pencil, Trash2, Store, CheckCircle2, Clock, XCircle, Eye, EyeOff, FileText, Layout, Sparkles } from "lucide-react"
 
 import { Header } from "@/components/dashboard/header"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -51,6 +52,9 @@ interface ConfiguracoesPageProps {
   params: Promise<{ lng: string }>
 }
 
+const VALID_TABS = ["clinica", "automacao", "anamnese", "integracoes", "assinatura", "pagamentos", "financeiro", "conta"] as const
+type TabValue = typeof VALID_TABS[number]
+
 const paymentStatusLabels: Record<PaymentStatus, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
   PENDING: { label: 'Pendente', variant: 'outline' },
   RECEIVED: { label: 'Recebido', variant: 'default' },
@@ -83,10 +87,43 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
   const router = useRouter()
   const { clinic, user, setClinic } = useAuthStore()
 
+  // Tab navigation state (synced with ?tab=)
+  const initialTab: TabValue = (() => {
+    const t = searchParams.get("tab")
+    return (t && (VALID_TABS as readonly string[]).includes(t) ? t : "clinica") as TabValue
+  })()
+  const [activeTab, setActiveTab] = useState<TabValue>(initialTab)
+
   // Clinic editing state
   const [clinicName, setClinicName] = useState(clinic?.name || "")
   const [isSavingClinic, setIsSavingClinic] = useState(false)
   const clinicNameChanged = clinicName !== (clinic?.name || "")
+
+  // Clinic contact/profile fields state
+  const [phone, setPhone] = useState(clinic?.phone || "")
+  const [doc, setDoc] = useState(clinic?.document || "")
+  const [address, setAddress] = useState(clinic?.address || "")
+  const [city, setCity] = useState(clinic?.city || "")
+  const [uf, setUf] = useState(clinic?.state || "")
+  const [zipCode, setZipCode] = useState(clinic?.zip_code || "")
+  const [instagram, setInstagram] = useState(clinic?.instagram || "")
+  const [isSavingContact, setIsSavingContact] = useState(false)
+  const contactChanged =
+    phone !== (clinic?.phone || "") ||
+    doc !== (clinic?.document || "") ||
+    address !== (clinic?.address || "") ||
+    city !== (clinic?.city || "") ||
+    uf !== (clinic?.state || "") ||
+    zipCode !== (clinic?.zip_code || "") ||
+    instagram !== (clinic?.instagram || "")
+
+  // Automation (FAQ / business info) state
+  const [businessInfo, setBusinessInfo] = useState(clinic?.business_info || "")
+  const [faq, setFaq] = useState(clinic?.faq || "")
+  const [isSavingAutomation, setIsSavingAutomation] = useState(false)
+  const automationChanged =
+    businessInfo !== (clinic?.business_info || "") ||
+    faq !== (clinic?.faq || "")
 
   // User editing state
   const [userName, setUserName] = useState(user?.name || "")
@@ -266,12 +303,16 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
   // Handle calendar OAuth callback result
   useEffect(() => {
     const calendarStatus = searchParams.get("calendar")
-    if (calendarStatus === "connected") {
-      showToast.success("Google Calendar conectado com sucesso!")
-      router.replace(`/${lng}/configuracoes`, { scroll: false })
-    } else if (calendarStatus === "error") {
-      showToast.error("Erro ao conectar Google Calendar. Tente novamente.")
-      router.replace(`/${lng}/configuracoes`, { scroll: false })
+    if (calendarStatus === "connected" || calendarStatus === "error") {
+      if (calendarStatus === "connected") {
+        showToast.success("Google Calendar conectado com sucesso!")
+      } else {
+        showToast.error("Erro ao conectar Google Calendar. Tente novamente.")
+      }
+      const params = new URLSearchParams(searchParams.toString())
+      params.delete("calendar")
+      const qs = params.toString()
+      router.replace(`/${lng}/configuracoes${qs ? `?${qs}` : ""}`, { scroll: false })
     }
   }, [searchParams, router, lng])
 
@@ -299,6 +340,37 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
     }
   }, [clinic?.settings])
 
+  // Sync clinic contact/profile fields with store
+  useEffect(() => {
+    setPhone(clinic?.phone || "")
+    setDoc(clinic?.document || "")
+    setAddress(clinic?.address || "")
+    setCity(clinic?.city || "")
+    setUf(clinic?.state || "")
+    setZipCode(clinic?.zip_code || "")
+    setInstagram(clinic?.instagram || "")
+    setBusinessInfo(clinic?.business_info || "")
+    setFaq(clinic?.faq || "")
+  }, [clinic?.phone, clinic?.document, clinic?.address, clinic?.city, clinic?.state, clinic?.zip_code, clinic?.instagram, clinic?.business_info, clinic?.faq])
+
+  const handleTabChange = useCallback((value: string) => {
+    setActiveTab(value as TabValue)
+    const current = searchParams.get("tab")
+    if (current !== value) {
+      const params = new URLSearchParams(searchParams.toString())
+      params.set("tab", value)
+      router.replace(`/${lng}/configuracoes?${params.toString()}`, { scroll: false })
+    }
+  }, [searchParams, router, lng])
+
+  // Keep state in sync if the user navigates via back/forward
+  useEffect(() => {
+    const t = searchParams.get("tab")
+    if (t && (VALID_TABS as readonly string[]).includes(t) && t !== activeTab) {
+      setActiveTab(t as TabValue)
+    }
+  }, [searchParams, activeTab])
+
   const canEditClinic = user?.role === "admin" || user?.role === "owner"
 
   // Clinic handlers
@@ -319,6 +391,60 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
 
   const handleCancelClinicEdit = () => {
     setClinicName(clinic?.name || "")
+  }
+
+  const handleSaveContactInfo = async () => {
+    if (!contactChanged) return
+    try {
+      setIsSavingContact(true)
+      const updatedClinic = await api.updateClinic({
+        phone: phone.trim(),
+        document: doc.trim(),
+        address: address.trim(),
+        city: city.trim(),
+        state: uf.trim(),
+        zip_code: zipCode.trim(),
+        instagram: instagram.trim(),
+      })
+      setClinic(updatedClinic)
+      showToast.success("Dados da clinica atualizados")
+    } catch (err) {
+      handleApiError(err)
+    } finally {
+      setIsSavingContact(false)
+    }
+  }
+
+  const handleCancelContactEdit = () => {
+    setPhone(clinic?.phone || "")
+    setDoc(clinic?.document || "")
+    setAddress(clinic?.address || "")
+    setCity(clinic?.city || "")
+    setUf(clinic?.state || "")
+    setZipCode(clinic?.zip_code || "")
+    setInstagram(clinic?.instagram || "")
+  }
+
+  const handleSaveAutomation = async () => {
+    if (!automationChanged) return
+    try {
+      setIsSavingAutomation(true)
+      const updatedClinic = await api.updateClinic({
+        business_info: businessInfo,
+        faq: faq,
+      })
+      setClinic(updatedClinic)
+      showToast.success("Automacao atualizada")
+    } catch (err) {
+      handleApiError(err)
+    } finally {
+      setIsSavingAutomation(false)
+    }
+  }
+
+  const handleCancelAutomationEdit = () => {
+    setBusinessInfo(clinic?.business_info || "")
+    setFaq(clinic?.faq || "")
   }
 
   // User handlers
@@ -705,7 +831,7 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
 
       <div className="flex-1 overflow-hidden min-h-0 bg-muted/10">
         <div className="mx-auto h-full flex flex-col min-h-0">
-          <Tabs defaultValue="clinica" className="w-full flex-1 flex flex-col overflow-hidden min-h-0">
+          <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full flex-1 flex flex-col overflow-hidden min-h-0">
             <div className="bg-background px-4 md:px-8 pt-2 border-b border-border/40 shrink-0">
               <TabsList className="flex h-12 w-full justify-start gap-4 md:gap-6 bg-transparent p-0 overflow-x-auto no-scrollbar">
                 <TabsTrigger 
@@ -715,12 +841,12 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
                   <Building2 className="h-4 w-4" />
                   <span className="hidden sm:inline">Clinica</span>
                 </TabsTrigger>
-                <TabsTrigger 
-                  value="notificacoes" 
+                <TabsTrigger
+                  value="automacao"
                   className="relative h-12 rounded-none border-b-2 border-transparent bg-transparent px-2 md:px-4 pb-3 pt-3 font-medium text-muted-foreground shadow-none transition-none data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none hover:text-primary flex items-center gap-2 whitespace-nowrap"
                 >
-                  <Bell className="h-4 w-4" />
-                  <span className="hidden sm:inline">Notificacoes</span>
+                  <Sparkles className="h-4 w-4" />
+                  <span className="hidden sm:inline">Automacao</span>
                 </TabsTrigger>
                 {canEditClinic && (
                   <TabsTrigger 
@@ -811,20 +937,6 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
 
                   <div className="flex items-center justify-between">
                     <div className="space-y-0.5">
-                      <Label>Atendimento por IA (WhatsApp)</Label>
-                      <p className="text-sm text-muted-foreground">Ativar o assistente virtual para responder pacientes via WhatsApp</p>
-                    </div>
-                    <Switch
-                      checked={aiAgentEnabled}
-                      onCheckedChange={handleToggleAIAgent}
-                      disabled={!canEditClinic || isSavingAiAgent}
-                    />
-                  </div>
-
-                  <Separator />
-
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
                       <Label>Agendamento Online</Label>
                       <p className="text-sm text-muted-foreground">Permitir que pacientes agendem consultas pelo link publico</p>
                     </div>
@@ -867,10 +979,103 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
                   )}
                 </CardContent>
               </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Contato e Localizacao</CardTitle>
+                  <CardDescription>Dados de contato e endereco da clinica</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="clinic_phone">Telefone</Label>
+                      <Input
+                        id="clinic_phone"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        placeholder="(11) 99999-9999"
+                        disabled={!canEditClinic || isSavingContact}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="clinic_document">CNPJ / CPF</Label>
+                      <Input
+                        id="clinic_document"
+                        value={doc}
+                        onChange={(e) => setDoc(e.target.value)}
+                        placeholder="00.000.000/0000-00"
+                        disabled={!canEditClinic || isSavingContact}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="clinic_instagram">Instagram</Label>
+                      <Input
+                        id="clinic_instagram"
+                        value={instagram}
+                        onChange={(e) => setInstagram(e.target.value)}
+                        placeholder="@suaclinica"
+                        disabled={!canEditClinic || isSavingContact}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="clinic_zip">CEP</Label>
+                      <Input
+                        id="clinic_zip"
+                        value={zipCode}
+                        onChange={(e) => setZipCode(e.target.value)}
+                        placeholder="00000-000"
+                        disabled={!canEditClinic || isSavingContact}
+                      />
+                    </div>
+                    <div className="space-y-2 md:col-span-2">
+                      <Label htmlFor="clinic_address">Endereco</Label>
+                      <Input
+                        id="clinic_address"
+                        value={address}
+                        onChange={(e) => setAddress(e.target.value)}
+                        placeholder="Rua, numero, complemento"
+                        disabled={!canEditClinic || isSavingContact}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="clinic_city">Cidade</Label>
+                      <Input
+                        id="clinic_city"
+                        value={city}
+                        onChange={(e) => setCity(e.target.value)}
+                        disabled={!canEditClinic || isSavingContact}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="clinic_state">Estado (UF)</Label>
+                      <Input
+                        id="clinic_state"
+                        value={uf}
+                        onChange={(e) => setUf(e.target.value.toUpperCase().slice(0, 2))}
+                        placeholder="SP"
+                        maxLength={2}
+                        disabled={!canEditClinic || isSavingContact}
+                      />
+                    </div>
+                  </div>
+
+                  {canEditClinic && contactChanged && (
+                    <div className="flex gap-2 justify-end pt-2">
+                      <Button variant="outline" onClick={handleCancelContactEdit} disabled={isSavingContact}>
+                        Cancelar
+                      </Button>
+                      <Button onClick={handleSaveContactInfo} disabled={isSavingContact}>
+                        {isSavingContact ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Check className="h-4 w-4 mr-2" />}
+                        Salvar
+                      </Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             </TabsContent>
 
-            {/* Tab: Notificacoes */}
-            <TabsContent value="notificacoes" className="mt-0 outline-none space-y-6">
+            {/* Tab: Automacao (lembretes + IA + FAQ) */}
+            <TabsContent value="automacao" className="mt-0 outline-none space-y-6">
               <Card>
                 <CardHeader>
                   <CardTitle>Notificacoes</CardTitle>
@@ -926,6 +1131,58 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
                       </p>
                     )}
                   </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Base de conhecimento da IA</CardTitle>
+                  <CardDescription>
+                    Informacoes que a IA usa para responder pacientes no WhatsApp. Se algum campo estiver vazio, a IA simplesmente nao tera essa informacao.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="clinic_business_info">Informacoes da clinica</Label>
+                    <Textarea
+                      id="clinic_business_info"
+                      value={businessInfo}
+                      onChange={(e) => setBusinessInfo(e.target.value)}
+                      placeholder="Ex: Atendemos apenas particular. Aceitamos Pix, cartao e boleto. Estacionamento gratuito. Horario de atendimento: Seg a Sex, 8h as 18h."
+                      rows={5}
+                      disabled={!canEditClinic || isSavingAutomation}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Dados operacionais/comerciais da clinica que a IA deve conhecer.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="clinic_faq">Duvidas frequentes (FAQ)</Label>
+                    <Textarea
+                      id="clinic_faq"
+                      value={faq}
+                      onChange={(e) => setFaq(e.target.value)}
+                      placeholder={"Ex:\nP: Quanto tempo dura a sessao?\nR: 50 minutos.\n\nP: Posso remarcar?\nR: Sim, ate 24h antes."}
+                      rows={8}
+                      disabled={!canEditClinic || isSavingAutomation}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Perguntas e respostas que a IA deve usar como referencia.
+                    </p>
+                  </div>
+
+                  {canEditClinic && automationChanged && (
+                    <div className="flex gap-2 justify-end pt-2">
+                      <Button variant="outline" onClick={handleCancelAutomationEdit} disabled={isSavingAutomation}>
+                        Cancelar
+                      </Button>
+                      <Button onClick={handleSaveAutomation} disabled={isSavingAutomation}>
+                        {isSavingAutomation ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Check className="h-4 w-4 mr-2" />}
+                        Salvar
+                      </Button>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
