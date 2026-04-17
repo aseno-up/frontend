@@ -170,6 +170,8 @@ export interface Procedure {
   description: string
   price: number
   duration_minutes: number
+  specialty_id?: string | null
+  specialty_name?: string
   created_at: string
   updated_at: string
 }

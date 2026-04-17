@@ -29,12 +29,12 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { CurrencyInput } from "@/components/ui/currency-input"
-import { ReactSelect, SelectOption } from "@/components/ui/react-select"
+import { ReactSelect, ReactCreatableSelect, SelectOption } from "@/components/ui/react-select"
 import { Checkbox } from "@/components/ui/checkbox"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { api } from "@/lib/api/client"
 import { showToast, handleApiError } from "@/lib/toast"
-import type { Procedure, PaginatedResponse } from "@/types/api"
+import type { Procedure, PaginatedResponse, SpecialtyInfo } from "@/types/api"
 
 // Schema
 const procedureSchema = z.object({
@@ -42,6 +42,7 @@ const procedureSchema = z.object({
   description: z.string().optional(),
   duration_minutes: z.number().min(1, "Duração deve ser maior ou igual a 1"),
   price: z.number().min(0, "Preço base predefinido deve ser maior ou igual a 0"),
+  specialty_id: z.string().optional().nullable(),
 })
 
 type ProcedureFormData = z.infer<typeof procedureSchema>
@@ -110,8 +111,43 @@ export default function ProcedimentosPage({ params }: ProcedimentosPageProps) {
     reset,
   } = useForm<ProcedureFormData>({
     resolver: zodResolver(procedureSchema),
-    defaultValues: { name: "", description: "", duration_minutes: 30, price: 0 }
+    defaultValues: { name: "", description: "", duration_minutes: 30, price: 0, specialty_id: null }
   })
+
+  // Specialties for the select in the dialog
+  const [specialtyOptions, setSpecialtyOptions] = useState<SelectOption[]>([])
+  const specialtyNameById = specialtyOptions.reduce<Record<string, string>>((acc, o) => {
+    acc[o.value] = o.label
+    return acc
+  }, {})
+
+  const loadSpecialtyOptions = useCallback(async () => {
+    try {
+      const res: any = await api.getSpecialtiesActive()
+      const list: SpecialtyInfo[] = res.data ?? res ?? []
+      setSpecialtyOptions(list.map((s) => ({ value: s.id, label: s.name })))
+    } catch (e) {
+      console.error("Error loading specialties", e)
+    }
+  }, [])
+
+  useEffect(() => {
+    loadSpecialtyOptions()
+  }, [loadSpecialtyOptions])
+
+  const handleCreateSpecialty = async (name: string): Promise<SelectOption | null> => {
+    const trimmed = name.trim()
+    if (!trimmed) return null
+    try {
+      const created = await api.createSpecialty({ name: trimmed })
+      const option: SelectOption = { value: created.id, label: created.name }
+      setSpecialtyOptions((prev) => [...prev, option])
+      return option
+    } catch (e) {
+      handleApiError(e, "Erro ao criar especialidade")
+      return null
+    }
+  }
 
   useEffect(() => {
     params.then(({ lng }) => setLng(lng))
@@ -180,10 +216,11 @@ export default function ProcedimentosPage({ params }: ProcedimentosPageProps) {
         description: procedure.description || "",
         duration_minutes: procedure.duration_minutes,
         price: procedure.price,
+        specialty_id: procedure.specialty_id ?? null,
       })
     } else {
       setEditingProcedure(null)
-      reset({ name: "", description: "", duration_minutes: 30, price: 0 })
+      reset({ name: "", description: "", duration_minutes: 30, price: 0, specialty_id: null })
     }
     setDialogOpen(true)
   }
@@ -370,6 +407,7 @@ export default function ProcedimentosPage({ params }: ProcedimentosPageProps) {
                       />
                     </TableHead>
                      <SortableTableHead sortKey="name" title="PROCEDIMENTO" className="w-[350px]" />
+                     <TableHead className="font-bold text-xs uppercase tracking-wider text-muted-foreground/70">ESPECIALIDADE</TableHead>
                      <TableHead className="font-bold text-xs uppercase tracking-wider text-muted-foreground/70">DESCRIÇÃO</TableHead>
                      <TableHead className="font-bold text-xs uppercase tracking-wider text-muted-foreground/70">DURAÇÃO</TableHead>
                      <SortableTableHead sortKey="price" title="PREÇO BASE" />
@@ -397,6 +435,15 @@ export default function ProcedimentosPage({ params }: ProcedimentosPageProps) {
                             <span className="font-bold text-foreground truncate text-base">{procedure.name}</span>
                           </div>
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        {procedure.specialty_id && specialtyNameById[procedure.specialty_id] ? (
+                          <span className="text-muted-foreground font-medium">
+                            {specialtyNameById[procedure.specialty_id]}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground/50 italic">Não informada</span>
+                        )}
                       </TableCell>
                       <TableCell>
                         <span className="text-muted-foreground truncate max-w-[200px] inline-block">{procedure.description || "-"}</span>
@@ -525,6 +572,36 @@ export default function ProcedimentosPage({ params }: ProcedimentosPageProps) {
                     </p>
                   )}
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="specialty_id">Especialidade</Label>
+                <Controller
+                  name="specialty_id"
+                  control={control}
+                  render={({ field }) => {
+                    const selected = field.value
+                      ? specialtyOptions.find((o) => o.value === field.value) ?? null
+                      : null
+                    return (
+                      <ReactCreatableSelect
+                        inputId="specialty_id"
+                        isClearable
+                        options={specialtyOptions}
+                        value={selected}
+                        onChange={(opt) => field.onChange((opt as SelectOption | null)?.value ?? null)}
+                        onCreateOption={async (name) => {
+                          const option = await handleCreateSpecialty(name)
+                          if (option) field.onChange(option.value)
+                        }}
+                        placeholder="Selecione, ou digite para criar..."
+                      />
+                    )
+                  }}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Usada pela IA do WhatsApp para filtrar procedimentos por área.
+                </p>
               </div>
             </div>
 
