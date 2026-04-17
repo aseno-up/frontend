@@ -30,19 +30,18 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ReactSelect, SelectOption } from "@/components/ui/react-select"
+import { ReactSelect, ReactCreatableSelect, SelectOption } from "@/components/ui/react-select"
 import { api } from "@/lib/api/client"
 import { showToast, handleApiError } from "@/lib/toast"
 import { WorkingHoursEditor } from "@/components/professionals/working-hours-editor"
 import { CommissionTab } from "@/components/professionals/commission-tab"
-import type { Professional, WorkingHours, User as UserType } from "@/types/api"
+import type { Professional, SpecialtyInfo, WorkingHours, User as UserType } from "@/types/api"
 
 // Schema for edit form
 const professionalSchema = z.object({
   name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres"),
   email: z.string().email("Email invalido").optional().or(z.literal("")),
   phone: z.string().optional(),
-  specialty: z.string().optional(),
   registration_number: z.string().optional(),
   color: z.string().optional(),
   is_active: z.boolean().optional(),
@@ -104,6 +103,10 @@ export default function ProfissionaisPage({ params }: ProfissionaisPageProps) {
   const [workingHours, setWorkingHours] = useState<WorkingHours>(DEFAULT_WORKING_HOURS)
   const [editActiveTab, setEditActiveTab] = useState("info")
 
+  // Specialties (shared between create and edit dialogs)
+  const [specialtyOptions, setSpecialtyOptions] = useState<SelectOption[]>([])
+  const [selectedSpecialties, setSelectedSpecialties] = useState<SelectOption[]>([])
+
   // Create dialog state
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [createMode, setCreateMode] = useState<"invite" | "link">("invite")
@@ -135,7 +138,7 @@ export default function ProfissionaisPage({ params }: ProfissionaisPageProps) {
     setValue,
   } = useForm<ProfessionalFormData>({
     resolver: zodResolver(professionalSchema),
-    defaultValues: { name: "", email: "", phone: "", specialty: "", registration_number: "", color: defaultColors[0], is_active: true }
+    defaultValues: { name: "", email: "", phone: "", registration_number: "", color: defaultColors[0], is_active: true }
   })
 
   useEffect(() => {
@@ -183,7 +186,10 @@ export default function ProfissionaisPage({ params }: ProfissionaisPageProps) {
       setActiveCount(activeList.length)
       setInactiveCount((response.data || []).length - activeList.length)
 
-      const specs = new Set((response.data || []).filter((p: Professional) => p.specialty).map((p: Professional) => p.specialty))
+      const specs = new Set<string>()
+      for (const p of (response.data || []) as Professional[]) {
+        for (const sp of p.specialties || []) specs.add(sp.id)
+      }
       setSpecialtyCount(specs.size)
 
     } catch (error) {
@@ -198,6 +204,33 @@ export default function ProfissionaisPage({ params }: ProfissionaisPageProps) {
     fetchProfessionals()
   }, [fetchProfessionals])
 
+  const loadSpecialtyOptions = useCallback(async () => {
+    try {
+      const res = await api.getSpecialtiesActive()
+      const list: SpecialtyInfo[] = res.data ?? res ?? []
+      setSpecialtyOptions(list.map((s) => ({ value: s.id, label: s.name })))
+    } catch (e) {
+      console.error("Error loading specialties", e)
+    }
+  }, [])
+
+  useEffect(() => {
+    loadSpecialtyOptions()
+  }, [loadSpecialtyOptions])
+
+  const handleCreateSpecialty = async (name: string) => {
+    const trimmed = name.trim()
+    if (!trimmed) return
+    try {
+      const created = await api.createSpecialty({ name: trimmed })
+      const newOption: SelectOption = { value: created.id, label: created.name }
+      setSpecialtyOptions((prev) => [...prev, newOption])
+      setSelectedSpecialties((prev) => [...prev, newOption])
+    } catch (e) {
+      handleApiError(e, "Erro ao criar especialidade")
+    }
+  }
+
   // Edit dialog handlers
   const handleOpenEditDialog = (professional: Professional) => {
     setEditActiveTab("info")
@@ -205,11 +238,13 @@ export default function ProfissionaisPage({ params }: ProfissionaisPageProps) {
     const color = professional.color || defaultColors[0]
     setSelectedColor(color)
     setWorkingHours(professional.working_hours || DEFAULT_WORKING_HOURS)
+    setSelectedSpecialties(
+      (professional.specialties || []).map((s) => ({ value: s.id, label: s.name }))
+    )
     reset({
       name: professional.name,
       email: professional.email || "",
       phone: professional.phone || "",
-      specialty: professional.specialty || "",
       registration_number: professional.registration_number || "",
       color: color,
       is_active: professional.is_active,
@@ -226,6 +261,7 @@ export default function ProfissionaisPage({ params }: ProfissionaisPageProps) {
         color: selectedColor,
         email: data.email || undefined,
         working_hours: workingHours,
+        specialty_ids: selectedSpecialties.map((s) => s.value),
       }
       await api.updateProfessional(editingProfessional.id, payload)
       showToast.success("Profissional atualizado com sucesso!")
@@ -490,10 +526,12 @@ export default function ProfissionaisPage({ params }: ProfissionaisPageProps) {
                         </div>
                       </TableCell>
                       <TableCell>
-                        {professional.specialty ? (
-                           <span className="text-muted-foreground font-medium">{professional.specialty}</span>
+                        {professional.specialties && professional.specialties.length > 0 ? (
+                          <span className="text-muted-foreground font-medium">
+                            {professional.specialties.map((s) => s.name).join(", ")}
+                          </span>
                         ) : (
-                           <span className="text-muted-foreground/50 italic">Não informada</span>
+                          <span className="text-muted-foreground/50 italic">Não informada</span>
                         )}
                       </TableCell>
                       <TableCell>
@@ -590,11 +628,15 @@ export default function ProfissionaisPage({ params }: ProfissionaisPageProps) {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="specialty">Especialidade</Label>
-                    <Input
-                      id="specialty"
-                      {...register("specialty")}
-                      placeholder="Ex: Fisioterapeuta"
+                    <Label htmlFor="specialties">Especialidades</Label>
+                    <ReactCreatableSelect
+                      inputId="specialties"
+                      isMulti
+                      options={specialtyOptions}
+                      value={selectedSpecialties}
+                      onChange={(values) => setSelectedSpecialties([...(values as SelectOption[])])}
+                      onCreateOption={handleCreateSpecialty}
+                      placeholder="Selecione ou crie..."
                     />
                   </div>
                   <div className="space-y-2">

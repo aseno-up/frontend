@@ -93,13 +93,20 @@ export interface PatientWhatsAppConnection {
   updated_at?: string
 }
 
+export interface SpecialtyInfo {
+  id: string
+  name: string
+}
+
 export interface Professional {
   id: string
   clinic_id: string
   name: string
   email: string
   phone: string
-  specialty: string
+  specialty?: string
+  specialties?: SpecialtyInfo[]
+  specialty_names?: string[]
   registration_number: string
   color: string
   is_active: boolean
