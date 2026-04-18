@@ -44,6 +44,12 @@ export interface ClinicSettings {
   ai_min_delay_between_messages?: number | null
   ai_min_delay_between_patients?: number | null
   ai_business_hours?: BusinessHoursConfig | null
+  ai_tool_schedule?: boolean | null
+  ai_tool_confirm?: boolean | null
+  ai_tool_cancel?: boolean | null
+  ai_tool_reschedule?: boolean | null
+  ai_blocked_intent_reply?: string
+  ai_human_takeover_pause_hours?: number | null
 }
 
 export interface Clinic {
@@ -89,6 +95,8 @@ export interface PatientWhatsAppConnection {
   whatsapp_connection_id?: string
   ai_scheduling_enabled: boolean
   reminders_enabled: boolean
+  human_takeover_at?: string | null
+  human_takeover_until?: string | null
   created_at?: string
   updated_at?: string
 }

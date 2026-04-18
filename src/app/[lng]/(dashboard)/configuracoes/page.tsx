@@ -29,7 +29,7 @@ import {
 import { useAuthStore } from "@/stores/auth-store"
 import { api } from "@/lib/api/client"
 import { handleApiError, showToast } from "@/lib/toast"
-import { CalendarIntegration, GoogleCalendar, BillingCustomer, Payment, Subscription, PaymentStatus, PixQRCode, PaymentMethod, PaymentMethodType, Subaccount, SplitConfig } from "@/types/api"
+import { CalendarIntegration, GoogleCalendar, BillingCustomer, Payment, Subscription, PaymentStatus, PixQRCode, PaymentMethod, PaymentMethodType, Subaccount, SplitConfig, ClinicSettings } from "@/types/api"
 import { PlanRestriction } from "@/components/plan-restriction"
 
 // Schema de validacao para dados de cobranca
@@ -120,10 +120,20 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
   // Automation (FAQ / business info) state
   const [businessInfo, setBusinessInfo] = useState(clinic?.business_info || "")
   const [faq, setFaq] = useState(clinic?.faq || "")
+  const [blockedIntentReply, setBlockedIntentReply] = useState(clinic?.settings?.ai_blocked_intent_reply || "")
+  const [humanTakeoverHours, setHumanTakeoverHours] = useState<string>(
+    clinic?.settings?.ai_human_takeover_pause_hours != null
+      ? String(clinic.settings.ai_human_takeover_pause_hours)
+      : ""
+  )
   const [isSavingAutomation, setIsSavingAutomation] = useState(false)
   const automationChanged =
     businessInfo !== (clinic?.business_info || "") ||
-    faq !== (clinic?.faq || "")
+    faq !== (clinic?.faq || "") ||
+    blockedIntentReply !== (clinic?.settings?.ai_blocked_intent_reply || "") ||
+    humanTakeoverHours !== (clinic?.settings?.ai_human_takeover_pause_hours != null
+      ? String(clinic.settings.ai_human_takeover_pause_hours)
+      : "")
 
   // User editing state
   const [userName, setUserName] = useState(user?.name || "")
@@ -147,6 +157,21 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
     clinic?.settings?.ai_agent_enabled ?? false
   )
   const [isSavingAiAgent, setIsSavingAiAgent] = useState(false)
+
+  // AI per-tool state (nil = default true; false explicitly disables)
+  const [aiToolSchedule, setAiToolSchedule] = useState<boolean>(
+    clinic?.settings?.ai_tool_schedule ?? true
+  )
+  const [aiToolConfirm, setAiToolConfirm] = useState<boolean>(
+    clinic?.settings?.ai_tool_confirm ?? true
+  )
+  const [aiToolCancel, setAiToolCancel] = useState<boolean>(
+    clinic?.settings?.ai_tool_cancel ?? true
+  )
+  const [aiToolReschedule, setAiToolReschedule] = useState<boolean>(
+    clinic?.settings?.ai_tool_reschedule ?? true
+  )
+  const [isSavingAiTool, setIsSavingAiTool] = useState<string | null>(null)
 
   // Online booking state
   const [allowOnlineBooking, setAllowOnlineBooking] = useState(
@@ -337,6 +362,16 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
       setEmailReminders(clinic.settings.email_reminders_enabled ?? false)
       setAiAgentEnabled(clinic.settings.ai_agent_enabled ?? false)
       setAllowOnlineBooking(clinic.settings.allow_online_booking ?? false)
+      setAiToolSchedule(clinic.settings.ai_tool_schedule ?? true)
+      setAiToolConfirm(clinic.settings.ai_tool_confirm ?? true)
+      setAiToolCancel(clinic.settings.ai_tool_cancel ?? true)
+      setAiToolReschedule(clinic.settings.ai_tool_reschedule ?? true)
+      setBlockedIntentReply(clinic.settings.ai_blocked_intent_reply || "")
+      setHumanTakeoverHours(
+        clinic.settings.ai_human_takeover_pause_hours != null
+          ? String(clinic.settings.ai_human_takeover_pause_hours)
+          : ""
+      )
     }
   }, [clinic?.settings])
 
@@ -429,9 +464,17 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
     if (!automationChanged) return
     try {
       setIsSavingAutomation(true)
+      const parsedPause = humanTakeoverHours.trim() === "" ? null : Number(humanTakeoverHours)
+      const pauseValue =
+        parsedPause != null && Number.isFinite(parsedPause) && parsedPause >= 0 ? parsedPause : null
       const updatedClinic = await api.updateClinic({
         business_info: businessInfo,
         faq: faq,
+        settings: {
+          ...clinic?.settings,
+          ai_blocked_intent_reply: blockedIntentReply,
+          ai_human_takeover_pause_hours: pauseValue,
+        },
       })
       setClinic(updatedClinic)
       showToast.success("Automacao atualizada")
@@ -445,6 +488,12 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
   const handleCancelAutomationEdit = () => {
     setBusinessInfo(clinic?.business_info || "")
     setFaq(clinic?.faq || "")
+    setBlockedIntentReply(clinic?.settings?.ai_blocked_intent_reply || "")
+    setHumanTakeoverHours(
+      clinic?.settings?.ai_human_takeover_pause_hours != null
+        ? String(clinic.settings.ai_human_takeover_pause_hours)
+        : ""
+    )
   }
 
   // User handlers
@@ -533,6 +582,43 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
       handleApiError(err)
     } finally {
       setIsSavingAiAgent(false)
+    }
+  }
+
+  type AITool = "schedule" | "confirm" | "cancel" | "reschedule"
+
+  const handleToggleAITool = async (tool: AITool, enabled: boolean) => {
+    if (!canEditClinic) return
+
+    const setters: Record<AITool, (v: boolean) => void> = {
+      schedule: setAiToolSchedule,
+      confirm: setAiToolConfirm,
+      cancel: setAiToolCancel,
+      reschedule: setAiToolReschedule,
+    }
+    const apiKey: Record<AITool, keyof ClinicSettings> = {
+      schedule: "ai_tool_schedule",
+      confirm: "ai_tool_confirm",
+      cancel: "ai_tool_cancel",
+      reschedule: "ai_tool_reschedule",
+    }
+
+    const setter = setters[tool]
+    setter(enabled)
+    setIsSavingAiTool(tool)
+    try {
+      const updatedClinic = await api.updateClinic({
+        settings: {
+          ...clinic?.settings,
+          [apiKey[tool]]: enabled,
+        },
+      })
+      setClinic(updatedClinic)
+    } catch (err) {
+      setter(!enabled)
+      handleApiError(err)
+    } finally {
+      setIsSavingAiTool(null)
     }
   }
 
@@ -1108,6 +1194,93 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
                         disabled={isSavingAiAgent || !canEditClinic}
                       />
                     </div>
+
+                    {aiAgentEnabled && (
+                      <div className="ml-4 pl-4 border-l-2 border-muted space-y-3">
+                        <p className="text-xs text-muted-foreground">
+                          Escolha quais acoes a IA pode executar. Quando uma acao esta desligada, a IA responde &quot;Pode aguardar um minutinho? Alguem do nosso time vai te atender em breve.&quot; e a clinica cuida manualmente.
+                        </p>
+
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium">Marcar novas consultas</p>
+                            <p className="text-xs text-muted-foreground">IA pode agendar consultas novas com pacientes</p>
+                          </div>
+                          <Switch
+                            checked={aiToolSchedule}
+                            onCheckedChange={(v) => handleToggleAITool("schedule", v)}
+                            disabled={isSavingAiTool === "schedule" || !canEditClinic}
+                          />
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium">Confirmar agendamentos</p>
+                            <p className="text-xs text-muted-foreground">IA pode processar confirmacoes de consultas</p>
+                          </div>
+                          <Switch
+                            checked={aiToolConfirm}
+                            onCheckedChange={(v) => handleToggleAITool("confirm", v)}
+                            disabled={isSavingAiTool === "confirm" || !canEditClinic}
+                          />
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium">Cancelar agendamentos</p>
+                            <p className="text-xs text-muted-foreground">IA pode cancelar consultas a pedido do paciente</p>
+                          </div>
+                          <Switch
+                            checked={aiToolCancel}
+                            onCheckedChange={(v) => handleToggleAITool("cancel", v)}
+                            disabled={isSavingAiTool === "cancel" || !canEditClinic}
+                          />
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium">Remarcar agendamentos</p>
+                            <p className="text-xs text-muted-foreground">IA pode reagendar consultas existentes</p>
+                          </div>
+                          <Switch
+                            checked={aiToolReschedule}
+                            onCheckedChange={(v) => handleToggleAITool("reschedule", v)}
+                            disabled={isSavingAiTool === "reschedule" || !canEditClinic}
+                          />
+                        </div>
+
+                        <div className="space-y-2 pt-2">
+                          <Label htmlFor="ai_blocked_intent_reply">Mensagem quando a IA nao pode atender</Label>
+                          <Textarea
+                            id="ai_blocked_intent_reply"
+                            value={blockedIntentReply}
+                            onChange={(e) => setBlockedIntentReply(e.target.value)}
+                            placeholder="Pode aguardar um minutinho? Alguem do nosso time vai te atender em breve."
+                            rows={3}
+                            disabled={!canEditClinic || isSavingAutomation}
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Enviada quando o paciente pede uma acao desligada acima. Se vazio, usa o texto padrao.
+                          </p>
+                        </div>
+
+                        <div className="space-y-2 pt-2">
+                          <Label htmlFor="ai_human_takeover_pause_hours">Pausar IA apos atendimento humano (horas)</Label>
+                          <Input
+                            id="ai_human_takeover_pause_hours"
+                            type="number"
+                            min={0}
+                            value={humanTakeoverHours}
+                            onChange={(e) => setHumanTakeoverHours(e.target.value)}
+                            placeholder="4"
+                            disabled={!canEditClinic || isSavingAutomation}
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Quando alguem da clinica responde pelo WhatsApp direto (sem passar pelo sistema), a IA para de responder por X horas. Vazio usa 4h padrao. 0 desativa a pausa.
+                          </p>
+                        </div>
+                      </div>
+                    )}
 
                     <Separator />
 

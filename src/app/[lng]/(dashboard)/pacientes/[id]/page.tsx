@@ -433,17 +433,31 @@ export default function PatientRecordPage() {
                   disabled={isSavingWhatsappConn}
                 />
               </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium">Permitir agendamento por IA</p>
-                  <p className="text-xs text-muted-foreground">A IA pode agendar consultas para este paciente</p>
-                </div>
-                <Switch
-                  checked={whatsappConn.ai_scheduling_enabled}
-                  onCheckedChange={(enabled) => handleToggleWhatsappConnField('ai_scheduling_enabled', enabled)}
-                  disabled={isSavingWhatsappConn}
-                />
-              </div>
+              {(() => {
+                const takeoverUntil = whatsappConn.human_takeover_until
+                  ? new Date(whatsappConn.human_takeover_until)
+                  : null
+                const isTakeoverActive = !!takeoverUntil && takeoverUntil.getTime() > Date.now()
+                return (
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium">Permitir agendamento por IA</p>
+                      <p className="text-xs text-muted-foreground">A IA pode agendar consultas para este paciente</p>
+                      {isTakeoverActive && takeoverUntil && (
+                        <Badge variant="secondary" className="mt-1 gap-1 bg-amber-100 text-amber-800 hover:bg-amber-100 dark:bg-amber-950/40 dark:text-amber-200">
+                          <Clock className="h-3 w-3" />
+                          IA pausada até {format(takeoverUntil, 'HH:mm', { locale: ptBR })}
+                        </Badge>
+                      )}
+                    </div>
+                    <Switch
+                      checked={whatsappConn.ai_scheduling_enabled && !isTakeoverActive}
+                      onCheckedChange={(enabled) => handleToggleWhatsappConnField('ai_scheduling_enabled', enabled)}
+                      disabled={isSavingWhatsappConn}
+                    />
+                  </div>
+                )
+              })()}
             </CardContent>
           </Card>
         )}

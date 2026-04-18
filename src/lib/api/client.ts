@@ -1179,6 +1179,12 @@ class ApiClient {
       ai_min_delay_between_messages?: number | null
       ai_min_delay_between_patients?: number | null
       ai_business_hours?: any
+      ai_tool_schedule?: boolean | null
+      ai_tool_confirm?: boolean | null
+      ai_tool_cancel?: boolean | null
+      ai_tool_reschedule?: boolean | null
+      ai_blocked_intent_reply?: string
+      ai_human_takeover_pause_hours?: number | null
     }
   }) {
     const response = await this.client.put('/clinic', data)
