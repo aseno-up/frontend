@@ -50,6 +50,9 @@ export interface ClinicSettings {
   ai_tool_reschedule?: boolean | null
   ai_blocked_intent_reply?: string
   ai_human_takeover_pause_hours?: number | null
+  payment_reminder_whatsapp_enabled?: boolean | null
+  payment_reminder_email_enabled?: boolean | null
+  payment_reminder_days_before?: number | null
 }
 
 export interface Clinic {
@@ -661,6 +664,7 @@ export interface SessionPlan {
   procedure_id?: string | null
   capacity?: number | null
   payment_mode?: string
+  billing_day?: number | null
   notes: string
   paused_at?: string
   cancelled_at?: string
@@ -685,6 +689,8 @@ export interface CreateSessionPlanRequest {
   total_sessions: number
   start_date: string
   session_price?: number
+  payment_mode?: 'per_session' | 'upfront' | 'monthly'
+  billing_day?: number
   notes?: string
   generate_all?: boolean
 }
@@ -701,6 +707,7 @@ export interface UpdateSessionPlanRequest {
   day_times?: Record<string, string>
   professional_id?: string
   capacity?: number
+  billing_day?: number
 }
 
 export interface SessionPlanListResponse {

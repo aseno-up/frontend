@@ -200,6 +200,16 @@ export function EnrollmentDialog({
       }
     }
 
+    // Monthly enrollments need a billing day so the payment-reminder worker
+    // can compute the due date. Catch it here before hitting the backend.
+    if (paymentMode === "monthly") {
+      const bd = parseInt(billingDay, 10)
+      if (!billingDay || isNaN(bd) || bd < 1 || bd > 31) {
+        showToast.error("Dia de cobrança é obrigatório para mensalidade (1 a 31)")
+        return
+      }
+    }
+
     setEnrolling(true)
     try {
       const amount = brlToNumber(monthlyAmount)
@@ -425,7 +435,7 @@ export function EnrollmentDialog({
                       </div>
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-xs">Dia de cobrança</Label>
+                      <Label className="text-xs">Dia de cobrança <span className="text-destructive">*</span></Label>
                       <Select value={billingDay} onValueChange={setBillingDay}>
                         <SelectTrigger className="h-8 text-sm">
                           <SelectValue placeholder="Dia do mês" />

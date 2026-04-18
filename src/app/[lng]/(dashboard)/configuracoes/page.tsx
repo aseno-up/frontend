@@ -173,6 +173,22 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
   )
   const [isSavingAiTool, setIsSavingAiTool] = useState<string | null>(null)
 
+  // Payment reminder (mensalidade) state. WhatsApp defaults to ON so new
+  // clinics benefit without flipping anything; email stays opt-in because
+  // unconfigured sender addresses bounce. Days-before defaults to 3.
+  const [paymentReminderWhatsApp, setPaymentReminderWhatsApp] = useState<boolean>(
+    clinic?.settings?.payment_reminder_whatsapp_enabled ?? true
+  )
+  const [paymentReminderEmail, setPaymentReminderEmail] = useState<boolean>(
+    clinic?.settings?.payment_reminder_email_enabled ?? false
+  )
+  const [paymentReminderDays, setPaymentReminderDays] = useState<string>(
+    clinic?.settings?.payment_reminder_days_before != null
+      ? String(clinic.settings.payment_reminder_days_before)
+      : "3"
+  )
+  const [isSavingPaymentReminder, setIsSavingPaymentReminder] = useState<string | null>(null)
+
   // Online booking state
   const [allowOnlineBooking, setAllowOnlineBooking] = useState(
     clinic?.settings?.allow_online_booking ?? false
@@ -372,6 +388,13 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
           ? String(clinic.settings.ai_human_takeover_pause_hours)
           : ""
       )
+      setPaymentReminderWhatsApp(clinic.settings.payment_reminder_whatsapp_enabled ?? true)
+      setPaymentReminderEmail(clinic.settings.payment_reminder_email_enabled ?? false)
+      setPaymentReminderDays(
+        clinic.settings.payment_reminder_days_before != null
+          ? String(clinic.settings.payment_reminder_days_before)
+          : "3"
+      )
     }
   }, [clinic?.settings])
 
@@ -560,6 +583,82 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
       handleApiError(err)
     } finally {
       setIsSavingNotifications(false)
+    }
+  }
+
+  // Payment reminder handlers. Saves immediately on toggle so the UX matches
+  // the surrounding notification switches. The days-before input is debounced
+  // via a blur handler instead to avoid firing on every keystroke.
+  const handleTogglePaymentReminderWhatsApp = async (enabled: boolean) => {
+    if (!canEditClinic) return
+    try {
+      setIsSavingPaymentReminder("whatsapp")
+      setPaymentReminderWhatsApp(enabled)
+      const updatedClinic = await api.updateClinic({
+        settings: {
+          ...clinic?.settings,
+          payment_reminder_whatsapp_enabled: enabled,
+        },
+      })
+      setClinic(updatedClinic)
+      showToast.success(enabled ? "Lembrete de mensalidade por WhatsApp ativado" : "Lembrete de mensalidade por WhatsApp desativado")
+    } catch (err) {
+      setPaymentReminderWhatsApp(!enabled)
+      handleApiError(err)
+    } finally {
+      setIsSavingPaymentReminder(null)
+    }
+  }
+
+  const handleTogglePaymentReminderEmail = async (enabled: boolean) => {
+    if (!canEditClinic) return
+    try {
+      setIsSavingPaymentReminder("email")
+      setPaymentReminderEmail(enabled)
+      const updatedClinic = await api.updateClinic({
+        settings: {
+          ...clinic?.settings,
+          payment_reminder_email_enabled: enabled,
+        },
+      })
+      setClinic(updatedClinic)
+      showToast.success(enabled ? "Lembrete de mensalidade por email ativado" : "Lembrete de mensalidade por email desativado")
+    } catch (err) {
+      setPaymentReminderEmail(!enabled)
+      handleApiError(err)
+    } finally {
+      setIsSavingPaymentReminder(null)
+    }
+  }
+
+  const handleSavePaymentReminderDays = async () => {
+    if (!canEditClinic) return
+    const n = parseInt(paymentReminderDays, 10)
+    if (isNaN(n) || n < 1 || n > 7) {
+      showToast.error("Informe um valor entre 1 e 7 dias")
+      setPaymentReminderDays(
+        clinic?.settings?.payment_reminder_days_before != null
+          ? String(clinic.settings.payment_reminder_days_before)
+          : "3"
+      )
+      return
+    }
+    // No-op if unchanged — avoids writing identical values on every blur.
+    if (n === (clinic?.settings?.payment_reminder_days_before ?? 3)) return
+    try {
+      setIsSavingPaymentReminder("days")
+      const updatedClinic = await api.updateClinic({
+        settings: {
+          ...clinic?.settings,
+          payment_reminder_days_before: n,
+        },
+      })
+      setClinic(updatedClinic)
+      showToast.success("Dias antes do vencimento atualizado")
+    } catch (err) {
+      handleApiError(err)
+    } finally {
+      setIsSavingPaymentReminder(null)
     }
   }
 
@@ -1171,8 +1270,8 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="font-medium">Confirmacao de agendamento</p>
-                        <p className="text-sm text-muted-foreground">Enviar confirmacao de consulta via WhatsApp</p>
+                        <p className="font-medium">Lembretes</p>
+                        <p className="text-sm text-muted-foreground">Enviar lembretes automáticos (consultas e mensalidades) via WhatsApp</p>
                       </div>
                       <Switch
                         checked={whatsappReminders}
@@ -1180,6 +1279,55 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
                         disabled={isSavingNotifications || !canEditClinic}
                       />
                     </div>
+
+                    {whatsappReminders && (
+                      <div className="ml-4 pl-4 border-l-2 border-muted space-y-4">
+                        <p className="text-xs text-muted-foreground">
+                          Lembrete de mensalidade: enviado para alunos com plano mensal (individual ou em grupo) alguns dias antes do vencimento, apenas quando o pagamento ainda não foi registrado no sistema.
+                        </p>
+
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium">Lembrete de mensalidade por WhatsApp</p>
+                            <p className="text-xs text-muted-foreground">Avisa o aluno pelo WhatsApp antes do vencimento da mensalidade.</p>
+                          </div>
+                          <Switch
+                            checked={paymentReminderWhatsApp}
+                            onCheckedChange={handleTogglePaymentReminderWhatsApp}
+                            disabled={isSavingPaymentReminder === "whatsapp" || !canEditClinic}
+                          />
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium">Lembrete de mensalidade por Email</p>
+                            <p className="text-xs text-muted-foreground">Envia um e-mail de cobrança antes do vencimento da mensalidade.</p>
+                          </div>
+                          <Switch
+                            checked={paymentReminderEmail}
+                            onCheckedChange={handleTogglePaymentReminderEmail}
+                            disabled={isSavingPaymentReminder === "email" || !canEditClinic}
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="payment_reminder_days_before">Dias antes do vencimento</Label>
+                          <Input
+                            id="payment_reminder_days_before"
+                            type="number"
+                            min={1}
+                            max={7}
+                            value={paymentReminderDays}
+                            onChange={(e) => setPaymentReminderDays(e.target.value)}
+                            onBlur={handleSavePaymentReminderDays}
+                            disabled={!canEditClinic || isSavingPaymentReminder === "days"}
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Quantos dias antes da data de vencimento o lembrete deve ser enviado. Permitido: 1 a 7.
+                          </p>
+                        </div>
+                      </div>
+                    )}
 
                     <Separator />
 
