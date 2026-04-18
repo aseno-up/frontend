@@ -6,7 +6,6 @@ import { Clock } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { ScrollArea } from "@/components/ui/scroll-area"
 
 interface TimePickerProps {
   value?: string // HH:MM
@@ -42,7 +41,7 @@ function TimePicker({ value, onChange, placeholder = "Horário", className, erro
   }, [open, value])
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={setOpen} modal>
       <PopoverTrigger asChild>
         <Button
           variant="outline"
@@ -58,7 +57,7 @@ function TimePicker({ value, onChange, placeholder = "Horário", className, erro
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align="start">
-        <ScrollArea className="h-60" ref={scrollRef}>
+        <div ref={scrollRef} className="h-60 overflow-y-auto overscroll-contain">
           <div className="flex flex-col p-1">
             {times.map((t) => (
               <button
@@ -78,7 +77,7 @@ function TimePicker({ value, onChange, placeholder = "Horário", className, erro
               </button>
             ))}
           </div>
-        </ScrollArea>
+        </div>
       </PopoverContent>
     </Popover>
   )
@@ -107,7 +106,7 @@ function TimePickerInline({ value, onChange, placeholder = "Horário", className
   }, [open, value])
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={setOpen} modal>
       <PopoverTrigger asChild>
         <button
           type="button"
@@ -121,7 +120,7 @@ function TimePickerInline({ value, onChange, placeholder = "Horário", className
         </button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align="center">
-        <ScrollArea className="h-52" ref={scrollRef}>
+        <div ref={scrollRef} className="h-52 overflow-y-auto overscroll-contain">
           <div className="flex flex-col p-1">
             {times.map((t) => (
               <button
@@ -141,7 +140,7 @@ function TimePickerInline({ value, onChange, placeholder = "Horário", className
               </button>
             ))}
           </div>
-        </ScrollArea>
+        </div>
       </PopoverContent>
     </Popover>
   )

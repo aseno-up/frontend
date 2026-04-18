@@ -159,7 +159,15 @@ const frequencyLabels: Record<Frequency, string> = {
   triweekly: "3x p/sem.",
   bimonthly: "Quinzenal",
   monthly: "Mensal",
-  custom: "Custom.",
+  custom: "Semanal",
+}
+
+const getFrequencyDisplay = (frequency: Frequency, weekDays: number[] = []): string => {
+  if (frequency === "custom") {
+    const n = weekDays.length
+    return n > 0 ? `${n}x p/sem.` : "Semanal"
+  }
+  return frequencyLabels[frequency]
 }
 
 const paymentModeLabels: Record<string, string> = {
@@ -276,7 +284,7 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
       professional_id: "",
       title: "",
       description: "",
-      frequency: "weekly",
+      frequency: "custom",
       week_days: [],
       preferred_time: "09:00",
       duration_mins: 50,
@@ -562,7 +570,7 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
   const handleOpenDialog = () => {
     reset({
       plan_type: "individual", patient_id: "", professional_id: "", title: "", description: "",
-      frequency: "weekly", week_days: [], preferred_time: "09:00", day_times: undefined, duration_mins: 50,
+      frequency: "custom", week_days: [], preferred_time: "09:00", day_times: undefined, duration_mins: 50,
       total_sessions: 10, is_indeterminate: false, start_date: format(new Date(), "yyyy-MM-dd"),
       session_price: 0, procedure_id: "", capacity: 10, payment_mode: "per_session",
       notes: "", professional_mode: "fixed", generation_mode: "auto",
@@ -732,10 +740,7 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
                     <Select value={field.value} onValueChange={field.onChange}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="weekly">1x por semana</SelectItem>
-                        <SelectItem value="biweekly">2x por semana</SelectItem>
-                        <SelectItem value="triweekly">3x por semana</SelectItem>
-                        <SelectItem value="custom">Personalizado</SelectItem>
+                        <SelectItem value="custom">Semanal</SelectItem>
                         <SelectItem value="bimonthly">Quinzenal</SelectItem>
                         <SelectItem value="monthly">Mensal</SelectItem>
                       </SelectContent>
@@ -745,7 +750,7 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
               </div>
             </div>
             {/* Week day picker — shown for frequencies that need day selection */}
-            {(watchedFrequency === "biweekly" || watchedFrequency === "triweekly" || watchedFrequency === "custom") && (
+            {watchedFrequency === "custom" && (
               <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
                 <Label>
                   Dias da semana <span className="text-destructive">*</span>
@@ -1088,7 +1093,7 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
                   <div><span className="text-muted-foreground block mb-1">Sessões</span><span className="font-medium">{watchedIsIndeterminate ? "Indeterminado (Contínuo)" : `${watchedTotalSessions} sessões`}</span></div>
                   <div>
                     <span className="text-muted-foreground block mb-1">Frequência</span>
-                    <span className="font-medium">{frequencyLabels[watchedFrequency as Frequency]}</span>
+                    <span className="font-medium">{getFrequencyDisplay(watchedFrequency as Frequency, watchedWeekDays)}</span>
                     {(() => {
                       const dt = watch("day_times")
                       const hasDayTimes = dt && Object.keys(dt).length > 0
@@ -1255,7 +1260,7 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
                         )}
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-2 text-muted-foreground"><Clock className="h-3 w-3" /><span>{frequencyLabels[plan.frequency]} às {plan.preferred_time}</span></div>
+                        <div className="flex items-center gap-2 text-muted-foreground"><Clock className="h-3 w-3" /><span>{getFrequencyDisplay(plan.frequency, plan.week_days || [])} às {plan.preferred_time}</span></div>
                       </TableCell>
                       <TableCell>
                         {plan.type === "group" ? (
