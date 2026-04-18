@@ -121,7 +121,8 @@ export function Calendar({
     info: EventDropArg | EventResizeDoneArg | null
     newStart: Date | null
     newEnd: Date | null
-  }>({ open: false, info: null, newStart: null, newEnd: null })
+    submitting: boolean
+  }>({ open: false, info: null, newStart: null, newEnd: null, submitting: false })
 
   // Custom tooltip state - rendered outside FullCalendar DOM
   const [tooltip, setTooltip] = useState<TooltipState>({
@@ -133,6 +134,22 @@ export function Calendar({
     config: statusConfig.pending,
   })
   const hideTooltipTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // The hover tooltip and the recurring-reschedule dialog share the same
+  // screen region (both anchored near the dragged event), and the tooltip is
+  // rendered outside the Dialog portal with position:fixed. Without this
+  // effect the tooltip stays on top of the dialog when the user releases the
+  // drag, covering the 'Apenas este / Todos os futuros' buttons. Any time a
+  // modal opens over the calendar, drop the tooltip.
+  useEffect(() => {
+    if (recurringDialog.open) {
+      if (hideTooltipTimer.current) {
+        clearTimeout(hideTooltipTimer.current)
+        hideTooltipTimer.current = null
+      }
+      setTooltip((t) => ({ ...t, visible: false }))
+    }
+  }, [recurringDialog.open])
 
   // Detect mobile on mount
   useEffect(() => {
@@ -374,7 +391,7 @@ export function Calendar({
       const newStart = info.event.start
       const newEnd = info.event.end
       info.revert()
-      setRecurringDialog({ open: true, info, newStart, newEnd })
+      setRecurringDialog({ open: true, info, newStart, newEnd, submitting: false })
       return
     }
 
@@ -411,7 +428,7 @@ export function Calendar({
       const newStart = info.event.start
       const newEnd = info.event.end
       info.revert()
-      setRecurringDialog({ open: true, info, newStart, newEnd })
+      setRecurringDialog({ open: true, info, newStart, newEnd, submitting: false })
       return
     }
 
@@ -419,50 +436,43 @@ export function Calendar({
   }
 
   const handleConfirmRecurring = async (mode: 'single' | 'all') => {
-    if (!recurringDialog.info) return
+    if (!recurringDialog.info || recurringDialog.submitting) return
 
     const { newStart, newEnd } = recurringDialog
     const info = recurringDialog.info
     const appointment = info.event.extendedProps.appointment as Appointment
     const sessionPlanId = info.event.extendedProps.sessionPlanId as string | undefined
 
-    if (mode === 'single' && sessionPlanId && newStart) {
-      // Use rescheduleOccurrence to create an exception for this single occurrence
-      try {
+    setRecurringDialog((prev) => ({ ...prev, submitting: true }))
+    try {
+      if (mode === 'single' && sessionPlanId && newStart) {
         setIsLoading(true)
         const originalDate = format(new Date(appointment.start_time), "yyyy-MM-dd")
         await api.rescheduleOccurrence(sessionPlanId, originalDate, newStart.toISOString())
-        const calendarApi = calendarRef.current?.getApi()
-        if (calendarApi) {
-          const view = calendarApi.view
-          fetchAppointments(view.activeStart, view.activeEnd)
-        }
-      } catch (error) {
-        console.error("Error rescheduling single occurrence:", error)
-      } finally {
-        setIsLoading(false)
-      }
-    } else if (mode === 'all' && sessionPlanId && newStart) {
-      // Update the session plan's preferred time for all future occurrences
-      try {
+      } else if (mode === 'all' && sessionPlanId && newStart) {
+        // Update the plan's preferred time so future occurrences inherit it,
+        // and move the currently-dragged appointment to the new slot. Without
+        // the second call the dragged row stays at its old time and the UI
+        // looks like the drag silently reverted.
         setIsLoading(true)
         const newTime = format(newStart, "HH:mm")
+        const originalDate = format(new Date(appointment.start_time), "yyyy-MM-dd")
         await api.updateSessionPlan(sessionPlanId, { preferred_time: newTime })
-        const calendarApi = calendarRef.current?.getApi()
-        if (calendarApi) {
-          const view = calendarApi.view
-          fetchAppointments(view.activeStart, view.activeEnd)
-        }
-      } catch (error) {
-        console.error("Error updating session plan:", error)
-      } finally {
-        setIsLoading(false)
+        await api.rescheduleOccurrence(sessionPlanId, originalDate, newStart.toISOString())
+      } else {
+        await performUpdate(appointment.id, newStart, newEnd, mode)
       }
-    } else {
-      await performUpdate(appointment.id, newStart, newEnd, mode)
+      const calendarApi = calendarRef.current?.getApi()
+      if (calendarApi) {
+        const view = calendarApi.view
+        fetchAppointments(view.activeStart, view.activeEnd)
+      }
+    } catch (error) {
+      console.error("Error applying recurring reschedule:", error)
+    } finally {
+      setIsLoading(false)
+      setRecurringDialog({ open: false, info: null, newStart: null, newEnd: null, submitting: false })
     }
-
-    setRecurringDialog({ open: false, info: null, newStart: null, newEnd: null })
   }
 
   // Show tooltip on mouse enter — rendered at page level with position:fixed
@@ -725,7 +735,13 @@ export function Calendar({
         />
       </div>
 
-      <Dialog open={recurringDialog.open} onOpenChange={(open) => !open && setRecurringDialog({ open: false, info: null, newStart: null, newEnd: null })}>
+      <Dialog
+        open={recurringDialog.open}
+        onOpenChange={(open) => {
+          if (recurringDialog.submitting) return
+          if (!open) setRecurringDialog({ open: false, info: null, newStart: null, newEnd: null, submitting: false })
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Atualizar Agendamento Recorrente</DialogTitle>
@@ -734,13 +750,24 @@ export function Calendar({
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setRecurringDialog({ open: false, info: null, newStart: null, newEnd: null })}>
+            <Button
+              variant="outline"
+              onClick={() => setRecurringDialog({ open: false, info: null, newStart: null, newEnd: null, submitting: false })}
+              disabled={recurringDialog.submitting}
+            >
               Cancelar
             </Button>
-            <Button variant="secondary" onClick={() => handleConfirmRecurring('single')}>
+            <Button
+              variant="secondary"
+              onClick={() => handleConfirmRecurring('single')}
+              disabled={recurringDialog.submitting}
+            >
               Apenas este
             </Button>
-            <Button onClick={() => handleConfirmRecurring('all')}>
+            <Button
+              onClick={() => handleConfirmRecurring('all')}
+              disabled={recurringDialog.submitting}
+            >
               Todos os futuros
             </Button>
           </DialogFooter>
