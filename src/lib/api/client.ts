@@ -1114,6 +1114,22 @@ class ApiClient {
     return response.data
   }
 
+  // Per-user tutorial tracking (so the in-app tour is scoped to the logged-in
+  // user rather than the browser — multiple people share a machine in clinics).
+  async getCompletedTutorials(): Promise<{ pages: string[] }> {
+    const response = await this.client.get('/me/tutorials')
+    return response.data
+  }
+
+  async markTutorialCompleted(page: string): Promise<{ pages: string[] }> {
+    const response = await this.client.post(`/me/tutorials/${encodeURIComponent(page)}/complete`)
+    return response.data
+  }
+
+  async resetTutorials(): Promise<void> {
+    await this.client.delete('/me/tutorials')
+  }
+
   // Notification endpoints
   async getNotifications(limit = 50, offset = 0) {
     const response = await this.client.get('/notifications', {

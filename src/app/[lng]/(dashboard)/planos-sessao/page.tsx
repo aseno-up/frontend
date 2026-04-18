@@ -495,6 +495,14 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
   }, [watchedProcedureId])
 
   const handleNext = async () => {
+    // During the interactive "create plan" tour the user hasn't filled anything —
+    // skip validation so the tour can move the wizard forward as a demo.
+    // Flag is set by useTutorial (see hooks/use-tutorial.ts) only while an
+    // interactive tour is driving this dialog.
+    if (typeof window !== "undefined" && (window as unknown as { __asenoTourActive?: boolean }).__asenoTourActive) {
+      setCurrentStep((prev) => prev + 1)
+      return
+    }
     let fieldsToValidate: (keyof SessionPlanFormData)[] = []
     switch (currentStep) {
       case 1:
@@ -668,10 +676,10 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
       case 1: // Type + Patient/Capacity
         return (
           <div className="space-y-4 py-4 ">
-            <div className="space-y-3">
+            <div className="space-y-3" data-tutorial="wizard-type">
               <Label>Tipo do Plano <span className="text-destructive">*</span></Label>
               <RadioGroup value={watchedPlanType} onValueChange={(val) => setValue("plan_type", val as "individual" | "group")} className="grid gap-4 sm:grid-cols-2">
-                <div>
+                <div data-tutorial="wizard-type-individual">
                   <RadioGroupItem value="individual" id="type-individual" className="peer sr-only" />
                   <Label htmlFor="type-individual" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
                     <User className="mb-3 h-6 w-6" />
@@ -679,7 +687,7 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
                     <span className="text-center text-xs text-muted-foreground mt-1">Sessoes para um paciente</span>
                   </Label>
                 </div>
-                <div>
+                <div data-tutorial="wizard-type-group">
                   <RadioGroupItem value="group" id="type-group" className="peer sr-only" />
                   <Label htmlFor="type-group" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
                     <Users className="mb-3 h-6 w-6" />
@@ -691,7 +699,7 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
             </div>
 
             {watchedPlanType === "individual" && (
-              <div className="space-y-2 animate-in fade-in slide-in-from-top-2 h-full">
+              <div className="space-y-2 animate-in fade-in slide-in-from-top-2 h-full" data-tutorial="wizard-patient">
                 <Label htmlFor="patient">Selecione o Paciente <span className="text-destructive">*</span></Label>
                 <ReactSelect
                   value={selectedPatientOption}
@@ -705,7 +713,7 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
             )}
 
             {watchedPlanType === "group" && (
-              <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
+              <div className="space-y-2 animate-in fade-in slide-in-from-top-2" data-tutorial="wizard-capacity">
                 <Label htmlFor="capacity">Capacidade da Turma <span className="text-destructive">*</span></Label>
                 <Input id="capacity" type="number" {...register("capacity", { valueAsNumber: true })} placeholder="Ex: 10" className={errors.capacity ? "border-destructive" : ""} />
                 {errors.capacity && <p className="text-sm text-destructive">{errors.capacity.message}</p>}
@@ -717,12 +725,12 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
       case 2: // Package
         return (
           <div className="space-y-4 py-4">
-            <div className="space-y-2">
+            <div className="space-y-2" data-tutorial="wizard-title">
               <Label htmlFor="title">Nome do Pacote <span className="text-destructive">*</span></Label>
               <Input id="title" {...register("title")} placeholder="Ex: Fisio - 10 sessões" className={errors.title ? "border-destructive" : ""} />
               {errors.title && <p className="text-sm text-destructive">{errors.title.message}</p>}
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-4" data-tutorial="wizard-sessions-frequency">
                <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="total_sessions">Qtd. Sessões <span className="text-destructive">*</span></Label>
@@ -842,7 +850,7 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
                 />
               </div>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-2" data-tutorial="wizard-procedure">
               <Label>Procedimento</Label>
               <ReactSelect
                 value={selectedProcedureOption}
@@ -883,7 +891,7 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
       case 3: // Professional
         return (
           <div className="space-y-6 py-4">
-            <div className="space-y-3">
+            <div className="space-y-3" data-tutorial="wizard-professional-mode">
               <Label>Responsável pelo Pacote</Label>
               <RadioGroup value={watchedProfessionalMode} onValueChange={(val) => setValue("professional_mode", val as "fixed" | "flexible")} className="grid gap-4 sm:grid-cols-2">
                 <div>
@@ -916,7 +924,7 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
       case 4: // Payment Mode
         return (
           <div className="space-y-6 py-4">
-            <div className="space-y-3">
+            <div className="space-y-3" data-tutorial="wizard-payment-mode">
               <Label>Modo de Pagamento</Label>
               <RadioGroup value={watchedPaymentMode} onValueChange={(val) => setValue("payment_mode", val as "per_session" | "upfront" | "monthly")} className="grid gap-4">
                 <div className="flex items-start space-x-3 space-y-0 rounded-md border p-4">
@@ -1187,7 +1195,7 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
         </div>
 
         <div className="bg-card rounded-xl border border-border shadow-sm p-3 flex flex-wrap items-center justify-between gap-4 shrink-0">
-          <div className="relative flex-1 min-w-[300px] max-w-sm">
+          <div className="relative flex-1 min-w-[300px] max-w-sm" data-tutorial="plan-search">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input placeholder="Buscar planos..." value={searchInput} onChange={(e) => setSearchInput(e.target.value)} className="pl-10 h-10 border-none shadow-none bg-muted/50 rounded-lg focus-visible:ring-1" />
           </div>
@@ -1202,7 +1210,7 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
                 Cancelar ({selectedIds.size})
               </Button>
             )}
-            <div className="flex p-1 gap-1 items-center">
+            <div className="flex p-1 gap-1 items-center" data-tutorial="plan-status-filter">
               <Button variant="outline" size="sm" className={`rounded-full h-8 px-4 text-xs font-semibold ${statusParam === "all" ? "border-primary text-primary" : "border-border text-muted-foreground"}`} onClick={() => updateQueryParams({ status: "all" })}>Todos</Button>
               <Button variant="outline" size="sm" className={`rounded-full h-8 px-4 text-xs font-semibold ${statusParam === "active" ? "border-emerald-500 text-emerald-500" : "border-border text-muted-foreground"}`} onClick={() => updateQueryParams({ status: "active" })}><div className={`w-1.5 h-1.5 rounded-full mr-2 ${statusParam === "active" ? "bg-emerald-500" : "bg-emerald-500/50"}`} />Ativos</Button>
               <Button variant="outline" size="sm" className={`rounded-full h-8 px-4 text-xs font-semibold ${statusParam === "paused" ? "border-yellow-500 text-yellow-500" : "border-border text-muted-foreground"}`} onClick={() => updateQueryParams({ status: "paused" })}><div className={`w-1.5 h-1.5 rounded-full mr-2 ${statusParam === "paused" ? "bg-yellow-500" : "bg-yellow-500/50"}`} />Pausados</Button>
@@ -1210,7 +1218,7 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
             <div className="w-[180px] border-l border-border/50 pl-2">
               <ReactSelect value={sortOptions.find((opt) => opt.value === sortBy) || sortOptions[0]} onChange={(option) => updateQueryParams({ sort_by: option?.value || "created_desc" })} options={sortOptions} isSearchable={false} placeholder="Ordenar..." />
             </div>
-            <Button className="h-10 px-5 font-semibold bg-primary hover:bg-primary/90 rounded-lg ml-2" onClick={handleOpenDialog}><Plus className="mr-2 h-4 w-4" />Novo Plano</Button>
+            <Button data-tutorial="new-plan" className="h-10 px-5 font-semibold bg-primary hover:bg-primary/90 rounded-lg ml-2" onClick={handleOpenDialog}><Plus className="mr-2 h-4 w-4" />Novo Plano</Button>
           </div>
         </div>
 
@@ -1227,7 +1235,7 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
               <TableHeader className="sticky top-0 bg-slate-50 z-20 shadow-sm dark:bg-slate-900 border-b">
                   <TableRow>
                      <TableHead className="w-[40px] px-4">
-                      <Checkbox 
+                      <Checkbox
                         checked={plans.length > 0 && selectedIds.size === plans.length}
                         onCheckedChange={handleSelectAll}
                         aria-label="Selecionar todos"
@@ -1236,9 +1244,9 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
                      <SortableTableHead sortKey="title" title="PLANO" className="w-[280px]" />
                      <TableHead className="font-bold text-xs uppercase tracking-wider text-muted-foreground/70">PACIENTE</TableHead>
                      <TableHead className="font-bold text-xs uppercase tracking-wider text-muted-foreground/70">FREQUÊNCIA</TableHead>
-                     <TableHead className="font-bold text-xs uppercase tracking-wider text-muted-foreground/70">PROGRESSO</TableHead>
+                     <TableHead className="font-bold text-xs uppercase tracking-wider text-muted-foreground/70" data-tutorial="plan-progress">PROGRESSO</TableHead>
                      <TableHead className="font-bold text-xs uppercase tracking-wider text-muted-foreground/70">STATUS</TableHead>
-                     <TableHead className="text-right font-bold text-xs uppercase tracking-wider text-muted-foreground/70">AÇÕES</TableHead>
+                     <TableHead className="text-right font-bold text-xs uppercase tracking-wider text-muted-foreground/70" data-tutorial="plan-actions">AÇÕES</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1345,9 +1353,9 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
                   {currentStep === 1 ? "Cancelar" : <><ArrowLeft className="mr-2 h-4 w-4" /> Voltar</>}
                 </Button>
                 {currentStep < steps.length ? (
-                  <Button type="button" onClick={handleNext}>Próximo <ArrowRight className="ml-2 h-4 w-4" /></Button>
+                  <Button type="button" onClick={handleNext} data-tutorial="wizard-next">Próximo <ArrowRight className="ml-2 h-4 w-4" /></Button>
                 ) : (
-                  <Button type="button" onClick={handleSubmit(onSubmit)} disabled={isSubmitting}>{isSubmitting ? "Criando..." : "Criar Plano"}</Button>
+                  <Button type="button" onClick={handleSubmit(onSubmit)} disabled={isSubmitting} data-tutorial="wizard-submit">{isSubmitting ? "Criando..." : "Criar Plano"}</Button>
                 )}
              </div>
           </div>

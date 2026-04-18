@@ -239,7 +239,7 @@ export function WhatsAppConnectionTab() {
           </div>
 
           {/* Connected Status Banner */}
-          <div className={`p-4 rounded-xl border flex items-center justify-between transition-colors ${isConnected ? 'bg-green-500/10 border-green-500/20' : 'bg-amber-500/10 border-amber-500/20'}`}>
+          <div data-tutorial="whatsapp-status" className={`p-4 rounded-xl border flex items-center justify-between transition-colors ${isConnected ? 'bg-green-500/10 border-green-500/20' : 'bg-amber-500/10 border-amber-500/20'}`}>
             <div className="flex items-center gap-3">
               <div className={`w-2.5 h-2.5 rounded-full ${isConnected ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]' : 'bg-amber-500'}`} />
               <div>
@@ -329,6 +329,7 @@ export function WhatsAppConnectionTab() {
                 <div className="grid gap-4 md:grid-cols-2">
                   {/* Option: WhatsApp Oficial */}
                   <div
+                    data-tutorial="whatsapp-method-official"
                     onClick={() => setConnectionMethod('official')}
                     className={`relative p-4 rounded-xl border-2 cursor-pointer transition-all ${connectionMethod === 'official' ? 'border-primary bg-background shadow-sm' : 'border-border/50 hover:border-border hover:bg-muted/30'}`}
                   >
@@ -346,6 +347,7 @@ export function WhatsAppConnectionTab() {
 
                   {/* Option: QR Code */}
                   <div
+                    data-tutorial="whatsapp-method-qr"
                     onClick={() => setConnectionMethod('evolution')}
                     className={`relative p-4 rounded-xl border-2 cursor-pointer transition-all ${connectionMethod === 'evolution' ? 'border-primary bg-background shadow-sm' : 'border-border/50 hover:border-border hover:bg-muted/30'}`}
                   >
@@ -368,6 +370,7 @@ export function WhatsAppConnectionTab() {
                     <div className="space-y-6">
                       {!qrCode ? (
                         <Button
+                          data-tutorial="whatsapp-generate-qr"
                           className="w-full py-6 text-sm font-medium transition-all shadow-md hover:shadow-lg"
                           onClick={handleConnect}
                           disabled={isConnecting}
@@ -380,7 +383,7 @@ export function WhatsAppConnectionTab() {
                           Gerar QR Code
                         </Button>
                       ) : (
-                        <div className="border border-border/50 rounded-xl p-6 bg-muted/10 flex flex-col items-center animate-in zoom-in-95 duration-300">
+                        <div data-tutorial="whatsapp-qr-area" className="border border-border/50 rounded-xl p-6 bg-muted/10 flex flex-col items-center animate-in zoom-in-95 duration-300">
                           <h4 className="font-medium mb-1">Aponte sua câmera</h4>
                           <p className="text-xs text-muted-foreground mb-4 text-center max-w-xs">Use o WhatsApp no seu celular para escanear este código e conectar.</p>
                           <div className="bg-white p-3 rounded-xl shadow-sm mb-4">

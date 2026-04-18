@@ -103,7 +103,7 @@ export default function AgendaPage({ params }: AgendaPageProps) {
 
       <div className="flex-1 p-4 md:p-6">
         {/* Toolbar */}
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-4" data-tutorial="calendar-navigation">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
           <div className="w-64" data-tutorial="professional-filter">
             <ReactSelect
               value={selectedProfessionalOption}
@@ -124,7 +124,7 @@ export default function AgendaPage({ params }: AgendaPageProps) {
         </div>
 
         {/* Calendar */}
-        <div className="h-[calc(100vh-220px)] rounded-lg border bg-card p-4" data-tutorial="calendar-view">
+        <div className="h-[calc(100vh-220px)] rounded-lg border bg-card p-4">
           <Calendar
             key={refreshKey}
             onEventClick={handleEventClick}

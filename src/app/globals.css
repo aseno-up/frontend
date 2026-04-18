@@ -629,45 +629,215 @@ table {
   }
 }
 
-/* Driver.js Tutorial Styles */
+/* Driver.js Tutorial Styles — Aseno design system */
+@keyframes aseno-tutorial-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* IMPORTANT: do NOT set `position` on .driver-popover — the library ships it
+ * with `position: fixed` and writes `top`/`left` in pixels calculated for the
+ * viewport. Overriding position (e.g. to `relative`) makes the popover flow
+ * inside <body>, growing the page height and "pinning" the popover at the
+ * bottom. Same caution applies to `overflow` — the `::before` accent bar is
+ * positioned via top:0;left:0;right:0 and doesn't need clipping.
+ * Stacking: keep z-index higher than the overlay SVG (which uses 10000). */
+.aseno-tutorial-popover.driver-popover,
 .driver-popover {
-  @apply bg-card border border-border shadow-lg rounded-xl;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 16px;
+  box-shadow:
+    0 20px 50px -20px hsl(var(--primary) / 0.25),
+    0 8px 24px -12px rgb(0 0 0 / 0.18),
+    0 0 0 1px hsl(var(--border) / 0.5);
+  padding: 22px 22px 18px 22px;
+  max-width: 360px;
+  animation: aseno-tutorial-pop-in 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.aseno-tutorial-popover.driver-popover::before,
+.driver-popover::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  border-top-left-radius: 16px;
+  border-top-right-radius: 16px;
+  background: linear-gradient(
+    90deg,
+    hsl(var(--primary)),
+    hsl(var(--primary) / 0.6)
+  );
+  pointer-events: none;
 }
 
 .driver-popover .driver-popover-title {
-  @apply text-foreground font-poppins font-semibold text-lg;
+  @apply font-poppins;
+  color: hsl(var(--foreground));
+  font-weight: 600;
+  font-size: 1.0625rem;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  padding-right: 24px;
+  margin-bottom: 6px;
 }
 
 .driver-popover .driver-popover-description {
-  @apply text-muted-foreground text-sm leading-relaxed;
+  color: hsl(var(--muted-foreground));
+  font-size: 0.875rem;
+  line-height: 1.55;
+  margin-bottom: 14px;
+}
+
+.driver-popover .driver-popover-footer {
+  border-top: 1px solid hsl(var(--border) / 0.6);
+  padding-top: 12px;
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 .driver-popover .driver-popover-progress-text {
-  @apply text-muted-foreground text-xs;
+  color: hsl(var(--muted-foreground));
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  padding: 4px 10px;
+  background: hsl(var(--muted));
+  border-radius: 999px;
+}
+
+.driver-popover .driver-popover-navigation-btns {
+  display: flex;
+  gap: 8px;
 }
 
 .driver-popover .driver-popover-prev-btn,
 .driver-popover .driver-popover-next-btn {
-  @apply bg-primary text-primary-foreground text-sm font-medium px-4 py-2 rounded-md hover:bg-primary/90 transition-colors;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: 10px;
+  border: none;
+  transition:
+    background-color 150ms ease,
+    transform 120ms ease,
+    box-shadow 150ms ease;
+  text-shadow: none;
+}
+
+.driver-popover .driver-popover-next-btn {
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  box-shadow: 0 2px 8px -2px hsl(var(--primary) / 0.5);
+}
+
+.driver-popover .driver-popover-next-btn:hover {
+  background: hsl(var(--primary) / 0.92);
+  transform: translateY(-1px);
 }
 
 .driver-popover .driver-popover-prev-btn {
-  @apply bg-muted text-muted-foreground hover:bg-muted/80;
+  background: hsl(var(--muted));
+  color: hsl(var(--muted-foreground));
+}
+
+.driver-popover .driver-popover-prev-btn:hover {
+  background: hsl(var(--muted) / 0.7);
+  color: hsl(var(--foreground));
 }
 
 .driver-popover .driver-popover-close-btn {
-  @apply text-muted-foreground hover:text-foreground transition-colors;
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: hsl(var(--muted-foreground));
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    background-color 150ms ease,
+    color 150ms ease;
+}
+
+.driver-popover .driver-popover-close-btn:hover {
+  background: hsl(var(--muted));
+  color: hsl(var(--foreground));
 }
 
 .driver-popover-arrow-side-left .driver-popover-arrow,
 .driver-popover-arrow-side-right .driver-popover-arrow,
 .driver-popover-arrow-side-top .driver-popover-arrow,
 .driver-popover-arrow-side-bottom .driver-popover-arrow {
-  @apply border-border;
+  border-color: hsl(var(--card)) transparent !important;
+  filter: drop-shadow(0 2px 2px rgb(0 0 0 / 0.08));
 }
 
-.driver-overlay {
-  background-color: rgba(0, 0, 0, 0.7) !important;
+/* Overlay color/opacity/padding are set via driver() options (see use-tutorial.ts)
+ * because driver.js renders the dim layer as an inline SVG — CSS cannot reach
+ * the fill/opacity attributes it writes to the <path>. */
+
+/* driver.js 1.4 ships this rule: `:not(body):has(>.driver-active-element){overflow:hidden!important}`
+ * It assumes the page scrolls at <body>. Our dashboard scrolls at <main class="flex-1 overflow-auto">,
+ * so forcing overflow:hidden on that main collapses the flex layout and the page
+ * visibly grows past the viewport. Revert it for the dashboard main. */
+main:has(.driver-active-element) {
+  overflow: auto !important;
+}
+html.driver-active,
+html.driver-active body {
+  overflow: hidden !important;
+}
+
+/* In-popover CTA buttons (used by the "pick a tour" final step to launch an
+ * interactive create-plan tour). Matches the rest of the Aseno popover look. */
+.driver-popover .aseno-tour-cta {
+  all: unset;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: hsl(var(--primary) / 0.08);
+  color: hsl(var(--primary));
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background-color 150ms ease,
+    transform 120ms ease;
+  border: 1px solid hsl(var(--primary) / 0.18);
+}
+
+.driver-popover .aseno-tour-cta::after {
+  content: "→";
+  margin-left: 12px;
+  font-size: 1rem;
+  opacity: 0.7;
+}
+
+.driver-popover .aseno-tour-cta:hover {
+  background: hsl(var(--primary) / 0.14);
+  transform: translateX(2px);
 }
 
 /* Booking Calendar - Public page styles */
