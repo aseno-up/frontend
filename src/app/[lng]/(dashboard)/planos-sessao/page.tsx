@@ -231,9 +231,6 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
   // Enrollment dialog state (group plans)
   const [enrollmentDialogOpen, setEnrollmentDialogOpen] = useState(false)
 
-  // Professionals with commission for selected procedure
-  const [professionalsWithCommission, setProfessionalsWithCommission] = useState<Set<string> | null>(null)
-
   // Group attendance dialog state
   const [attendanceDialogOpen, setAttendanceDialogOpen] = useState(false)
   const [attendanceAppointmentId, setAttendanceAppointmentId] = useState("")
@@ -327,11 +324,8 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
   }, [patients])
 
   const professionalOptions: SelectOption[] = useMemo(() => {
-    const filtered = professionalsWithCommission
-      ? professionals.filter(prof => professionalsWithCommission.has(prof.id))
-      : professionals
-    return filtered.map((prof) => ({ value: prof.id, label: `${prof.name} - ${prof.specialty}`, color: prof.color }))
-  }, [professionals, professionalsWithCommission])
+    return professionals.map((prof) => ({ value: prof.id, label: prof.name, color: prof.color }))
+  }, [professionals])
 
   const procedureOptions: SelectOption[] = useMemo(() => {
     return procedures.map((proc: any) => ({
@@ -481,18 +475,6 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
     fetchProcedures()
     fetchPaymentMethods()
   }, [fetchPlans, fetchProfessionals, fetchPatients, fetchProcedures, fetchPaymentMethods])
-
-  // Load professionals with commission when procedure changes
-  useEffect(() => {
-    if (watchedProcedureId) {
-      api.getProfessionalsByProcedure(watchedProcedureId).then((resp) => {
-        const ids = new Set((resp.data || []).map(p => p.professional_id))
-        setProfessionalsWithCommission(ids)
-      }).catch(() => setProfessionalsWithCommission(null))
-    } else {
-      setProfessionalsWithCommission(null)
-    }
-  }, [watchedProcedureId])
 
   const handleNext = async () => {
     // During the interactive "create plan" tour the user hasn't filled anything —
