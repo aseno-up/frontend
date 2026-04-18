@@ -21,6 +21,7 @@ interface ConfirmDialogProps {
   confirmText?: string
   variant?: "default" | "destructive"
   isLoading?: boolean
+  children?: React.ReactNode
 }
 
 export function ConfirmDialog({
@@ -33,6 +34,7 @@ export function ConfirmDialog({
   confirmText = "Confirmar",
   variant = "destructive",
   isLoading = false,
+  children,
 }: ConfirmDialogProps) {
   const [isPending, setIsPending] = React.useState(false)
 
@@ -55,6 +57,7 @@ export function ConfirmDialog({
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
+        {children}
         <DialogFooter className="mt-4 gap-2 sm:gap-0">
           <Button
             variant="outline"

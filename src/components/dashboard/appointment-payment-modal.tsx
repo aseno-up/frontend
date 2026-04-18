@@ -63,7 +63,8 @@ export function AppointmentPaymentModal({
   const totalCovered = fromCents(totalCoveredCents)
   const remaining = fromCents(Math.max(0, toCents(appointmentPrice) - totalCoveredCents))
 
-  const loadData = useCallback(async () => {
+  // Full reload (payments + methods) happens only when the dialog opens.
+  const loadInitial = useCallback(async () => {
     if (!appointmentId) return
     try {
       setIsLoading(true)
@@ -80,6 +81,19 @@ export function AppointmentPaymentModal({
     }
   }, [appointmentId])
 
+  // After a save or delete we only need the updated payment list — payment
+  // methods don't change during the session, so skipping that call keeps the
+  // round-trip short.
+  const reloadPayments = useCallback(async () => {
+    if (!appointmentId) return
+    try {
+      const paymentsRes = await api.getAppointmentPayments(appointmentId)
+      setPayments(paymentsRes.data || [])
+    } catch (err) {
+      handleApiError(err, "Erro ao carregar pagamentos")
+    }
+  }, [appointmentId])
+
   const resetForm = () => {
     setAmount(0)
     setDiscount(0)
@@ -90,12 +104,12 @@ export function AppointmentPaymentModal({
 
   useEffect(() => {
     if (isOpen) {
-      loadData()
+      loadInitial()
       resetForm()
       setSelectedMethodId("")
       setHasInitializedAmount(false)
     }
-  }, [isOpen, loadData])
+  }, [isOpen, loadInitial])
 
   useEffect(() => {
     if (methods.length > 0 && !selectedMethodId) {
@@ -146,7 +160,7 @@ export function AppointmentPaymentModal({
 
       resetForm()
       setHasInitializedAmount(false)
-      await loadData()
+      await reloadPayments()
       onPaymentChanged?.()
     } catch (err) {
       handleApiError(err, editingPaymentId ? "Erro ao atualizar pagamento" : "Erro ao registrar pagamento")
@@ -162,7 +176,7 @@ export function AppointmentPaymentModal({
       if (editingPaymentId === paymentId) {
         resetForm()
       }
-      await loadData()
+      await reloadPayments()
       onPaymentChanged?.()
     } catch (err) {
       handleApiError(err, "Erro ao remover pagamento")
@@ -208,7 +222,7 @@ export function AppointmentPaymentModal({
             </Badge>
           )}
           {remaining <= 0 && totalCovered > 0 && (
-            <Badge className="text-xs bg-green-600">Pago</Badge>
+            <Badge variant="success" className="text-xs">Pago</Badge>
           )}
         </div>
 

@@ -13,6 +13,7 @@ import { Check, Clock, X, UserX, CheckCircle, RefreshCw } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { api } from "@/lib/api/client"
+import { handleApiError } from "@/lib/toast"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -87,6 +88,7 @@ interface CalendarProps {
   onDateSelect: (start: Date, end: Date, professionalId?: string) => void
   selectedProfessionalId?: string
   professionals: Professional[]
+  refreshKey?: number
 }
 
 // Tooltip state type
@@ -107,10 +109,12 @@ export function Calendar({
   onDateSelect,
   selectedProfessionalId,
   professionals,
+  refreshKey,
 }: CalendarProps) {
   const calendarRef = useRef<FullCalendar>(null)
   const [events, setEvents] = useState<CalendarEventInternal[]>([])
   const [isLoading, setIsLoading] = useState(false)
+  const [isMaterializing, setIsMaterializing] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const [recurringDialog, setRecurringDialog] = useState<{
     open: boolean
@@ -253,7 +257,7 @@ export function Calendar({
       const view = calendarApi.view
       fetchAppointments(view.activeStart, view.activeEnd)
     }
-  }, [selectedProfessionalId, fetchAppointments])
+  }, [selectedProfessionalId, refreshKey, fetchAppointments])
 
   const handleDatesSet = (dateInfo: { start: Date; end: Date }) => {
     fetchAppointments(dateInfo.start, dateInfo.end)
@@ -274,7 +278,7 @@ export function Calendar({
     if (isVirtual && sessionPlanId && virtualDate) {
       // Virtual individual event: materialize first, then open
       try {
-        setIsLoading(true)
+        setIsMaterializing(true)
         const result = await api.materializeAppointment(sessionPlanId, virtualDate)
         onEventClick(result as Appointment)
         // Refresh calendar to show the now-materialized event
@@ -284,15 +288,27 @@ export function Calendar({
           fetchAppointments(view.activeStart, view.activeEnd)
         }
       } catch (error) {
-        console.error("Error materializing appointment:", error)
+        handleApiError(error, "Não foi possível abrir este agendamento")
       } finally {
-        setIsLoading(false)
+        setIsMaterializing(false)
       }
       return
     }
 
     if (appointment) {
-      onEventClick(appointment as Appointment)
+      // The CalendarEvent payload is lossy — it only carries the first
+      // procedure's name, not the full procedures array. Fetch the real
+      // appointment so the edit modal sees every linked procedure.
+      const apt = appointment as Appointment
+      try {
+        setIsMaterializing(true)
+        const full = await api.getAppointment(apt.id)
+        onEventClick(full as Appointment)
+      } catch (error) {
+        handleApiError(error, "Não foi possível abrir este agendamento")
+      } finally {
+        setIsMaterializing(false)
+      }
     }
   }
 
@@ -567,6 +583,21 @@ export function Calendar({
 
   return (
     <>
+      {/* Loading dialog while materializing a virtual appointment — prod backend can take seconds */}
+      <Dialog open={isMaterializing} onOpenChange={(o) => !o && setIsMaterializing(false)}>
+        <DialogContent className="sm:max-w-[320px]">
+          <DialogHeader>
+            <DialogTitle>Abrindo agendamento…</DialogTitle>
+            <DialogDescription>
+              Carregando os dados, isso pode levar alguns segundos.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center justify-center py-4">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Custom tooltip — rendered at page root with position:fixed, always above everything */}
       {tooltip.visible && tooltip.appointment && (
         <div

@@ -26,6 +26,7 @@ import { api } from "@/lib/api/client"
 import { showToast, handleApiError } from "@/lib/toast"
 import type { Appointment, Patient, Professional, AppointmentPaymentStatus } from "@/types/api"
 import { AppointmentPaymentModal } from "./appointment-payment-modal"
+import { DeleteAppointmentDialog } from "./delete-appointment-dialog"
 
 const appointmentSchema = z.object({
   patient_id: z.string().min(1, "Paciente e obrigatorio"),
@@ -157,30 +158,13 @@ export function AppointmentDialog({
     }
   }, [])
 
-  // Fetch procedures — filtered by professional if one is selected
-  const fetchProcedures = useCallback(async (professionalId?: string) => {
+  const fetchProcedures = useCallback(async () => {
     setProceduresLoading(true)
     try {
-      if (professionalId) {
-        const profProcs = await api.getProfessionalProcedures(professionalId)
-        const mapped = (profProcs || []).map((pp: any) => ({
-          id: pp.procedure_id,
-          name: pp.procedure_name,
-          price: pp.procedure_price,
-          duration_minutes: 0,
-        }))
-        setProcedures(mapped.length > 0 ? mapped : [])
-      } else {
-        const response = await api.getProcedures({ page: 1, limit: 100 })
-        setProcedures(response.data || [])
-      }
+      const response = await api.getProcedures({ page: 1, limit: 100 })
+      setProcedures(response.data || [])
     } catch (error) {
       console.error("Error fetching procedures:", error)
-      // Fallback to all procedures
-      try {
-        const response = await api.getProcedures({ page: 1, limit: 100 })
-        setProcedures(response.data || [])
-      } catch { /* ignore */ }
     } finally {
       setProceduresLoading(false)
     }
@@ -190,10 +174,9 @@ export function AppointmentDialog({
     if (open) {
       fetchPatients()
       fetchSpecialties()
-      const profId = defaultProfessionalId || appointment?.professional_id
-      fetchProcedures(profId)
+      fetchProcedures()
     }
-  }, [open, fetchPatients, fetchSpecialties, fetchProcedures, defaultProfessionalId, appointment?.professional_id])
+  }, [open, fetchPatients, fetchSpecialties, fetchProcedures])
 
   // Convert patients to select options
   const patientOptions: SelectOption[] = useMemo(() => {
@@ -207,7 +190,7 @@ export function AppointmentDialog({
   const professionalOptions: SelectOption[] = useMemo(() => {
     return professionals.map((prof) => ({
       value: prof.id,
-      label: `${prof.name} - ${prof.specialty}`,
+      label: prof.name,
       color: prof.color,
     }))
   }, [professionals])
@@ -241,11 +224,6 @@ export function AppointmentDialog({
   }, [watchedProfessionalId, professionalOptions])
 
   // Reload procedures when professional changes
-  useEffect(() => {
-    if (open && watchedProfessionalId) {
-      fetchProcedures(watchedProfessionalId)
-    }
-  }, [watchedProfessionalId, open, fetchProcedures])
 
   const watchedSpecialtyIds = watch("specialty_ids") || []
   const selectedSpecialtyOptions = useMemo(() => {
@@ -256,10 +234,28 @@ export function AppointmentDialog({
 
   const watchedProcedures = watch("procedures") || []
   const selectedProcedureOptions = useMemo(() => {
+    // For each selected procedure, prefer the option from the active catalog.
+    // If it isn't there (typically because the procedure was soft-deleted),
+    // fall back to a synthetic option built from the preloaded appointment
+    // data so the chip still renders and the user can remove it.
     return watchedProcedures
-      .map((p) => procedureOptions.find((opt) => opt.value === p.procedure_id))
+      .map((p) => {
+        const fromCatalog = procedureOptions.find((opt) => opt.value === p.procedure_id)
+        if (fromCatalog) return fromCatalog
+        const fromAppointment = appointment?.procedures?.find(
+          (ap: { procedure_id: string; procedure?: { name?: string } }) => ap.procedure_id === p.procedure_id
+        )
+        if (fromAppointment?.procedure?.name) {
+          return {
+            value: p.procedure_id,
+            label: `${fromAppointment.procedure.name} (inativo)`,
+            basePrice: p.price,
+          } as SelectOption
+        }
+        return null
+      })
       .filter(Boolean) as SelectOption[]
-  }, [watchedProcedures, procedureOptions])
+  }, [watchedProcedures, procedureOptions, appointment])
 
   // Load attendance status for recurring appointments
   useEffect(() => {
@@ -386,23 +382,20 @@ export function AppointmentDialog({
     }
   }
 
-  const handleDelete = async () => {
-    if (!appointment || !confirm("Tem certeza que deseja excluir este agendamento?")) return
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
 
-    setIsLoading(true)
-    try {
-      await api.deleteAppointment(appointment.id)
-      showToast.success("Agendamento excluído com sucesso!")
-      onSuccess()
-      onOpenChange(false)
-    } catch (error) {
-      handleApiError(error, "Erro ao excluir agendamento")
-    } finally {
-      setIsLoading(false)
-    }
+  const handleDelete = () => {
+    if (!appointment) return
+    setDeleteDialogOpen(true)
+  }
+
+  const handleDeleteSuccess = () => {
+    onSuccess()
+    onOpenChange(false)
   }
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[700px] max-h-[95vh] overflow-y-auto">
         <DialogHeader>
@@ -570,7 +563,13 @@ export function AppointmentDialog({
                   Valores na Sessão
                 </Label>
                 {watchedProcedures.map((proc, index) => {
-                  const label = procedureOptions.find(o => o.value === proc.procedure_id)?.label || "Procedimento"
+                  // Fallback chain: active catalog → appointment preload (for
+                  // soft-deleted procedures still linked to this appointment).
+                  const fromOptions = procedureOptions.find(o => o.value === proc.procedure_id)?.label
+                  const fromAppointment = appointment?.procedures?.find(
+                    (ap: { procedure_id: string; procedure?: { name?: string } }) => ap.procedure_id === proc.procedure_id
+                  )?.procedure?.name
+                  const label = fromOptions || fromAppointment || "Procedimento"
                   /* Strip off the price suffix from label */
                   const cleanLabel = label.replace(/\(R\$.+\)$/, '').trim()
                   
@@ -626,10 +625,10 @@ export function AppointmentDialog({
                   <Wallet className="h-4 w-4 mr-2" />
                   Pagamentos
                   {appointment?.payment_status === "paid" && (
-                    <Badge className="ml-2 text-[10px] bg-green-600">Pago</Badge>
+                    <Badge variant="success" className="ml-2 text-[10px]">Pago</Badge>
                   )}
                   {appointment?.payment_status === "partial" && (
-                    <Badge className="ml-2 text-[10px] bg-amber-500">Parcial</Badge>
+                    <Badge variant="warning" className="ml-2 text-[10px]">Parcial</Badge>
                   )}
                 </Button>
               )}
@@ -749,5 +748,12 @@ export function AppointmentDialog({
         </form>
       </DialogContent>
     </Dialog>
+    <DeleteAppointmentDialog
+      open={deleteDialogOpen}
+      onOpenChange={setDeleteDialogOpen}
+      appointmentId={appointment?.id ?? null}
+      onSuccess={handleDeleteSuccess}
+    />
+    </>
   )
 }

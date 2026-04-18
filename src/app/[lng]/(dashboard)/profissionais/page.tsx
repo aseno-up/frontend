@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { Plus, Search, Pencil, Mail, Phone, User, Clock, CheckCircle2, Users, Briefcase, DollarSign, UserPlus, Link2 } from "lucide-react"
+import { Plus, Search, Pencil, Mail, Phone, User, Clock, CheckCircle2, Users, Briefcase, DollarSign, UserPlus, Link2, Trash2, RotateCcw } from "lucide-react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -28,6 +28,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ReactSelect, ReactCreatableSelect, SelectOption } from "@/components/ui/react-select"
@@ -92,12 +93,14 @@ export default function ProfissionaisPage({ params }: ProfissionaisPageProps) {
   const page = parseInt(searchParams.get("page") || "1", 10)
   const limit = parseInt(searchParams.get("limit") || "10", 10)
   const search = searchParams.get("search") || ""
-  const statusParam = searchParams.get("status") || "all"
+  const statusParam = searchParams.get("status") || "active"
   const sortBy = searchParams.get("sort_by") || "name_asc"
 
   // Edit dialog state
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [editingProfessional, setEditingProfessional] = useState<Professional | null>(null)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [professionalToDelete, setProfessionalToDelete] = useState<Professional | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [selectedColor, setSelectedColor] = useState(defaultColors[0])
   const [workingHours, setWorkingHours] = useState<WorkingHours>(DEFAULT_WORKING_HOURS)
@@ -174,7 +177,7 @@ export default function ProfissionaisPage({ params }: ProfissionaisPageProps) {
         page,
         limit,
         search: search || undefined,
-        status: statusParam !== "all" ? statusParam : undefined,
+        status: statusParam,
         sort_by: sortBy
       })
 
@@ -567,15 +570,51 @@ export default function ProfissionaisPage({ params }: ProfissionaisPageProps) {
                         )}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="h-8 w-8 rounded-md bg-transparent border-border text-muted-foreground hover:text-foreground"
-                          title="Editar"
-                          onClick={() => handleOpenEditDialog(professional)}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
+                        <div className="flex justify-end gap-1">
+                          {professional.is_active ? (
+                            <>
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-8 w-8 rounded-md bg-transparent border-border text-muted-foreground hover:text-foreground"
+                                title="Editar"
+                                onClick={() => handleOpenEditDialog(professional)}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-8 w-8 rounded-md bg-transparent border-border text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                title="Inativar"
+                                onClick={() => {
+                                  setProfessionalToDelete(professional)
+                                  setDeleteDialogOpen(true)
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </>
+                          ) : (
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="h-8 w-8 rounded-md bg-transparent border-border text-muted-foreground hover:text-emerald-600 hover:bg-emerald-500/10"
+                              title="Reativar"
+                              onClick={async () => {
+                                try {
+                                  await api.restoreProfessional(professional.id)
+                                  showToast.success("Profissional reativado")
+                                  fetchProfessionals()
+                                } catch (err) {
+                                  handleApiError(err, "Erro ao reativar profissional")
+                                }
+                              }}
+                            >
+                              <RotateCcw className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -816,6 +855,29 @@ export default function ProfissionaisPage({ params }: ProfissionaisPageProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={deleteDialogOpen}
+        onOpenChange={(o) => {
+          setDeleteDialogOpen(o)
+          if (!o) setProfessionalToDelete(null)
+        }}
+        title="Inativar profissional"
+        description={professionalToDelete
+          ? `${professionalToDelete.name} será marcado como inativo. Você pode reativá-lo a qualquer momento na aba "Inativos".`
+          : "Você pode reativá-lo a qualquer momento."}
+        confirmText="Inativar"
+        onConfirm={async () => {
+          if (!professionalToDelete) return
+          try {
+            await api.deleteProfessional(professionalToDelete.id)
+            showToast.success("Profissional inativado")
+            fetchProfessionals()
+          } catch (err) {
+            handleApiError(err, "Erro ao inativar profissional")
+          }
+        }}
+      />
     </div>
   )
 }

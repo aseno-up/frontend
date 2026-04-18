@@ -114,7 +114,7 @@ export default function FinanceiroPage(props: FinanceiroPageProps) {
   }, [props.params])
 
   useEffect(() => {
-    api.getProfessionals({ page: 1, limit: 100 }).then(res => {
+    api.getProfessionals({ page: 1, limit: 100, status: 'all' }).then(res => {
       setProfessionals(res.data || [])
     }).catch(() => {})
   }, [])
@@ -487,7 +487,7 @@ function useFinancialReport() {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    api.getProfessionals({ page: 1, limit: 100 }).then(res => {
+    api.getProfessionals({ page: 1, limit: 100, status: 'all' }).then(res => {
       setProfessionals(res.data || [])
     }).catch(() => {})
   }, [])

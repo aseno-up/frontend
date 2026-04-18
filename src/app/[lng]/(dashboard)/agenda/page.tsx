@@ -126,7 +126,7 @@ export default function AgendaPage({ params }: AgendaPageProps) {
         {/* Calendar */}
         <div className="h-[calc(100vh-220px)] rounded-lg border bg-card p-4">
           <Calendar
-            key={refreshKey}
+            refreshKey={refreshKey}
             onEventClick={handleEventClick}
             onGroupEventClick={handleGroupEventClick}
             onDateSelect={handleDateSelect}

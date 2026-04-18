@@ -166,6 +166,11 @@ class ApiClient {
     return response.data
   }
 
+  async restoreProfessional(id: string) {
+    const response = await this.client.post(`/professionals/${id}/restore`)
+    return response.data
+  }
+
   async deleteProfessional(id: string) {
     const response = await this.client.delete(`/professionals/${id}`)
     return response.data
@@ -259,6 +264,11 @@ class ApiClient {
     return response.data
   }
 
+  async getPatientDeletePreview(id: string) {
+    const response = await this.client.get<{ appointments_count: number; session_plans_count: number; enrollments_count: number; payments_count: number }>(`/patients/${id}/delete-preview`)
+    return response.data
+  }
+
   async getSelfRegisteredPatients(params?: { page?: number, limit?: number, search?: string }) {
     const response = await this.client.get('/patients/self-registered', { params })
     return response.data
@@ -315,6 +325,11 @@ class ApiClient {
 
   async deleteProcedure(id: string) {
     const response = await this.client.delete(`/procedures/${id}`)
+    return response.data
+  }
+
+  async restoreProcedure(id: string) {
+    const response = await this.client.post(`/procedures/${id}/restore`)
     return response.data
   }
 
@@ -397,8 +412,14 @@ class ApiClient {
     return response.data
   }
 
-  async deleteAppointment(id: string) {
-    const response = await this.client.delete(`/appointments/${id}`)
+  async deleteAppointment(id: string, options?: { deletePayments?: boolean }) {
+    const params = options?.deletePayments ? { delete_payments: "true" } : undefined
+    const response = await this.client.delete(`/appointments/${id}`, { params })
+    return response.data
+  }
+
+  async getAppointmentDeletePreview(id: string) {
+    const response = await this.client.get<{ payments_count: number; payments_total: number; procedures_count: number }>(`/appointments/${id}/delete-preview`)
     return response.data
   }
 

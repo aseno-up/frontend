@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { Plus, Search, Pencil, Trash2, Activity, CheckCircle2, Clock, Calendar, Briefcase, MoreHorizontal } from "lucide-react"
+import { Plus, Search, Pencil, Trash2, Activity, CheckCircle2, Clock, Calendar, Briefcase, MoreHorizontal, RotateCcw } from "lucide-react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -72,7 +72,7 @@ export default function ProcedimentosPage({ params }: ProcedimentosPageProps) {
   const page = parseInt(searchParams.get("page") || "1", 10)
   const limit = parseInt(searchParams.get("limit") || "10", 10)
   const search = searchParams.get("search") || ""
-  const statusParam = searchParams.get("status") || "all"
+  const statusParam = searchParams.get("status") || "active"
   const sortBy = searchParams.get("sort_by") || "name_asc"
 
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -464,27 +464,49 @@ export default function ProcedimentosPage({ params }: ProcedimentosPageProps) {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-8 w-8 rounded-md bg-transparent border-border text-muted-foreground hover:text-foreground"
-                            title="Editar"
-                            onClick={() => handleOpenDialog(procedure)}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-8 w-8 rounded-md bg-transparent border-border text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                            title="Excluir"
-                            onClick={() => {
-                              setProcedureToDelete(procedure)
-                              setDeleteModalOpen(true)
-                            }}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          {statusParam === "inactive" ? (
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="h-8 w-8 rounded-md bg-transparent border-border text-muted-foreground hover:text-emerald-600 hover:bg-emerald-500/10"
+                              title="Reativar"
+                              onClick={async () => {
+                                try {
+                                  await api.restoreProcedure(procedure.id)
+                                  showToast.success("Procedimento reativado")
+                                  fetchProcedures()
+                                } catch (err) {
+                                  handleApiError(err, "Erro ao reativar procedimento")
+                                }
+                              }}
+                            >
+                              <RotateCcw className="h-4 w-4" />
+                            </Button>
+                          ) : (
+                            <>
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-8 w-8 rounded-md bg-transparent border-border text-muted-foreground hover:text-foreground"
+                                title="Editar"
+                                onClick={() => handleOpenDialog(procedure)}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-8 w-8 rounded-md bg-transparent border-border text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                title="Excluir"
+                                onClick={() => {
+                                  setProcedureToDelete(procedure)
+                                  setDeleteModalOpen(true)
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>

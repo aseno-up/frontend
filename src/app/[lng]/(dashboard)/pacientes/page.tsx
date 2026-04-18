@@ -116,6 +116,7 @@ export default function PacientesPage({ params }: PacientesPageProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [deleteModalOpen, setDeleteModalOpen] = useState(false)
   const [patientToDelete, setPatientToDelete] = useState<Patient | null>(null)
+  const [deletePreview, setDeletePreview] = useState<{ appointments_count: number; session_plans_count: number; enrollments_count: number; payments_count: number } | null>(null)
   const [bulkDeleteModalOpen, setBulkDeleteModalOpen] = useState(false)
   
   const handleSelectAll = (checked: boolean) => {
@@ -235,11 +236,12 @@ export default function PacientesPage({ params }: PacientesPageProps) {
   const onSubmit = async (data: PatientFormData) => {
     setIsSaving(true)
     try {
+      // Send empty strings explicitly so backend clears fields the user
+      // intentionally wiped. gender uses undefined because the backend enum
+      // rejects empty strings but accepts missing values as "keep".
       const payload = {
         ...data,
         gender: data.gender || undefined,
-        birth_date: data.birth_date || undefined,
-        email: data.email || undefined,
       }
 
       if (editingPatient) {
@@ -536,9 +538,16 @@ export default function PacientesPage({ params }: PacientesPageProps) {
                               size="icon"
                               className="h-8 w-8 rounded-md bg-transparent border-border text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                               title="Excluir"
-                              onClick={() => {
+                              onClick={async () => {
                                 setPatientToDelete(patient)
+                                setDeletePreview(null)
                                 setDeleteModalOpen(true)
+                                try {
+                                  const preview = await api.getPatientDeletePreview(patient.id)
+                                  setDeletePreview(preview)
+                                } catch {
+                                  // Modal still works without preview — user just won't see counts
+                                }
                               }}
                             >
                               <Trash2 className="h-4 w-4" />
@@ -681,13 +690,25 @@ export default function PacientesPage({ params }: PacientesPageProps) {
         </DialogContent>
       </Dialog>
       
-      <ConfirmDialog 
+      <ConfirmDialog
         open={deleteModalOpen}
-        onOpenChange={setDeleteModalOpen}
+        onOpenChange={(o) => {
+          setDeleteModalOpen(o)
+          if (!o) setDeletePreview(null)
+        }}
         onConfirm={confirmDelete}
         title="Excluir Paciente"
         description={`Tem certeza que deseja excluir o paciente ${patientToDelete?.name}? Esta ação não pode ser desfeita.`}
-      />
+      >
+        {deletePreview && (
+          <ul className="text-sm text-muted-foreground space-y-1 mt-2">
+            <li>• {deletePreview.appointments_count} agendamento{deletePreview.appointments_count === 1 ? "" : "s"} vinculado{deletePreview.appointments_count === 1 ? "" : "s"}</li>
+            <li>• {deletePreview.session_plans_count} plano{deletePreview.session_plans_count === 1 ? "" : "s"} de sessão</li>
+            <li>• {deletePreview.enrollments_count} matrícula{deletePreview.enrollments_count === 1 ? "" : "s"} em plano{deletePreview.enrollments_count === 1 ? "" : "s"} em grupo</li>
+            <li>• {deletePreview.payments_count} pagamento{deletePreview.payments_count === 1 ? "" : "s"} registrado{deletePreview.payments_count === 1 ? "" : "s"}</li>
+          </ul>
+        )}
+      </ConfirmDialog>
 
       <ConfirmDialog 
         open={bulkDeleteModalOpen}
