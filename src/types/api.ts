@@ -39,6 +39,9 @@ export interface ClinicSettings {
   require_confirmation?: boolean
   whatsapp_reminders_enabled?: boolean
   email_reminders_enabled?: boolean
+  whatsapp_reminder_2h_enabled?: boolean | null
+  whatsapp_reminder_24h_enabled?: boolean | null
+  whatsapp_reminder_48h_enabled?: boolean | null
   require_payment_before_booking?: boolean
   ai_agent_enabled?: boolean
   ai_min_delay_between_messages?: number | null

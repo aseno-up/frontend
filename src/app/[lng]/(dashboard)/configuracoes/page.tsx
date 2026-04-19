@@ -147,9 +147,6 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
   const [whatsappReminders, setWhatsappReminders] = useState(
     clinic?.settings?.whatsapp_reminders_enabled ?? false
   )
-  const [emailReminders, setEmailReminders] = useState(
-    clinic?.settings?.email_reminders_enabled ?? false
-  )
   const [isSavingNotifications, setIsSavingNotifications] = useState(false)
 
   // AI agent state
@@ -188,6 +185,20 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
       : "3"
   )
   const [isSavingPaymentReminder, setIsSavingPaymentReminder] = useState<string | null>(null)
+
+  // Appointment confirmation reminders per window. Default ON (null from the
+  // backend also treated as true) so existing clinics keep the full
+  // 48h/24h/2h flow after the toggles were introduced.
+  const [apptReminder2h, setApptReminder2h] = useState<boolean>(
+    clinic?.settings?.whatsapp_reminder_2h_enabled ?? true
+  )
+  const [apptReminder24h, setApptReminder24h] = useState<boolean>(
+    clinic?.settings?.whatsapp_reminder_24h_enabled ?? true
+  )
+  const [apptReminder48h, setApptReminder48h] = useState<boolean>(
+    clinic?.settings?.whatsapp_reminder_48h_enabled ?? true
+  )
+  const [isSavingApptReminder, setIsSavingApptReminder] = useState<string | null>(null)
 
   // Online booking state
   const [allowOnlineBooking, setAllowOnlineBooking] = useState(
@@ -375,7 +386,6 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
   useEffect(() => {
     if (clinic?.settings) {
       setWhatsappReminders(clinic.settings.whatsapp_reminders_enabled ?? false)
-      setEmailReminders(clinic.settings.email_reminders_enabled ?? false)
       setAiAgentEnabled(clinic.settings.ai_agent_enabled ?? false)
       setAllowOnlineBooking(clinic.settings.allow_online_booking ?? false)
       setAiToolSchedule(clinic.settings.ai_tool_schedule ?? true)
@@ -395,6 +405,9 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
           ? String(clinic.settings.payment_reminder_days_before)
           : "3"
       )
+      setApptReminder2h(clinic.settings.whatsapp_reminder_2h_enabled ?? true)
+      setApptReminder24h(clinic.settings.whatsapp_reminder_24h_enabled ?? true)
+      setApptReminder48h(clinic.settings.whatsapp_reminder_48h_enabled ?? true)
     }
   }, [clinic?.settings])
 
@@ -564,28 +577,6 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
     }
   }
 
-  const handleToggleEmailReminders = async (enabled: boolean) => {
-    if (!canEditClinic) return
-
-    try {
-      setIsSavingNotifications(true)
-      setEmailReminders(enabled)
-      const updatedClinic = await api.updateClinic({
-        settings: {
-          ...clinic?.settings,
-          email_reminders_enabled: enabled,
-        },
-      })
-      setClinic(updatedClinic)
-      showToast.success(enabled ? "Lembretes por email ativados" : "Lembretes por email desativados")
-    } catch (err) {
-      setEmailReminders(!enabled)
-      handleApiError(err)
-    } finally {
-      setIsSavingNotifications(false)
-    }
-  }
-
   // Payment reminder handlers. Saves immediately on toggle so the UX matches
   // the surrounding notification switches. The days-before input is debounced
   // via a blur handler instead to avoid firing on every keystroke.
@@ -659,6 +650,52 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
       handleApiError(err)
     } finally {
       setIsSavingPaymentReminder(null)
+    }
+  }
+
+  // Toggle a single appointment reminder window (2h/24h/48h). One handler for
+  // all three windows — each switch passes its key so we don't triplicate the
+  // try/catch/optimistic-rollback pattern.
+  const handleToggleAppointmentReminder = async (
+    window: "2h" | "24h" | "48h",
+    enabled: boolean,
+  ) => {
+    if (!canEditClinic) return
+    const setters: Record<typeof window, (v: boolean) => void> = {
+      "2h": setApptReminder2h,
+      "24h": setApptReminder24h,
+      "48h": setApptReminder48h,
+    }
+    const labels: Record<typeof window, string> = {
+      "2h": "2 horas antes",
+      "24h": "24 horas antes",
+      "48h": "48 horas antes",
+    }
+    const settingsKey = {
+      "2h": "whatsapp_reminder_2h_enabled",
+      "24h": "whatsapp_reminder_24h_enabled",
+      "48h": "whatsapp_reminder_48h_enabled",
+    }[window]
+    try {
+      setIsSavingApptReminder(window)
+      setters[window](enabled)
+      const updatedClinic = await api.updateClinic({
+        settings: {
+          ...clinic?.settings,
+          [settingsKey]: enabled,
+        },
+      })
+      setClinic(updatedClinic)
+      showToast.success(
+        enabled
+          ? `Lembrete ${labels[window]} ativado`
+          : `Lembrete ${labels[window]} desativado`,
+      )
+    } catch (err) {
+      setters[window](!enabled)
+      handleApiError(err)
+    } finally {
+      setIsSavingApptReminder(null)
     }
   }
 
@@ -1271,7 +1308,7 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="font-medium">Lembretes</p>
-                        <p className="text-sm text-muted-foreground">Enviar lembretes automáticos (consultas e mensalidades) via WhatsApp</p>
+                        <p className="text-sm text-muted-foreground">Enviar lembretes automáticos (consultas e mensalidades) via WhatsApp e Email</p>
                       </div>
                       <Switch
                         checked={whatsappReminders}
@@ -1282,6 +1319,48 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
 
                     {whatsappReminders && (
                       <div className="ml-4 pl-4 border-l-2 border-muted space-y-4">
+                        <p className="text-xs text-muted-foreground">
+                          Confirmação de consulta: o paciente recebe um lembrete pelo WhatsApp antes da consulta agendada. Você pode desativar cada janela individualmente (48h, 24h, 2h antes).
+                        </p>
+
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium">Lembrete 48 horas antes</p>
+                            <p className="text-xs text-muted-foreground">Mandado 48 horas antes da consulta. Útil para dar tempo do paciente se organizar.</p>
+                          </div>
+                          <Switch
+                            checked={apptReminder48h}
+                            onCheckedChange={(v) => handleToggleAppointmentReminder("48h", v)}
+                            disabled={isSavingApptReminder === "48h" || !canEditClinic}
+                          />
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium">Lembrete 24 horas antes</p>
+                            <p className="text-xs text-muted-foreground">Mandado 24 horas antes da consulta. É o lembrete mais usado.</p>
+                          </div>
+                          <Switch
+                            checked={apptReminder24h}
+                            onCheckedChange={(v) => handleToggleAppointmentReminder("24h", v)}
+                            disabled={isSavingApptReminder === "24h" || !canEditClinic}
+                          />
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium">Lembrete 2 horas antes</p>
+                            <p className="text-xs text-muted-foreground">Mandado 2 horas antes da consulta, para confirmação de última hora.</p>
+                          </div>
+                          <Switch
+                            checked={apptReminder2h}
+                            onCheckedChange={(v) => handleToggleAppointmentReminder("2h", v)}
+                            disabled={isSavingApptReminder === "2h" || !canEditClinic}
+                          />
+                        </div>
+
+                        <Separator />
+
                         <p className="text-xs text-muted-foreground">
                           Lembrete de mensalidade: enviado para alunos com plano mensal (individual ou em grupo) alguns dias antes do vencimento, apenas quando o pagamento ainda não foi registrado no sistema.
                         </p>
@@ -1429,22 +1508,6 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
                         </div>
                       </div>
                     )}
-
-                    <Separator />
-
-                    <PlanRestriction requiredPlan="professional">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-medium">Email</p>
-                          <p className="text-sm text-muted-foreground">Enviar confirmacoes por email</p>
-                        </div>
-                        <Switch
-                          checked={emailReminders}
-                          onCheckedChange={handleToggleEmailReminders}
-                          disabled={isSavingNotifications || !canEditClinic}
-                        />
-                      </div>
-                    </PlanRestriction>
 
                     {!canEditClinic && (
                       <p className="text-xs text-muted-foreground">
