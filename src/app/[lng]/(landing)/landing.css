@@ -578,12 +578,12 @@ html{scroll-behavior:smooth}
 
 .sec{padding:7rem var(--px)}
 
-.ptoggle{display:flex;align-items:center;justify-content:center;gap:.875rem;margin-bottom:3rem}
-.ptoggle span{font-size:.875rem;color:var(--ink-light);font-weight:500}
-.toggle-pill{width:44px;height:24px;border-radius:100px;background:var(--blue);border:none;cursor:pointer;position:relative}
-.toggle-thumb{width:18px;height:18px;border-radius:50%;background:var(--white);position:absolute;top:3px;left:3px;box-shadow:0 2px 6px rgba(0,0,0,.15);transition:transform .2s}
-.toggle-pill.active .toggle-thumb{transform:translateX(20px)}
-.toggle-bdg{background:rgba(0,168,112,.1);color:var(--teal);font-size:.7rem;font-weight:700;border-radius:100px;padding:.2rem .65rem;letter-spacing:.04em;text-transform:uppercase}
+.ptoggle{display:flex;align-items:center;justify-content:center;width:fit-content;margin:0 auto 3rem;padding:.3rem;background:var(--white);border:1px solid var(--border);border-radius:100px;gap:.25rem;box-shadow:0 1px 2px rgba(11,29,46,.04)}
+.ptoggle-opt{display:inline-flex;align-items:center;gap:.4rem;font-size:.875rem;font-weight:600;color:var(--ink-light);background:transparent;border:none;cursor:pointer;padding:.5rem 1.1rem;border-radius:100px;transition:background .18s ease,color .18s ease,box-shadow .18s ease}
+.ptoggle-opt:hover{color:var(--ink)}
+.ptoggle-opt.active{background:var(--blue);color:var(--white);box-shadow:0 4px 12px rgba(0,107,255,.25)}
+.ptoggle-discount{color:var(--teal);font-size:.75rem;font-weight:700}
+.ptoggle-opt.active .ptoggle-discount{color:rgba(255,255,255,.95)}
 
 .price-grid{
   display:grid;
@@ -972,4 +972,21 @@ html{scroll-behavior:smooth}
   .ft-grid{grid-template-columns:1fr}
   .ft-bottom{flex-direction:column;gap:.5rem}
   .mobile-img{width:220px}
+}
+
+/* ─── FLOATING WHATSAPP ─── */
+.wa-wrap{position:fixed;right:1.25rem;bottom:1.25rem;z-index:60;display:flex;align-items:center;gap:.65rem}
+.wa-float{position:relative;display:inline-flex;align-items:center;justify-content:center;width:56px;height:56px;border-radius:50%;background:#25D366;color:#fff;box-shadow:0 10px 30px rgba(37,211,102,.35),0 4px 10px rgba(0,0,0,.12);transition:transform .18s ease,box-shadow .18s ease}
+.wa-float:hover{transform:translateY(-2px);box-shadow:0 14px 36px rgba(37,211,102,.45),0 6px 14px rgba(0,0,0,.15)}
+.wa-float:focus-visible{outline:3px solid rgba(37,211,102,.5);outline-offset:3px}
+.wa-bubble{position:relative;background:#ffffff;color:#0B1D2E;font-size:.875rem;font-weight:600;line-height:1.2;padding:.6rem .85rem;border-radius:14px;border:1px solid #e4eaf0;box-shadow:0 10px 24px rgba(11,29,46,.12),0 2px 6px rgba(11,29,46,.06);white-space:nowrap;opacity:0;transform:translateX(8px) scale(.96);transform-origin:right center;pointer-events:none;transition:opacity .22s ease,transform .22s ease}
+.wa-bubble.show{opacity:1;transform:translateX(0) scale(1)}
+.wa-bubble::after{content:"";position:absolute;right:-6px;bottom:14px;width:12px;height:12px;background:#ffffff;border-right:1px solid #e4eaf0;border-bottom:1px solid #e4eaf0;transform:rotate(-45deg);border-bottom-right-radius:3px}
+.wa-badge{position:absolute;top:-2px;right:-2px;min-width:20px;height:20px;padding:0 5px;display:inline-flex;align-items:center;justify-content:center;background:#e5484d;color:#fff;font-size:.72rem;font-weight:700;border-radius:100px;border:2px solid #ffffff;box-shadow:0 2px 6px rgba(229,72,77,.4);opacity:0;transform:scale(.5);transition:opacity .22s ease,transform .25s cubic-bezier(.2,1.4,.5,1)}
+.wa-badge.show{opacity:1;transform:scale(1)}
+@media(max-width:580px){
+  .wa-wrap{right:1rem;bottom:1rem;gap:.5rem}
+  .wa-float{width:52px;height:52px}
+  .wa-float svg{width:26px;height:26px}
+  .wa-bubble{font-size:.8rem;padding:.5rem .75rem}
 }

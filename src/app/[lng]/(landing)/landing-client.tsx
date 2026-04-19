@@ -120,7 +120,7 @@ export function NavCTA({ lng }: LandingClientProps) {
 export function PricingSection({ lng }: LandingClientProps) {
   const router = useRouter()
   const { isAuthenticated } = useAuthStore()
-  const [billingCycle, setBillingCycle] = useState<'monthly' | 'annually'>('annually')
+  const [billingCycle, setBillingCycle] = useState<'monthly' | 'annually'>('monthly')
   const [publicConfig, setPublicConfig] = useState<PublicConfig | null>(null)
   const [advancedUnits, setAdvancedUnits] = useState<number>(2)
 
@@ -149,6 +149,21 @@ export function PricingSection({ lng }: LandingClientProps) {
       return Math.round(planData.price_yearly / 12).toString()
     }
     return Math.round((planData.price_monthly * 10) / 12).toString()
+  }
+
+  const annualDiscountPct = (): number | null => {
+    if (!publicConfig) return null
+    const plans: Array<'basic' | 'professional' | 'advanced'> = ['basic', 'professional', 'advanced']
+    let min: number | null = null
+    for (const key of plans) {
+      const p = publicConfig.plans[key]
+      if (!p || p.price_monthly <= 0) continue
+      const yearly = p.price_yearly > 0 ? p.price_yearly : p.price_monthly * 10
+      const pct = Math.floor((1 - yearly / (p.price_monthly * 12)) * 100)
+      if (pct <= 0) continue
+      if (min === null || pct < min) min = pct
+    }
+    return min
   }
 
   const advancedTotal = (): string => {
@@ -189,10 +204,25 @@ export function PricingSection({ lng }: LandingClientProps) {
         <h2 className="display-title">Preço por clínica, não por cabeça.</h2>
         <p className="sec-sub">{getTrialDays()} dias grátis no plano Profissional. Sem cartão de crédito.</p>
       </div>
-      <div className="ptoggle">
-        <span style={{ fontWeight: billingCycle === 'monthly' ? 600 : 500, color: billingCycle === 'monthly' ? 'var(--ink)' : 'var(--ink-light)' }}>Mensal</span>
-        <button className={`toggle-pill ${billingCycle === 'annually' ? 'active' : ''}`} onClick={() => setBillingCycle(billingCycle === 'monthly' ? 'annually' : 'monthly')}><div className="toggle-thumb"></div></button>
-        <span style={{ fontWeight: billingCycle === 'annually' ? 600 : 500, color: billingCycle === 'annually' ? 'var(--ink)' : 'var(--ink-light)' }}>Anual {billingCycle === 'annually' && <span className="toggle-bdg">2 meses grátis</span>}</span>
+      <div className="ptoggle" role="tablist" aria-label="Ciclo de cobrança">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={billingCycle === 'monthly'}
+          className={`ptoggle-opt ${billingCycle === 'monthly' ? 'active' : ''}`}
+          onClick={() => setBillingCycle('monthly')}
+        >
+          Mensal
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={billingCycle === 'annually'}
+          className={`ptoggle-opt ${billingCycle === 'annually' ? 'active' : ''}`}
+          onClick={() => setBillingCycle('annually')}
+        >
+          Anual{annualDiscountPct() !== null && <span className="ptoggle-discount">-{annualDiscountPct()}%</span>}
+        </button>
       </div>
       <div className="price-grid">
         <div className="price-card trial">

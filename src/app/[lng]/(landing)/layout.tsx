@@ -1,5 +1,6 @@
 import Script from "next/script"
 import { FacebookPixel } from "@/components/facebook-pixel"
+import { WhatsAppFloat } from "./whatsapp-float"
 
 interface LandingLayoutProps {
   children: React.ReactNode
@@ -22,6 +23,7 @@ export default function LandingLayout({ children }: LandingLayoutProps) {
         `}
       </Script>
       {children}
+      <WhatsAppFloat />
     </div>
   )
 }
