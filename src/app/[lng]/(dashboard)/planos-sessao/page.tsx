@@ -99,6 +99,7 @@ const sessionPlanSchema = z.object({
   procedure_id: z.string().min(1, "Procedimento é obrigatório"),
   capacity: z.number().min(1).max(50).optional(),
   payment_mode: z.enum(["per_session", "upfront", "monthly"]).default("per_session"),
+  billing_day: z.number().min(1, "Mínimo dia 1").max(31, "Máximo dia 31").optional(),
   notes: z.string().optional(),
 
   // Wizard specific fields
@@ -130,6 +131,16 @@ const sessionPlanSchema = z.object({
 }, {
   message: "Profissional é obrigatório para modo fixo",
   path: ["professional_id"],
+}).refine((data) => {
+  // Individual monthly plans must set a billing_day so the payment reminder
+  // worker can compute due dates. Group plans set it per enrollment instead.
+  if (data.plan_type === "individual" && data.payment_mode === "monthly") {
+    return data.billing_day !== undefined && data.billing_day >= 1 && data.billing_day <= 31
+  }
+  return true
+}, {
+  message: "Dia de vencimento é obrigatório para planos mensais",
+  path: ["billing_day"],
 })
 
 type SessionPlanFormData = z.infer<typeof sessionPlanSchema>
@@ -376,6 +387,22 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
     }
   }, [watchedIsIndeterminate, watchedPaymentMode, setValue])
 
+  // Pre-fill billing_day from start_date when switching to monthly on
+  // individual plans. Only runs when the field is still empty so the user's
+  // edit is never overwritten on re-renders.
+  const watchedPlanTypeForBilling = watch("plan_type")
+  const watchedBillingDay = watch("billing_day")
+  useEffect(() => {
+    if (watchedPlanTypeForBilling !== "individual") return
+    if (watchedPaymentMode !== "monthly") return
+    if (watchedBillingDay !== undefined) return
+    if (!watchedStartDate) return
+    const day = new Date(watchedStartDate + "T12:00:00").getDate()
+    if (day >= 1 && day <= 31) {
+      setValue("billing_day", day)
+    }
+  }, [watchedPlanTypeForBilling, watchedPaymentMode, watchedBillingDay, watchedStartDate, setValue])
+
   // Auto-suggest week days when frequency or start date changes
   useEffect(() => {
     const expectedCount = FREQUENCY_DAY_COUNT[watchedFrequency]
@@ -532,6 +559,7 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
         procedure_id: data.procedure_id || undefined,
         capacity: data.plan_type === "group" ? data.capacity : undefined,
         payment_mode: data.payment_mode,
+        billing_day: data.plan_type === "individual" && data.payment_mode === "monthly" ? data.billing_day : undefined,
         notes: data.notes,
         generate_all: data.generate_all,
       }
@@ -947,6 +975,41 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
                 </div>
               </RadioGroup>
             </div>
+
+            {/* Billing day input — required for individual monthly plans. Used
+                by the payment-reminder worker to compute due dates. Defaults
+                to the start date's day but stays user-editable. */}
+            {watchedPlanType === "individual" && watchedPaymentMode === "monthly" && (
+              <div className="space-y-2 rounded-lg border p-4 bg-muted/10">
+                <Label htmlFor="billing_day" className="text-sm font-semibold">
+                  Dia do vencimento mensal <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="billing_day"
+                  type="number"
+                  min={1}
+                  max={31}
+                  value={watchedBillingDay ?? ""}
+                  onChange={(e) => {
+                    const v = e.target.value
+                    if (v === "") {
+                      setValue("billing_day", undefined, { shouldValidate: true })
+                    } else {
+                      const n = parseInt(v, 10)
+                      setValue("billing_day", isNaN(n) ? undefined : n, { shouldValidate: true })
+                    }
+                  }}
+                  placeholder="Ex: 10"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Dia do mês em que a mensalidade vence. Usamos esse dia para enviar lembretes automáticos de pagamento.
+                </p>
+                {errors.billing_day && (
+                  <p className="text-xs text-destructive">{errors.billing_day.message}</p>
+                )}
+              </div>
+            )}
+
             {/* For group plans, payment mode is just a recommendation — no actual payment at creation */}
             {watchedPlanType === "group" && (watchedPaymentMode === "upfront" || watchedPaymentMode === "monthly") && (
               <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-200">
