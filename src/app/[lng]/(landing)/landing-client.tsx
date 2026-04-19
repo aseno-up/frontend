@@ -249,6 +249,7 @@ export function PricingSection({ lng }: LandingClientProps) {
             <li>Agendamento online (link na bio)</li>
             <li>Portal do Paciente</li>
             <li>Confirmações WhatsApp</li>
+            <li>Lembrete de mensalidade por WhatsApp e Email</li>
             <li>Sessões recorrentes</li>
             <li>Gestão de pacientes</li>
             <li>Ficha e histórico do paciente</li>
