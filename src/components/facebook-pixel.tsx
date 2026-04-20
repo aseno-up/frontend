@@ -5,11 +5,28 @@ import { useEffect, useState } from 'react'
 
 const DEV_HOSTS = ['localhost', '127.0.0.1', '']
 
+type FbqFn = (...args: unknown[]) => void
+
+function getFbq(): FbqFn | undefined {
+  return (window as unknown as { fbq?: FbqFn }).fbq
+}
+
 export function FacebookPixel() {
   const [enabled, setEnabled] = useState(false)
 
   useEffect(() => {
-    setEnabled(!DEV_HOSTS.includes(window.location.hostname))
+    if (DEV_HOSTS.includes(window.location.hostname)) return
+    setEnabled(true)
+
+    const fbq = getFbq()
+    if (fbq) {
+      fbq('consent', 'grant')
+      fbq('track', 'PageView')
+    }
+
+    return () => {
+      getFbq()?.('consent', 'revoke')
+    }
   }, [])
 
   if (!enabled) return null
@@ -26,6 +43,7 @@ export function FacebookPixel() {
           t.src=v;s=b.getElementsByTagName(e)[0];
           s.parentNode.insertBefore(t,s)}(window, document,'script',
           'https://connect.facebook.net/en_US/fbevents.js');
+          fbq('consent', 'grant');
           fbq('init', '1268822281463738');
           fbq('track', 'PageView');
         `}

@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { useAuthStore } from "@/stores/auth-store"
 import { api } from "@/lib/api/client"
 import { CreditCard, QrCode, ArrowRight, ArrowLeft, Check, Loader2, Copy, CheckCircle2 } from "lucide-react"
+import { FacebookPixel } from "@/components/facebook-pixel"
 
 type Step = "billing" | "payment" | "process"
 
@@ -29,13 +30,16 @@ interface PublicConfig {
 
 export default function BillingSetupPage() {
   return (
-    <Suspense fallback={
-      <div className="flex h-screen items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    }>
-      <BillingSetupContent />
-    </Suspense>
+    <>
+      <FacebookPixel />
+      <Suspense fallback={
+        <div className="flex h-screen items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      }>
+        <BillingSetupContent />
+      </Suspense>
+    </>
   )
 }
 
