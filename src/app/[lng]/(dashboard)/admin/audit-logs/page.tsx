@@ -17,6 +17,7 @@ import { handleApiError } from "@/lib/toast";
 interface AuditLog {
   id: string;
   clinic_id: string;
+  clinic_name?: string;
   user_id: string;
   user_email: string;
   user_role: string;
@@ -62,6 +63,7 @@ export default function AuditLogsPage({ params }: AuditLogsPageProps) {
   const [filters, setFilters] = useState({
     action: "",
     entity_type: "",
+    clinic_id: "",
     start_date: "",
     end_date: "",
   });
@@ -76,6 +78,7 @@ export default function AuditLogsPage({ params }: AuditLogsPageProps) {
       const params: any = { page, limit: 20 };
       if (filters.action) params.action = filters.action;
       if (filters.entity_type) params.entity_type = filters.entity_type;
+      if (filters.clinic_id) params.clinic_id = filters.clinic_id;
       if (filters.start_date) params.start_date = filters.start_date;
       if (filters.end_date) params.end_date = filters.end_date;
 
@@ -133,6 +136,16 @@ export default function AuditLogsPage({ params }: AuditLogsPageProps) {
             </select>
           </div>
           <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Clinica (UUID)</label>
+            <input
+              type="text"
+              placeholder="Deixe em branco p/ todas"
+              className="border rounded-md px-3 py-2 text-sm w-72"
+              value={filters.clinic_id}
+              onChange={(e) => setFilters({ ...filters, clinic_id: e.target.value })}
+            />
+          </div>
+          <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">De</label>
             <input
               type="date"
@@ -170,6 +183,7 @@ export default function AuditLogsPage({ params }: AuditLogsPageProps) {
               <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
                 <tr>
                   <th className="px-4 py-3 text-left">Data</th>
+                  <th className="px-4 py-3 text-left">Clinica</th>
                   <th className="px-4 py-3 text-left">Usuario</th>
                   <th className="px-4 py-3 text-left">Acao</th>
                   <th className="px-4 py-3 text-left">Entidade</th>
@@ -180,7 +194,7 @@ export default function AuditLogsPage({ params }: AuditLogsPageProps) {
               <tbody className="divide-y">
                 {logs.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-4 py-8 text-center text-gray-400">
+                    <td colSpan={7} className="px-4 py-8 text-center text-gray-400">
                       Nenhum log encontrado
                     </td>
                   </tr>
@@ -189,6 +203,10 @@ export default function AuditLogsPage({ params }: AuditLogsPageProps) {
                     <tr key={log.id} className="hover:bg-gray-50">
                       <td className="px-4 py-3 text-gray-600">
                         {new Date(log.created_at).toLocaleString("pt-BR")}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="font-medium text-gray-900">{log.clinic_name || "-"}</div>
+                        <div className="text-xs text-gray-400 font-mono">{log.clinic_id?.slice(0, 8)}...</div>
                       </td>
                       <td className="px-4 py-3">
                         <div className="font-medium text-gray-900">{log.user_email}</div>
@@ -258,6 +276,13 @@ export default function AuditLogsPage({ params }: AuditLogsPageProps) {
             </div>
             <div className="p-4 space-y-4">
               <div className="grid grid-cols-2 gap-4 text-sm">
+                <div className="col-span-2">
+                  <span className="text-gray-500">Clinica:</span>
+                  <p className="font-medium">
+                    {selectedLog.clinic_name || "(sem nome)"}
+                    <span className="ml-2 text-xs text-gray-400 font-mono">{selectedLog.clinic_id}</span>
+                  </p>
+                </div>
                 <div>
                   <span className="text-gray-500">Usuario:</span>
                   <p className="font-medium">{selectedLog.user_email}</p>
