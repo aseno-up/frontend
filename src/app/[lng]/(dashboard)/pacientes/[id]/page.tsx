@@ -51,6 +51,7 @@ import { api } from '@/lib/api/client'
 import { showToast, handleApiError } from '@/lib/toast'
 import { DynamicAnamneseForm } from '@/components/pacientes/DynamicAnamneseForm'
 import { PatientMergeModal } from '@/components/pacientes/PatientMergeModal'
+import { WhatsAppReminderButton } from '@/components/whatsapp/whatsapp-reminder-button'
 import { Switch } from '@/components/ui/switch'
 import type { Patient, PatientRecord, SessionNote, FullPatientRecord, Appointment, NoShowRisk, AnamneseTemplate, PatientWhatsAppConnection } from '@/types/api'
 
@@ -821,6 +822,16 @@ export default function PatientRecordPage() {
                             <p className="text-sm text-muted-foreground mt-1">
                               {appointment.title}
                             </p>
+                          )}
+                          {(patient.phone || patient.whatsapp) && (
+                            <div className="mt-2">
+                              <WhatsAppReminderButton
+                                patient={patient}
+                                startTime={appointment.start_time}
+                                professionalName={appointment.professional?.name}
+                                label="Chamar no WhatsApp"
+                              />
+                            </div>
                           )}
                         </div>
                       </div>

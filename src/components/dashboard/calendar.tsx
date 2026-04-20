@@ -13,7 +13,10 @@ import { Check, Clock, X, UserX, CheckCircle, RefreshCw } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { api } from "@/lib/api/client"
-import { handleApiError } from "@/lib/toast"
+import { handleApiError, showToast } from "@/lib/toast"
+import { useAuthStore } from "@/stores/auth-store"
+import { buildAppointmentReminderLink } from "@/lib/whatsapp-web"
+import { WhatsAppIcon } from "@/components/whatsapp/whatsapp-icon"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -74,6 +77,7 @@ interface CalendarEventInternal {
     virtualDate?: string
     professionalColor?: string
     professionalName?: string
+    patientId?: string
     patientName?: string
     planType?: string
     enrolledCount?: number
@@ -116,6 +120,15 @@ export function Calendar({
   const [isLoading, setIsLoading] = useState(false)
   const [isMaterializing, setIsMaterializing] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
+  const clinicName = useAuthStore((state) => state.clinic?.name)
+
+  const CALENDAR_VIEW_STORAGE_KEY = "aseno:calendar:view"
+  const VALID_VIEWS = ["dayGridMonth", "timeGridWeek", "timeGridDay", "listWeek"]
+  const getStoredView = () => {
+    if (typeof window === "undefined") return null
+    const v = window.localStorage.getItem(CALENDAR_VIEW_STORAGE_KEY)
+    return v && VALID_VIEWS.includes(v) ? v : null
+  }
   const [recurringDialog, setRecurringDialog] = useState<{
     open: boolean
     info: EventDropArg | EventResizeDoneArg | null
@@ -203,6 +216,7 @@ export function Calendar({
                   virtualDate: evt.virtual_date,
                   professionalColor: professional?.color || evt.professional_color,
                   professionalName: professional?.name || evt.professional_name,
+                  patientId: evt.patient_id,
                   patientName: evt.patient_name,
                   planType: evt.plan_type,
                   enrolledCount: evt.enrolled_count,
@@ -276,8 +290,11 @@ export function Calendar({
     }
   }, [selectedProfessionalId, refreshKey, fetchAppointments])
 
-  const handleDatesSet = (dateInfo: { start: Date; end: Date }) => {
+  const handleDatesSet = (dateInfo: { start: Date; end: Date; view: { type: string } }) => {
     fetchAppointments(dateInfo.start, dateInfo.end)
+    if (typeof window !== "undefined" && VALID_VIEWS.includes(dateInfo.view.type)) {
+      window.localStorage.setItem(CALENDAR_VIEW_STORAGE_KEY, dateInfo.view.type)
+    }
   }
 
   const handleEventClick = async (info: EventClickArg) => {
@@ -483,7 +500,13 @@ export function Calendar({
     }
 
     const appointment = info.event.extendedProps?.appointment as Appointment | undefined
-    if (!appointment) return
+    // Virtual (session_plan) events have no materialized appointment. Without
+    // this the tooltip keeps showing the previous materialized event's data
+    // when the user slides over a virtual occurrence right after.
+    if (!appointment) {
+      setTooltip((t) => ({ ...t, visible: false }))
+      return
+    }
 
     const rect = (info.el as HTMLElement).getBoundingClientRect()
     const status = appointment.status || "pending"
@@ -498,14 +521,33 @@ export function Calendar({
       ? `${format(start, "HH:mm")}${end ? ` – ${format(end, "HH:mm")}` : ""}`
       : ""
 
-    // Position tooltip to the right of the event; adjust if near right edge
-    const TOOLTIP_WIDTH = 220
+    // Position tooltip to the right of the event; adjust if near right edge.
+    // In list view the event row spans the full width so "rect.right + margin"
+    // falls off-screen — clamp to viewport and prefer anchoring below the row.
+    const TOOLTIP_WIDTH = 240
+    const TOOLTIP_HEIGHT_APPROX = 160
     const MARGIN = 8
-    let x = rect.right + MARGIN
-    if (x + TOOLTIP_WIDTH > window.innerWidth) {
-      x = rect.left - TOOLTIP_WIDTH - MARGIN
+    const viewType = (info.view?.type as string | undefined) || ""
+    const isListView = viewType.startsWith("list")
+
+    let x: number
+    let y: number
+    if (isListView) {
+      x = rect.left
+      y = rect.bottom + MARGIN
+      if (y + TOOLTIP_HEIGHT_APPROX > window.innerHeight) {
+        y = Math.max(MARGIN, rect.top - TOOLTIP_HEIGHT_APPROX - MARGIN)
+      }
+    } else {
+      x = rect.right + MARGIN
+      if (x + TOOLTIP_WIDTH > window.innerWidth) {
+        x = rect.left - TOOLTIP_WIDTH - MARGIN
+      }
+      y = rect.top
     }
-    const y = rect.top
+    // Final clamp to viewport
+    x = Math.max(MARGIN, Math.min(x, window.innerWidth - TOOLTIP_WIDTH - MARGIN))
+    y = Math.max(MARGIN, Math.min(y, window.innerHeight - TOOLTIP_HEIGHT_APPROX - MARGIN))
 
     setTooltip({
       visible: true,
@@ -526,6 +568,61 @@ export function Calendar({
     }, 80)
   }, [])
 
+  // Fetch the full appointment (for patient phone) before opening WhatsApp.
+  // The calendar events endpoint omits phone/whatsapp to keep the payload light.
+  const handleListWhatsAppClick = useCallback(
+    async (appointmentId: string) => {
+      try {
+        const full = (await api.getAppointment(appointmentId)) as Appointment
+        const result = buildAppointmentReminderLink(full, clinicName)
+        if (!result.hasPhone) {
+          showToast.error("Paciente sem telefone/WhatsApp cadastrado")
+          return
+        }
+        window.open(result.url, "_blank", "noopener")
+      } catch (err) {
+        handleApiError(err, "Erro ao abrir WhatsApp")
+      }
+    },
+    [clinicName],
+  )
+
+  // Virtual events (not-yet-materialized recurrences) have no appointment
+  // record, so fetch the patient by ID to pull phone/whatsapp.
+  const handleVirtualWhatsAppClick = useCallback(
+    async (params: {
+      patientId: string
+      startTime: string
+      professionalName?: string
+    }) => {
+      try {
+        const patient = (await api.getPatient(params.patientId)) as {
+          name: string
+          phone: string
+          whatsapp: string
+        }
+        const result = buildAppointmentReminderLink(
+          {
+            patient: { id: params.patientId, name: patient.name, phone: patient.phone, whatsapp: patient.whatsapp },
+            professional: params.professionalName
+              ? { id: "", name: params.professionalName, specialty: "", color: "" }
+              : undefined,
+            start_time: params.startTime,
+          },
+          clinicName,
+        )
+        if (!result.hasPhone) {
+          showToast.error("Paciente sem telefone/WhatsApp cadastrado")
+          return
+        }
+        window.open(result.url, "_blank", "noopener")
+      } catch (err) {
+        handleApiError(err, "Erro ao abrir WhatsApp")
+      }
+    },
+    [clinicName],
+  )
+
   // Custom event content renderer — no Tooltip/portal here
   const renderEventContent = (eventInfo: EventContentArg) => {
     const appointment = eventInfo.event.extendedProps?.appointment as Appointment | undefined
@@ -537,6 +634,58 @@ export function Calendar({
     const status = appointment?.status || defaultStatus
     const config = statusConfig[status] || statusConfig[defaultStatus]
 
+    const isListView = eventInfo.view.type.startsWith("list")
+    const patientId = eventInfo.event.extendedProps?.patientId as string | undefined
+    const professionalName = eventInfo.event.extendedProps?.professionalName as string | undefined
+    const isGroupEvent = eventInfo.event.extendedProps?.planType === "group"
+    // Group virtual events have no single patient — skip the reminder button.
+    // For individual virtual events we fetch the patient on click.
+    const handleReminderClick = () => {
+      if (appointment) {
+        handleListWhatsAppClick(appointment.id)
+      } else if (patientId && eventInfo.event.startStr) {
+        handleVirtualWhatsAppClick({
+          patientId,
+          startTime: eventInfo.event.startStr,
+          professionalName,
+        })
+      }
+    }
+    const canRemind =
+      !isGroupEvent &&
+      ((appointment && appointment.status !== "completed") || (isVirtual && !!patientId))
+
+    if (isListView) {
+      return (
+        <div className="flex items-center justify-between gap-2 w-full">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <span
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase shrink-0"
+              style={{ backgroundColor: config.border, color: "#fff" }}
+            >
+              <StatusIcon status={status} />
+              <span>{config.label}</span>
+            </span>
+            <span className="text-sm font-medium truncate">{eventInfo.event.title}</span>
+          </div>
+          {canRemind && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                e.preventDefault()
+                handleReminderClick()
+              }}
+              title="Enviar lembrete via WhatsApp"
+              className="shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-full text-[#25D366] hover:bg-[#25D366]/10 transition-colors"
+            >
+              <WhatsAppIcon className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+      )
+    }
+
     // Calculate event duration in minutes to decide layout
     const start = eventInfo.event.start
     const end = eventInfo.event.end
@@ -546,25 +695,39 @@ export function Calendar({
     // Normal: >30min — status + time + patient name
     const isCompact = durationMin <= 50
 
+    const isDayView = eventInfo.view.type === "timeGridDay"
+    const dayViewWhatsAppButton = isDayView && canRemind ? (
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation()
+          e.preventDefault()
+          handleReminderClick()
+        }}
+        title="Enviar lembrete via WhatsApp"
+        className="absolute top-1/2 right-1.5 -translate-y-1/2 inline-flex items-center justify-center w-7 h-7 rounded-full bg-white/80 text-[#25D366] hover:bg-[#25D366] hover:text-white shadow-sm transition-colors z-10"
+      >
+        <WhatsAppIcon className="h-4 w-4" />
+      </button>
+    ) : null
+
     if (isCompact) {
       return (
-        <div className="flex items-center h-full w-full px-1.5 overflow-hidden rounded-md cursor-pointer">
-          <div className="flex items-center gap-1 min-w-0">
-            {/* <span className="text-[10px] font-medium text-foreground/60 shrink-0">
-              {eventInfo.timeText}
-            </span> */}
+        <div className="relative flex items-center h-full w-full px-1.5 overflow-hidden rounded-md cursor-pointer">
+          <div className="flex items-center gap-1 min-w-0 pr-8">
             <span className="text-[11px] font-bold text-foreground truncate">
               {eventInfo.event.title}
             </span>
           </div>
+          {dayViewWhatsAppButton}
         </div>
       )
     }
 
     return (
-      <div className="flex flex-col h-full w-full p-1 overflow-hidden rounded-md cursor-pointer">
+      <div className="relative flex flex-col h-full w-full p-1 overflow-hidden rounded-md cursor-pointer">
         {/* Main content */}
-        <div className="flex flex-col h-full gap-0.5 pl-1">
+        <div className="flex flex-col h-full gap-0.5 pl-1 pr-8">
           {/* Status badge with icon */}
           <div className="flex items-center">
             <span
@@ -587,6 +750,7 @@ export function Calendar({
             </div>
           </div>
         </div>
+        {dayViewWhatsAppButton}
       </div>
     )
   }
@@ -679,7 +843,7 @@ export function Calendar({
         <FullCalendar
           ref={calendarRef}
           plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, listPlugin]}
-          initialView={isMobile ? "listWeek" : "timeGridWeek"}
+          initialView={getStoredView() || (isMobile ? "listWeek" : "timeGridWeek")}
           locale={ptBrLocale}
           headerToolbar={
             isMobile

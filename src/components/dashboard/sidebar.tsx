@@ -72,7 +72,7 @@ interface SidebarProps {
 
 export function Sidebar({ lng }: SidebarProps) {
   const pathname = usePathname()
-  const { clinic, logout } = useAuthStore()
+  const { clinic, clinics, logout } = useAuthStore()
   const { hasPermission } = usePermissions()
   const [collapsed, setCollapsed] = useState(false)
   const [isHydrated, setIsHydrated] = useState(false)
@@ -280,9 +280,11 @@ export function Sidebar({ lng }: SidebarProps) {
         </div>
 
         {/* Clinic Switcher - only shows when user has multiple clinics */}
-        <div className="border-b px-2 py-2">
-          <ClinicSwitcher collapsed={collapsed} />
-        </div>
+        {clinics && clinics.length > 1 && (
+          <div className="border-b px-2 py-2">
+            <ClinicSwitcher collapsed={collapsed} />
+          </div>
+        )}
 
         <NavLinks />
 

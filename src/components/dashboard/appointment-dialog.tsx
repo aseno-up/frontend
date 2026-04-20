@@ -27,6 +27,8 @@ import { showToast, handleApiError } from "@/lib/toast"
 import type { Appointment, Patient, Professional, AppointmentPaymentStatus } from "@/types/api"
 import { AppointmentPaymentModal } from "./appointment-payment-modal"
 import { DeleteAppointmentDialog } from "./delete-appointment-dialog"
+import { WhatsAppReminderButton } from "@/components/whatsapp/whatsapp-reminder-button"
+import { pickWhatsAppPhone } from "@/lib/whatsapp-web"
 
 const appointmentSchema = z.object({
   patient_id: z.string().min(1, "Paciente e obrigatorio"),
@@ -37,6 +39,7 @@ const appointmentSchema = z.object({
   title: z.string().optional(),
   notes: z.string().optional(),
   price: z.number().min(0).optional(),
+  status: z.string().optional(),
   procedures: z.array(z.object({
     procedure_id: z.string(),
     price: z.number()
@@ -62,7 +65,7 @@ const statusLabels: Record<string, string> = {
   confirmed: "Confirmado",
   canceled: "Cancelado",
   no_show: "Faltou",
-  completed: "Concluido",
+  completed: "Concluído",
   rescheduled: "Reagendado",
 }
 
@@ -74,6 +77,19 @@ const statusVariants: Record<string, "default" | "secondary" | "destructive" | "
   no_show: "secondary",
   completed: "info",
   rescheduled: "outline",
+}
+
+// Status values directly changeable from the dialog. Pending is included so the
+// pre-fill shows the current state for pending appointments, but selecting
+// Pendente again is effectively a no-op (no backend endpoint reverts to it).
+const selectableStatuses = ["pending", "confirmed", "completed", "no_show", "canceled"] as const
+
+const statusOptionMeta: Record<string, { label: string; color: string }> = {
+  pending: { label: "Pendente", color: "#F59E0B" },
+  confirmed: { label: "Confirmado", color: "#10B981" },
+  completed: { label: "Concluído", color: "#3B82F6" },
+  no_show: { label: "Faltou", color: "#6B7280" },
+  canceled: { label: "Cancelado", color: "#EF4444" },
 }
 
 export function AppointmentDialog({
@@ -128,6 +144,7 @@ export function AppointmentDialog({
       title: "",
       notes: "",
       price: 0,
+      status: "pending",
       procedures: [],
     },
   })
@@ -223,6 +240,13 @@ export function AppointmentDialog({
     return professionalOptions.find((opt) => opt.value === watchedProfessionalId) || null
   }, [watchedProfessionalId, professionalOptions])
 
+  const selectedPatient = useMemo(() => {
+    return patients.find((p) => p.id === watchedPatientId) || null
+  }, [watchedPatientId, patients])
+  const reminderPhone = pickWhatsAppPhone(selectedPatient ?? appointment?.patient)
+  const reminderStartTime = watch("start_time")
+  const reminderProfessional = professionals.find((p) => p.id === watchedProfessionalId)
+
   // Reload procedures when professional changes
 
   const watchedSpecialtyIds = watch("specialty_ids") || []
@@ -302,6 +326,7 @@ export function AppointmentDialog({
         title: appointment.title,
         notes: appointment.notes,
         price: appointment.price,
+        status: appointment.status,
         procedures: appointment.procedures ? appointment.procedures.map((p: any) => ({
            procedure_id: p.procedure_id,
            price: p.price
@@ -316,6 +341,7 @@ export function AppointmentDialog({
         title: "",
         notes: "",
         price: 0,
+        status: "pending",
         procedures: [],
       })
     }
@@ -324,14 +350,33 @@ export function AppointmentDialog({
   const onSubmit = async (data: AppointmentFormData) => {
     setIsLoading(true)
     try {
-      // Convert datetime-local format to ISO 8601
+      // status is applied via dedicated endpoints, not updateAppointment
+      const { status: newStatus, ...rest } = data
       const payload = {
-        ...data,
-        start_time: new Date(data.start_time).toISOString(),
+        ...rest,
+        start_time: new Date(rest.start_time).toISOString(),
       }
 
       if (isEditing) {
         await api.updateAppointment(appointment.id, payload)
+
+        if (newStatus && newStatus !== appointment.status) {
+          switch (newStatus) {
+            case "confirmed":
+              await api.confirmAppointment(appointment.id)
+              break
+            case "completed":
+              await api.completeAppointment(appointment.id)
+              break
+            case "no_show":
+              await api.markNoShow(appointment.id)
+              break
+            case "canceled":
+              await api.cancelAppointment(appointment.id)
+              break
+            // "pending" has no revert endpoint — ignore
+          }
+        }
         showToast.success("Agendamento atualizado com sucesso!")
       } else {
         await api.createAppointment(payload)
@@ -341,42 +386,6 @@ export function AppointmentDialog({
       onOpenChange(false)
     } catch (error) {
       handleApiError(error, "Erro ao salvar agendamento")
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const handleStatusAction = async (action: string) => {
-    if (!appointment) return
-
-    const actionMessages: Record<string, string> = {
-      confirm: "Agendamento confirmado!",
-      cancel: "Agendamento cancelado!",
-      complete: "Agendamento concluído!",
-      no_show: "Paciente marcado como faltou",
-    }
-
-    setIsLoading(true)
-    try {
-      switch (action) {
-        case "confirm":
-          await api.confirmAppointment(appointment.id)
-          break
-        case "cancel":
-          await api.cancelAppointment(appointment.id)
-          break
-        case "complete":
-          await api.completeAppointment(appointment.id)
-          break
-        case "no_show":
-          await api.markNoShow(appointment.id)
-          break
-      }
-      showToast.success(actionMessages[action] || "Status atualizado!")
-      onSuccess()
-      onOpenChange(false)
-    } catch (error) {
-      handleApiError(error, "Erro ao atualizar status")
     } finally {
       setIsLoading(false)
     }
@@ -468,6 +477,44 @@ export function AppointmentDialog({
               isClearable
             />
           </div>
+
+          {/* Status */}
+          {isEditing && (() => {
+            const originalStatus = appointment?.status
+            // "Pendente" has no revert endpoint, so only surface it when the
+            // appointment is already pending (i.e. as the current selection).
+            const availableStatuses = selectableStatuses.filter(
+              (s) => s !== "pending" || originalStatus === "pending",
+            )
+            const statusOptions: SelectOption[] = availableStatuses.map((s) => ({
+              value: s,
+              label: statusOptionMeta[s].label,
+              color: statusOptionMeta[s].color,
+            }))
+            const currentStatus = watch("status") || originalStatus || "pending"
+            const selected = statusOptions.find((o) => o.value === currentStatus) || null
+            const changed = currentStatus !== originalStatus
+            return (
+              <div className="space-y-2">
+                <Label>Status</Label>
+                <ReactSelect
+                  value={selected}
+                  onChange={(opt) => {
+                    setValue("status", opt?.value || originalStatus || "pending", { shouldDirty: true })
+                  }}
+                  options={statusOptions}
+                  placeholder="Selecionar status..."
+                  isDisabled={isLoading}
+                  showColorIndicator
+                />
+                {changed && (
+                  <p className="text-xs text-muted-foreground">
+                    A alteração de status só será aplicada ao clicar em Salvar.
+                  </p>
+                )}
+              </div>
+            )
+          })()}
 
           {/* Date Time */}
           <div className="grid grid-cols-2 gap-4">
@@ -692,51 +739,19 @@ export function AppointmentDialog({
                   <Trash2 className="h-4 w-4" />
                 </Button>
 
+                {reminderPhone &&
+                  selectedPatient &&
+                  reminderStartTime &&
+                  appointment?.status !== "completed" && (
+                    <WhatsAppReminderButton
+                      patient={selectedPatient}
+                      startTime={reminderStartTime}
+                      professionalName={reminderProfessional?.name}
+                      disabled={isLoading}
+                    />
+                  )}
+
                 <div className="flex-1" />
-
-                {appointment?.status === "pending" && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => handleStatusAction("confirm")}
-                    disabled={isLoading}
-                  >
-                    Confirmar
-                  </Button>
-                )}
-
-                {appointment?.status === "confirmed" && (
-                  <>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => handleStatusAction("complete")}
-                      disabled={isLoading}
-                    >
-                      Concluir
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => handleStatusAction("no_show")}
-                      disabled={isLoading}
-                    >
-                      Faltou
-                    </Button>
-                  </>
-                )}
-
-                {(appointment?.status === "pending" ||
-                  appointment?.status === "confirmed") && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => handleStatusAction("cancel")}
-                    disabled={isLoading}
-                  >
-                    Cancelar
-                  </Button>
-                )}
               </>
             )}
 
