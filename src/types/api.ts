@@ -278,6 +278,41 @@ export interface PatientInfo {
   whatsapp: string
 }
 
+export interface PublicReceiptProcedure {
+  name: string
+  price: number
+}
+
+export interface PublicReceiptPayment {
+  method: string
+  amount: number
+  discount: number
+  paid_at: string
+}
+
+export interface PublicReceiptClinic {
+  name: string
+  document?: string
+  address?: string
+  phone?: string
+}
+
+export interface PublicReceiptResponse {
+  receipt_number: string
+  clinic: PublicReceiptClinic
+  patient_name: string
+  professional_name?: string
+  appointment_date: string
+  procedures: PublicReceiptProcedure[]
+  subtotal: number
+  discount: number
+  total: number
+  payments: PublicReceiptPayment[]
+  total_paid: number
+  balance_due: number
+  generated_at: string
+}
+
 export interface ProfessionalInfo {
   id: string
   name: string

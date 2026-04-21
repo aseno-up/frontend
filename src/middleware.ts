@@ -12,6 +12,7 @@ export function middleware(request: NextRequest) {
     pathname.startsWith('/static') ||
     pathname.startsWith('/agendar') ||
     pathname.startsWith('/pagar') ||
+    pathname.startsWith('/recibo') ||
     pathname.startsWith('/portal') ||
     pathname.includes('/favicon.ico') ||
     pathname.includes('.')

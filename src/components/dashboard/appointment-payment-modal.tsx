@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react"
 import { format } from "date-fns"
-import { Loader2, Trash2, Plus, Pencil, X } from "lucide-react"
+import { Loader2, Trash2, Plus, Pencil, X, Share2 } from "lucide-react"
 
 import {
   Dialog,
@@ -16,15 +16,19 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { CurrencyInput } from "@/components/ui/currency-input"
+import { ShareReceiptDialog } from "./share-receipt-dialog"
 import { api } from "@/lib/api/client"
 import { showToast, handleApiError } from "@/lib/toast"
-import type { AppointmentPayment, PaymentMethod } from "@/types/api"
+import type { AppointmentPayment, PaymentMethod, PatientInfo } from "@/types/api"
 
 interface AppointmentPaymentModalProps {
   isOpen: boolean
   onClose: () => void
   appointmentId: string
   appointmentPrice: number
+  patient?: Pick<PatientInfo, "name" | "phone" | "whatsapp"> | null
+  appointmentStartTime?: string
+  professionalName?: string
   onPaymentChanged?: () => void
 }
 
@@ -33,12 +37,16 @@ export function AppointmentPaymentModal({
   onClose,
   appointmentId,
   appointmentPrice,
+  patient,
+  appointmentStartTime,
+  professionalName,
   onPaymentChanged,
 }: AppointmentPaymentModalProps) {
   const [payments, setPayments] = useState<AppointmentPayment[]>([])
   const [methods, setMethods] = useState<PaymentMethod[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [shareOpen, setShareOpen] = useState(false)
 
   // Form state
   const [amount, setAmount] = useState(0)
@@ -198,7 +206,19 @@ export function AppointmentPaymentModal({
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-2xl max-h-[85vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle>Pagamentos</DialogTitle>
+          <div className="flex items-center justify-between gap-2 pr-10">
+            <DialogTitle>Pagamentos</DialogTitle>
+            {payments.length > 0 && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShareOpen(true)}
+              >
+                <Share2 className="h-4 w-4 mr-2" /> Compartilhar recibo
+              </Button>
+            )}
+          </div>
         </DialogHeader>
 
         {/* Summary */}
@@ -293,7 +313,7 @@ export function AppointmentPaymentModal({
           </p>
           <div className="flex items-end gap-3">
             <div className="flex-1 space-y-1.5">
-              <Label className="text-xs">Valor</Label>
+              <Label className="text-xs">Valor pago</Label>
               <CurrencyInput value={amount} onChange={setAmount} />
             </div>
             <div className="w-44 space-y-1.5">
@@ -315,7 +335,24 @@ export function AppointmentPaymentModal({
           <div className="flex items-end gap-3">
             <div className="w-28 space-y-1.5">
               <Label className="text-xs">Desconto</Label>
-              <CurrencyInput value={discount} onChange={setDiscount} />
+              <CurrencyInput
+                value={discount}
+                onChange={(newDiscount) => {
+                  // When the draft covers exactly the remaining balance
+                  // (amount + current discount == remaining), re-balance so
+                  // the new total still fits. Without this, the backend
+                  // rejects with "valor do pagamento excede o saldo".
+                  const draftCoveredCents = toCents(amount) + toCents(discount)
+                  if (
+                    !editingPaymentId &&
+                    Math.abs(draftCoveredCents - toCents(remaining)) < 1
+                  ) {
+                    const newAmountCents = toCents(remaining) - toCents(newDiscount)
+                    setAmount(fromCents(Math.max(0, newAmountCents)))
+                  }
+                  setDiscount(newDiscount)
+                }}
+              />
             </div>
             {selectedMethod?.type === "credit" && (
               <div className="w-20 space-y-1.5">
@@ -341,6 +378,14 @@ export function AppointmentPaymentModal({
           </div>
         </div>
       </DialogContent>
+      <ShareReceiptDialog
+        open={shareOpen}
+        onOpenChange={setShareOpen}
+        appointmentId={appointmentId}
+        patient={patient}
+        startTime={appointmentStartTime}
+        professionalName={professionalName}
+      />
     </Dialog>
   )
 }

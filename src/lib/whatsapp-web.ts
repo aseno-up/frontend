@@ -6,6 +6,10 @@ export function sanitizePhoneForWhatsApp(raw?: string | null): string {
   if (!raw) return ""
   const digits = raw.replace(/\D/g, "")
   if (!digits) return ""
+  // If the raw value was written with a leading "+", trust the user — the
+  // number already carries its DDI (e.g. "+1 202 555 0123" → "12025550123").
+  // Without this, short international numbers got a spurious "55" prepended.
+  if (raw.trim().startsWith("+")) return digits
   // Keep the number unchanged if it already includes a country code (12+ digits).
   // Assume Brazil (55) when only the local 10-11 digit number is stored.
   if (digits.length >= 12) return digits

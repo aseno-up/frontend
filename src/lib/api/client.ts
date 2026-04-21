@@ -1,5 +1,5 @@
 import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios'
-import type { ApiError, UnlinkedPatient, PatientSearchResult, BulkMergeResponse } from '@/types/api'
+import type { ApiError, UnlinkedPatient, PatientSearchResult, BulkMergeResponse, PublicReceiptResponse } from '@/types/api'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1'
 
@@ -445,6 +445,34 @@ class ApiClient {
   async markNoShow(id: string) {
     const response = await this.client.post(`/appointments/${id}/no-show`)
     return response.data
+  }
+
+  async ensureAppointmentReceiptToken(id: string) {
+    const response = await this.client.post<{ token: string; public_url: string }>(
+      `/appointments/${id}/receipt-token`,
+    )
+    return response.data
+  }
+
+  // Public — no auth interceptor needed
+  async getPublicReceipt(token: string): Promise<PublicReceiptResponse> {
+    const response = await axios.get<PublicReceiptResponse>(`${API_URL}/public/receipts/${token}`)
+    return response.data
+  }
+
+  // Silent ownership probe for the /recibo page. Goes through raw axios so a
+  // 401 (patient viewer, no session) does NOT trigger the global
+  // interceptor that redirects to /login. Cookies still ride on withCredentials.
+  async isReceiptOwnedByMe(token: string): Promise<boolean> {
+    try {
+      const response = await axios.get<{ owned: boolean }>(
+        `${API_URL}/appointments/receipt-tokens/${token}/mine`,
+        { withCredentials: true },
+      )
+      return !!response.data?.owned
+    } catch {
+      return false
+    }
   }
 
   // WhatsApp endpoints

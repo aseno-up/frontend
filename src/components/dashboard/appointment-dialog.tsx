@@ -27,8 +27,10 @@ import { showToast, handleApiError } from "@/lib/toast"
 import type { Appointment, Patient, Professional, AppointmentPaymentStatus } from "@/types/api"
 import { AppointmentPaymentModal } from "./appointment-payment-modal"
 import { DeleteAppointmentDialog } from "./delete-appointment-dialog"
+import { ShareReceiptDialog } from "./share-receipt-dialog"
 import { WhatsAppReminderButton } from "@/components/whatsapp/whatsapp-reminder-button"
 import { pickWhatsAppPhone } from "@/lib/whatsapp-web"
+import { Share2 } from "lucide-react"
 
 const appointmentSchema = z.object({
   patient_id: z.string().min(1, "Paciente e obrigatorio"),
@@ -114,11 +116,8 @@ export function AppointmentDialog({
   const [procedures, setProcedures] = useState<any[]>([])
   const [proceduresLoading, setProceduresLoading] = useState(false)
   const [showPaymentModal, setShowPaymentModal] = useState(false)
-  const [attendanceStatus, setAttendanceStatus] = useState<string | null>(null)
-  const [attendanceLoading, setAttendanceLoading] = useState(false)
-
+  const [showShareReceipt, setShowShareReceipt] = useState(false)
   const isEditing = !!appointment
-  const isRecurring = appointment?.type === "recurring"
 
   const defaultDuration =
     defaultStart && defaultEnd
@@ -280,36 +279,6 @@ export function AppointmentDialog({
       })
       .filter(Boolean) as SelectOption[]
   }, [watchedProcedures, procedureOptions, appointment])
-
-  // Load attendance status for recurring appointments
-  useEffect(() => {
-    if (open && appointment?.type === "recurring") {
-      api.getAttendance(appointment.id).then((res: any) => {
-        const records = res.data || []
-        const patientRecord = records.find((r: any) => r.patient_id === appointment.patient_id)
-        setAttendanceStatus(patientRecord?.status || null)
-      }).catch(() => setAttendanceStatus(null))
-    } else {
-      setAttendanceStatus(null)
-    }
-  }, [open, appointment])
-
-  const handleAttendance = async (status: "present" | "absent") => {
-    if (!appointment) return
-    setAttendanceLoading(true)
-    try {
-      await api.recordAttendance(appointment.id, {
-        patient_id: appointment.patient_id,
-        status,
-      })
-      setAttendanceStatus(status)
-      showToast.success(status === "present" ? "Presenca registrada!" : "Falta registrada!")
-    } catch (err) {
-      handleApiError(err, "Erro ao registrar presenca")
-    } finally {
-      setAttendanceLoading(false)
-    }
-  }
 
   useEffect(() => {
     if (appointment) {
@@ -682,47 +651,27 @@ export function AppointmentDialog({
             </div>
           </div>
 
-          {/* Attendance section for recurring (session plan) appointments */}
-          {isEditing && isRecurring && appointment && (
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Presenca</Label>
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant={attendanceStatus === "present" ? "default" : "outline"}
-                  size="sm"
-                  disabled={attendanceLoading}
-                  onClick={() => handleAttendance("present")}
-                  className={attendanceStatus === "present" ? "bg-green-600 hover:bg-green-700" : ""}
-                >
-                  Presente
-                </Button>
-                <Button
-                  type="button"
-                  variant={attendanceStatus === "absent" ? "default" : "outline"}
-                  size="sm"
-                  disabled={attendanceLoading}
-                  onClick={() => handleAttendance("absent")}
-                  className={attendanceStatus === "absent" ? "bg-red-600 hover:bg-red-700" : ""}
-                >
-                  Faltou
-                </Button>
-                {attendanceStatus && (
-                  <Badge variant={attendanceStatus === "present" ? "success" : "destructive"} className="ml-2">
-                    {attendanceStatus === "present" ? "Presente" : "Faltou"}
-                  </Badge>
-                )}
-              </div>
-            </div>
-          )}
-
           {isEditing && appointment && (
             <AppointmentPaymentModal
               isOpen={showPaymentModal}
               onClose={() => setShowPaymentModal(false)}
               appointmentId={appointment.id}
               appointmentPrice={watch("price") || 0}
+              patient={selectedPatient ?? appointment.patient ?? null}
+              appointmentStartTime={appointment.start_time}
+              professionalName={reminderProfessional?.name ?? appointment.professional?.name}
               onPaymentChanged={onSuccess}
+            />
+          )}
+
+          {isEditing && appointment && (
+            <ShareReceiptDialog
+              open={showShareReceipt}
+              onOpenChange={setShowShareReceipt}
+              appointmentId={appointment.id}
+              patient={selectedPatient ?? appointment.patient ?? null}
+              startTime={appointment.start_time}
+              professionalName={reminderProfessional?.name ?? appointment.professional?.name}
             />
           )}
 
@@ -738,6 +687,21 @@ export function AppointmentDialog({
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
+
+                {appointment &&
+                  (appointment.payment_status === "paid" ||
+                    appointment.payment_status === "partial") && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      title="Compartilhar recibo"
+                      onClick={() => setShowShareReceipt(true)}
+                      disabled={isLoading}
+                    >
+                      <Share2 className="h-4 w-4" />
+                    </Button>
+                  )}
 
                 {reminderPhone &&
                   selectedPatient &&
