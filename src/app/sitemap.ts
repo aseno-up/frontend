@@ -13,6 +13,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   ]
 
   const landingPages = [
+    '/para-clinicas',
     '/para-estetica',
     '/para-fisioterapia',
     '/para-massoterapia',

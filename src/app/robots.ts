@@ -14,6 +14,7 @@ export default function robots(): MetadataRoute.Robots {
           '/contato',
           '/privacidade',
           '/termos',
+          '/para-clinicas',
           '/para-estetica',
           '/para-fisioterapia',
           '/para-massoterapia',
