@@ -49,8 +49,12 @@ export function PlanFormModal({
   });
 
   const [cycles, setCycles] = useState<
-    Array<{ cycle_type: "monthly" | "yearly" | "lifetime"; price_brl: string }>
-  >([{ cycle_type: "monthly", price_brl: "0" }]);
+    Array<{
+      cycle_type: "monthly" | "yearly" | "lifetime";
+      price_brl: string;
+      solo_price_brl: string;
+    }>
+  >([{ cycle_type: "monthly", price_brl: "0", solo_price_brl: "" }]);
 
   useEffect(() => {
     if (plan) {
@@ -71,10 +75,12 @@ export function PlanFormModal({
           plan.cycles.map((c) => ({
             cycle_type: c.cycle_type,
             price_brl: c.price_brl.toString(),
+            solo_price_brl:
+              c.solo_price_brl != null ? c.solo_price_brl.toString() : "",
           })),
         );
       } else {
-        setCycles([{ cycle_type: "monthly", price_brl: "0" }]);
+        setCycles([{ cycle_type: "monthly", price_brl: "0", solo_price_brl: "" }]);
       }
     } else {
       setFormData({
@@ -89,7 +95,7 @@ export function PlanFormModal({
         has_api_access: false,
         is_active: true,
       });
-      setCycles([{ cycle_type: "monthly", price_brl: "0" }]);
+      setCycles([{ cycle_type: "monthly", price_brl: "0", solo_price_brl: "" }]);
     }
   }, [plan, isOpen]);
 
@@ -124,7 +130,10 @@ export function PlanFormModal({
   };
 
   const addCycle = () => {
-    setCycles((prev) => [...prev, { cycle_type: "yearly", price_brl: "0" }]);
+    setCycles((prev) => [
+      ...prev,
+      { cycle_type: "yearly", price_brl: "0", solo_price_brl: "" },
+    ]);
   };
 
   const removeCycle = (index: number) => {
@@ -139,10 +148,16 @@ export function PlanFormModal({
     const cleanFeatures =
       formData.features?.filter((f) => f.trim() !== "") || [];
 
-    const cleanCycles = cycles.map((c) => ({
-      cycle_type: c.cycle_type,
-      price_brl: parseFloat(c.price_brl) || 0,
-    }));
+    const cleanCycles = cycles.map((c) => {
+      const soloRaw = c.solo_price_brl.trim();
+      const soloParsed = soloRaw === "" ? null : parseFloat(soloRaw);
+      return {
+        cycle_type: c.cycle_type,
+        price_brl: parseFloat(c.price_brl) || 0,
+        solo_price_brl:
+          soloParsed === null || Number.isNaN(soloParsed) ? null : soloParsed,
+      };
+    });
 
     const submitData = {
       ...formData,
@@ -343,7 +358,7 @@ export function PlanFormModal({
                 {cycles.map((cycle, index) => (
                   <div
                     key={index}
-                    className="grid grid-cols-[1fr_1fr_auto] gap-2 bg-muted/50 p-3 rounded-lg border"
+                    className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2 bg-muted/50 p-3 rounded-lg border"
                   >
                     <div className="space-y-1">
                       <Label className="text-[11px] font-semibold text-muted-foreground">
@@ -367,7 +382,7 @@ export function PlanFormModal({
                     </div>
                     <div className="space-y-1">
                       <Label className="text-[11px] font-semibold text-muted-foreground">
-                        Preco (R$)
+                        Clínica (R$)
                       </Label>
                       <Input
                         type="number"
@@ -377,6 +392,26 @@ export function PlanFormModal({
                         value={cycle.price_brl}
                         onChange={(e) =>
                           handleCycleChange(index, "price_brl", e.target.value)
+                        }
+                        className="h-9"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[11px] font-semibold text-muted-foreground">
+                        Autônomo (R$)
+                      </Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        placeholder="vazio = sem opção"
+                        value={cycle.solo_price_brl}
+                        onChange={(e) =>
+                          handleCycleChange(
+                            index,
+                            "solo_price_brl",
+                            e.target.value,
+                          )
                         }
                         className="h-9"
                       />

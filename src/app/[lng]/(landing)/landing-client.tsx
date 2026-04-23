@@ -4,13 +4,15 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/stores/auth-store'
 
-interface PublicConfig {
+export interface PublicConfig {
   trial_days: number
   plans: {
     [key: string]: {
       limit_professionals: number
       price_monthly: number
       price_yearly: number
+      solo_price_monthly: number
+      solo_price_yearly: number
       excess_price: number
     }
   }
@@ -18,15 +20,19 @@ interface PublicConfig {
 
 interface LandingClientProps {
   lng: string
+  publicConfig?: PublicConfig | null
 }
 
+type PricingVariant = 'solo' | 'clinic'
+
 // Client component for interactive hero CTA buttons
-export function HeroCTA({ lng }: LandingClientProps) {
+export function HeroCTA({ lng, publicConfig: initialConfig = null }: LandingClientProps) {
   const router = useRouter()
   const { isAuthenticated } = useAuthStore()
-  const [publicConfig, setPublicConfig] = useState<PublicConfig | null>(null)
+  const [publicConfig, setPublicConfig] = useState<PublicConfig | null>(initialConfig)
 
   useEffect(() => {
+    if (publicConfig) return
     const fetchConfig = async () => {
       try {
         const baseUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4901').replace(/\/api\/v1\/?$/, '')
@@ -38,7 +44,7 @@ export function HeroCTA({ lng }: LandingClientProps) {
       } catch (err) {}
     }
     fetchConfig()
-  }, [])
+  }, [publicConfig])
 
   const getTrialDays = (): number => publicConfig?.trial_days || 14
 
@@ -76,21 +82,6 @@ export function HeroCTA({ lng }: LandingClientProps) {
 export function NavCTA({ lng }: LandingClientProps) {
   const router = useRouter()
   const { isAuthenticated } = useAuthStore()
-  const [publicConfig, setPublicConfig] = useState<PublicConfig | null>(null)
-
-  useEffect(() => {
-    const fetchConfig = async () => {
-      try {
-        const baseUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4901').replace(/\/api\/v1\/?$/, '')
-        const response = await fetch(`${baseUrl}/api/v1/public/config`, { cache: 'no-store' })
-        if (response.ok) {
-          const data = await response.json()
-          setPublicConfig(data)
-        }
-      } catch (err) {}
-    }
-    fetchConfig()
-  }, [])
 
   const handlePlanSelect = (plan: string) => {
     if (typeof window !== 'undefined' && (window as unknown as { fbq?: (...args: unknown[]) => void }).fbq) {
@@ -117,14 +108,20 @@ export function NavCTA({ lng }: LandingClientProps) {
 }
 
 // Client component for the pricing section (interactive toggle + plan selection)
-export function PricingSection({ lng }: LandingClientProps) {
+export function PricingSection({ lng, publicConfig: initialConfig = null }: LandingClientProps) {
   const router = useRouter()
   const { isAuthenticated } = useAuthStore()
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'annually'>('monthly')
-  const [publicConfig, setPublicConfig] = useState<PublicConfig | null>(null)
+  // Each plan that supports solo gets its own variant state. Default = solo.
+  const [variantByPlan, setVariantByPlan] = useState<Record<'basic' | 'professional', PricingVariant>>({
+    basic: 'solo',
+    professional: 'solo',
+  })
+  const [publicConfig, setPublicConfig] = useState<PublicConfig | null>(initialConfig)
   const [advancedUnits, setAdvancedUnits] = useState<number>(2)
 
   useEffect(() => {
+    if (publicConfig) return
     const fetchConfig = async () => {
       try {
         const baseUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4901').replace(/\/api\/v1\/?$/, '')
@@ -136,14 +133,37 @@ export function PricingSection({ lng }: LandingClientProps) {
       } catch (err) {}
     }
     fetchConfig()
-  }, [])
+  }, [publicConfig])
 
   const getTrialDays = (): number => publicConfig?.trial_days || 14
+
+  const planHasSolo = (plan: 'basic' | 'professional' | 'advanced'): boolean => {
+    if (!publicConfig) return false
+    const p = publicConfig.plans[plan]
+    if (!p) return false
+    return p.solo_price_monthly > 0 || p.solo_price_yearly > 0
+  }
+
+  const variantOf = (plan: 'basic' | 'professional'): PricingVariant => variantByPlan[plan]
 
   const calculateMonthlyPrice = (plan: 'basic' | 'professional' | 'advanced') => {
     if (!publicConfig) return '—'
     const planData = publicConfig.plans[plan]
     if (!planData) return '—'
+
+    const useSolo =
+      (plan === 'basic' || plan === 'professional') &&
+      variantOf(plan) === 'solo' &&
+      planHasSolo(plan)
+
+    if (useSolo) {
+      if (billingCycle === 'monthly') return planData.solo_price_monthly.toString()
+      if (planData.solo_price_yearly > 0) {
+        return Math.round(planData.solo_price_yearly / 12).toString()
+      }
+      return Math.round((planData.solo_price_monthly * 10) / 12).toString()
+    }
+
     if (billingCycle === 'monthly') return planData.price_monthly.toString()
     if (planData.price_yearly > 0) {
       return Math.round(planData.price_yearly / 12).toString()
@@ -187,6 +207,15 @@ export function PricingSection({ lng }: LandingClientProps) {
 
     url.searchParams.set('billing', cycle)
 
+    // Only carry the solo variant forward for plans that actually offer it and for paid plans.
+    if (
+      (plan === 'basic' || plan === 'professional') &&
+      variantOf(plan) === 'solo' &&
+      planHasSolo(plan)
+    ) {
+      url.searchParams.set('variant', 'solo')
+    }
+
     if (plan === 'advanced') {
       url.searchParams.set('units', String(Math.max(2, advancedUnits)))
     }
@@ -196,6 +225,37 @@ export function PricingSection({ lng }: LandingClientProps) {
     if (offer) url.searchParams.set('offer', offer)
 
     router.push(url.pathname + url.search)
+  }
+
+  const renderVariantToggle = (plan: 'basic' | 'professional') => {
+    if (!planHasSolo(plan)) return null
+    const current = variantOf(plan)
+    return (
+      <div
+        className="ptoggle ptoggle-card"
+        role="tablist"
+        aria-label={`Modalidade de contrato do plano ${plan}`}
+      >
+        <button
+          type="button"
+          role="tab"
+          aria-selected={current === 'solo'}
+          className={`ptoggle-opt ${current === 'solo' ? 'active' : ''}`}
+          onClick={() => setVariantByPlan((s) => ({ ...s, [plan]: 'solo' }))}
+        >
+          Autônomo
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={current === 'clinic'}
+          className={`ptoggle-opt ${current === 'clinic' ? 'active' : ''}`}
+          onClick={() => setVariantByPlan((s) => ({ ...s, [plan]: 'clinic' }))}
+        >
+          Clínica
+        </button>
+      </div>
+    )
   }
 
   return (
@@ -242,8 +302,9 @@ export function PricingSection({ lng }: LandingClientProps) {
           <div className="price-amt"><sup>R$</sup> {calculateMonthlyPrice('basic')}</div>
           <div className="price-per">por mês</div>
           <hr className="price-div" />
+          {renderVariantToggle('basic')}
           <ul className="price-feats">
-            <li>Até 3 profissionais</li>
+            <li>{variantOf('basic') === 'solo' && planHasSolo('basic') ? '1 profissional' : 'Até 3 profissionais'}</li>
             <li>Agenda ilimitada</li>
             <li>Landing page pública da clínica</li>
             <li>Agendamento online (link na bio)</li>
@@ -266,8 +327,9 @@ export function PricingSection({ lng }: LandingClientProps) {
           <div className="price-amt"><sup>R$</sup> {calculateMonthlyPrice('professional')}</div>
           <div className="price-per">por mês</div>
           <hr className="price-div" />
+          {renderVariantToggle('professional')}
           <ul className="price-feats">
-            <li>Até 7 profissionais</li>
+            <li>{variantOf('professional') === 'solo' && planHasSolo('professional') ? '1 profissional' : 'Até 7 profissionais'}</li>
             <li>Tudo do Básico</li>
             <li>Pagamentos Online (PIX e Cartão)</li>
             <li>WhatsApp Oficial (sem risco de ban)</li>
@@ -330,12 +392,13 @@ export function PricingSection({ lng }: LandingClientProps) {
 }
 
 // Client component for the CTA section at the bottom
-export function CtaSection({ lng }: LandingClientProps) {
+export function CtaSection({ lng, publicConfig: initialConfig = null }: LandingClientProps) {
   const router = useRouter()
   const { isAuthenticated } = useAuthStore()
-  const [publicConfig, setPublicConfig] = useState<PublicConfig | null>(null)
+  const [publicConfig, setPublicConfig] = useState<PublicConfig | null>(initialConfig)
 
   useEffect(() => {
+    if (publicConfig) return
     const fetchConfig = async () => {
       try {
         const baseUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4901').replace(/\/api\/v1\/?$/, '')
@@ -347,7 +410,7 @@ export function CtaSection({ lng }: LandingClientProps) {
       } catch (err) {}
     }
     fetchConfig()
-  }, [])
+  }, [publicConfig])
 
   const getTrialDays = (): number => publicConfig?.trial_days || 14
 

@@ -20,6 +20,7 @@ interface AuthState {
     document?: string
     plan?: string
     billing?: string
+    variant?: 'solo'
   }) => Promise<void>
   logout: () => Promise<void>
   loadUser: () => Promise<void>

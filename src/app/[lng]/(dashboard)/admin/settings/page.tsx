@@ -110,6 +110,8 @@ export default function AdminSettingsPage({ params }: AdminSettingsPageProps) {
         await api.createPlan(data);
         showToast("Plano criado com sucesso!");
       }
+      // Invalidate landing page cache so pricing changes appear immediately.
+      fetch("/api/revalidate-public-config", { method: "POST" }).catch(() => {});
       fetchPlansAndOffers();
     } catch (err) {
       handleApiError(err);

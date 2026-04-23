@@ -22,6 +22,8 @@ interface PublicConfig {
       limit_professionals: number
       price_monthly: number
       price_yearly: number
+      solo_price_monthly: number
+      solo_price_yearly: number
       excess_price: number
     }
   }
@@ -51,6 +53,8 @@ function BillingSetupContent() {
   const selectedPlan = searchParams.get("plan") || "professional"
   const selectedBilling = searchParams.get("billing") || "MONTHLY"
   const offerToken = searchParams.get("offer") || ""
+  const selectedVariant: "solo" | "clinic" =
+    searchParams.get("variant") === "solo" ? "solo" : "clinic"
   const initialUnits = Math.max(2, parseInt(searchParams.get("units") || "2", 10) || 2)
   const [units, setUnits] = useState<number>(initialUnits)
 
@@ -188,7 +192,8 @@ function BillingSetupContent() {
           plan: selectedPlan as "basic" | "professional" | "advanced",
           billing_type: "PIX",
           cycle: selectedBilling,
-          offer_token: coupon || undefined,
+          variant: selectedVariant === "solo" ? "solo" : undefined,
+          offer_token: selectedVariant === "solo" ? undefined : (coupon || undefined),
           units: selectedPlan === "advanced" ? units : undefined,
         })
 
@@ -212,7 +217,8 @@ function BillingSetupContent() {
           plan: selectedPlan as "basic" | "professional" | "advanced",
           billing_type: "CREDIT_CARD",
           cycle: selectedBilling,
-          offer_token: coupon || undefined,
+          variant: selectedVariant === "solo" ? "solo" : undefined,
+          offer_token: selectedVariant === "solo" ? undefined : (coupon || undefined),
           units: selectedPlan === "advanced" ? units : undefined,
           credit_card: {
             holderName: cardHolderName,
@@ -293,14 +299,24 @@ function BillingSetupContent() {
 
   const getPlanPrice = (): number => {
     let base: number
+    const planData = publicConfig?.plans?.[selectedPlan]
+    // Solo variant bypasses coupons and uses the cycle's solo price when available.
+    if (selectedVariant === 'solo' && planData) {
+      if (selectedBilling === 'YEARLY' && planData.solo_price_yearly > 0) {
+        return planData.solo_price_yearly
+      }
+      if (planData.solo_price_monthly > 0) {
+        return planData.solo_price_monthly
+      }
+    }
     if (couponApplied && discountedPrice !== null) {
       base = discountedPrice
-    } else if (!publicConfig?.plans?.[selectedPlan]) {
+    } else if (!planData) {
       return 0
     } else if (selectedBilling === 'YEARLY') {
-      base = publicConfig.plans[selectedPlan].price_yearly
+      base = planData.price_yearly
     } else {
-      base = publicConfig.plans[selectedPlan].price_monthly
+      base = planData.price_monthly
     }
     if (selectedPlan === 'advanced') {
       return base * Math.max(2, units)
@@ -343,6 +359,7 @@ function BillingSetupContent() {
           <h3 className="font-semibold text-blue-900 dark:text-blue-100 text-lg">Total a pagar</h3>
           <p className="text-sm text-blue-700 dark:text-blue-300">
             Plano {planLabels[selectedPlan] || selectedPlan} ({selectedBilling === "YEARLY" ? "Anual" : "Mensal"})
+            {selectedVariant === 'solo' && ` · Autônomo`}
             {selectedPlan === 'advanced' && ` · ${units} unidades`}
           </p>
         </div>

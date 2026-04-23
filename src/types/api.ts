@@ -1054,6 +1054,9 @@ export interface PlanCycle {
   plan_id: string
   cycle_type: 'monthly' | 'yearly' | 'lifetime'
   price_brl: number
+  // Discounted price for a single-professional (solo) contract.
+  // Null means this cycle does not offer a solo variant.
+  solo_price_brl?: number | null
 }
 
 export interface Plan {

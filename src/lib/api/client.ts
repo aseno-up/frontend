@@ -114,7 +114,17 @@ class ApiClient {
     return response.data
   }
 
-  async register(data: { clinic_name: string; name: string; email: string; password: string }) {
+  async register(data: {
+    clinic_name: string
+    name: string
+    email: string
+    password: string
+    phone?: string
+    document?: string
+    plan?: string
+    billing?: string
+    variant?: string
+  }) {
     const response = await this.client.post('/auth/register', data)
     return response.data
   }
@@ -608,6 +618,7 @@ class ApiClient {
     plan: 'basic' | 'professional' | 'advanced'
     billing_type: string
     cycle: string
+    variant?: string
     offer_token?: string
     units?: number
     credit_card?: {

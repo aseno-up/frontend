@@ -72,6 +72,7 @@ function RegisterContent({ params }: RegisterPageProps) {
     : null
   const unitsParam = parseInt(searchParams.get('units') || '', 10)
   const selectedUnits = Number.isNaN(unitsParam) ? undefined : Math.max(2, unitsParam)
+  const selectedVariant: 'solo' | 'clinic' = searchParams.get('variant') === 'solo' ? 'solo' : 'clinic'
 
   const {
     register,
@@ -98,6 +99,7 @@ function RegisterContent({ params }: RegisterPageProps) {
         document: data.document,
         plan: selectedPlan || undefined,
         billing: selectedBilling || undefined,
+        variant: selectedVariant === 'solo' ? 'solo' : undefined,
       })
 
       // Store selected plan and billing for later use
@@ -117,6 +119,7 @@ function RegisterContent({ params }: RegisterPageProps) {
           const params = new URLSearchParams()
           params.set('plan', selectedPlan)
           params.set('billing', selectedBilling === 'annually' ? 'YEARLY' : 'MONTHLY')
+          if (selectedVariant === 'solo') params.set('variant', 'solo')
           if (selectedPlan === 'advanced' && selectedUnits) params.set('units', String(selectedUnits))
           router.push(`/${lng}/billing-setup?${params.toString()}`)
         }
@@ -153,6 +156,7 @@ function RegisterContent({ params }: RegisterPageProps) {
           const params = new URLSearchParams()
           params.set('plan', selectedPlan)
           params.set('billing', selectedBilling === 'annually' ? 'YEARLY' : 'MONTHLY')
+          if (selectedVariant === 'solo') params.set('variant', 'solo')
           if (selectedPlan === 'advanced' && selectedUnits) params.set('units', String(selectedUnits))
           router.push(`/${lng}/billing-setup?${params.toString()}`)
         }
@@ -189,11 +193,14 @@ function RegisterContent({ params }: RegisterPageProps) {
             : 'Comece seu teste gratuito de 14 dias'}
         </CardDescription>
         {selectedPlan && selectedPlan !== 'trial' && (
-          <div className="flex items-center gap-2 pt-2">
+          <div className="flex items-center gap-2 pt-2 flex-wrap">
             <span className="text-sm text-muted-foreground">Plano selecionado:</span>
             <Badge variant="secondary">
               {planNames[selectedPlan]} {selectedBilling === 'annually' && '(Anual)'}
             </Badge>
+            {selectedVariant === 'solo' && (
+              <Badge variant="outline">Autônomo</Badge>
+            )}
           </div>
         )}
       </CardHeader>

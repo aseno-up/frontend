@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import Image from 'next/image'
-import { HeroCTA, NavCTA, PricingSection, CtaSection } from './landing-client'
+import { HeroCTA, NavCTA, PricingSection, CtaSection, type PublicConfig } from './landing-client'
 import { LandingFooter } from './landing-footer'
 import './landing.css'
 
@@ -13,8 +13,25 @@ interface PageProps {
   params: Promise<{ lng: string }>
 }
 
+// Cache plan/trial config indefinitely. Admin price changes trigger an
+// explicit revalidateTag('public-config') to invalidate immediately, so no TTL
+// is needed — the cache only refreshes when pricing is updated.
+async function getPublicConfig(): Promise<PublicConfig | null> {
+  try {
+    const baseUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4901').replace(/\/api\/v1\/?$/, '')
+    const response = await fetch(`${baseUrl}/api/v1/public/config`, {
+      next: { revalidate: false, tags: ['public-config'] },
+    })
+    if (!response.ok) return null
+    return (await response.json()) as PublicConfig
+  } catch {
+    return null
+  }
+}
+
 export default async function LandingPage(props: PageProps) {
   const params = await props.params
+  const publicConfig = await getPublicConfig()
 
   return (
     <div className="landing-body">
@@ -40,7 +57,7 @@ export default async function LandingPage(props: PageProps) {
             Confirmação automática no WhatsApp com IA que entende respostas humanas.
             Sua recepção para de ligar, sua agenda para de esvaziar.
           </p>
-          <HeroCTA lng={params.lng} />
+          <HeroCTA lng={params.lng} publicConfig={publicConfig} />
           <p className="hero-note">Sem cartão de crédito. Começa a funcionar hoje.</p>
         </div>
         <div className="hero-screenshot">
@@ -273,7 +290,7 @@ export default async function LandingPage(props: PageProps) {
       </section>
 
       {/* ─── PRICING ─── */}
-      <PricingSection lng={params.lng} />
+      <PricingSection lng={params.lng} publicConfig={publicConfig} />
 
       {/* ─── FAQ ─── */}
       <section className="sec-faq">
@@ -292,7 +309,7 @@ export default async function LandingPage(props: PageProps) {
       </section>
 
       {/* ─── CTA FINAL ─── */}
-      <CtaSection lng={params.lng} />
+      <CtaSection lng={params.lng} publicConfig={publicConfig} />
 
       {/* ─── FOOTER ─── */}
       <LandingFooter />
