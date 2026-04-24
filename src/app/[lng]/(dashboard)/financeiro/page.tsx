@@ -18,6 +18,13 @@ import {
   Receipt,
   Wallet,
   ShieldCheck,
+  Plus,
+  Pencil,
+  Trash2,
+  ArrowUpRight,
+  ArrowDownRight,
+  ListChecks,
+  Tag,
 } from 'lucide-react'
 import { useTranslation } from '@/lib/i18n/client'
 import { api } from '@/lib/api/client'
@@ -33,6 +40,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 
 interface FinanceiroPageProps {
   params: Promise<{ lng: string }>
@@ -194,17 +211,6 @@ export default function FinanceiroPage(props: FinanceiroPageProps) {
             <span className="hidden sm:inline">Visao Geral</span>
           </button>
           <button
-            onClick={() => setPageTab("recebiveis")}
-            className={`relative h-12 rounded-none border-b-2 bg-transparent px-2 md:px-4 pb-3 pt-3 font-medium shadow-none transition-none flex items-center gap-2 whitespace-nowrap ${
-              pageTab === "recebiveis"
-                ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-primary"
-            }`}
-          >
-            <Receipt className="h-4 w-4" />
-            <span className="hidden sm:inline">Recebiveis</span>
-          </button>
-          <button
             onClick={() => setPageTab("caixa")}
             className={`relative h-12 rounded-none border-b-2 bg-transparent px-2 md:px-4 pb-3 pt-3 font-medium shadow-none transition-none flex items-center gap-2 whitespace-nowrap ${
               pageTab === "caixa"
@@ -214,6 +220,28 @@ export default function FinanceiroPage(props: FinanceiroPageProps) {
           >
             <Wallet className="h-4 w-4" />
             <span className="hidden sm:inline">Caixa</span>
+          </button>
+          <button
+            onClick={() => setPageTab("lancamentos")}
+            className={`relative h-12 rounded-none border-b-2 bg-transparent px-2 md:px-4 pb-3 pt-3 font-medium shadow-none transition-none flex items-center gap-2 whitespace-nowrap ${
+              pageTab === "lancamentos"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-primary"
+            }`}
+          >
+            <ListChecks className="h-4 w-4" />
+            <span className="hidden sm:inline">Lancamentos</span>
+          </button>
+          <button
+            onClick={() => setPageTab("recebiveis")}
+            className={`relative h-12 rounded-none border-b-2 bg-transparent px-2 md:px-4 pb-3 pt-3 font-medium shadow-none transition-none flex items-center gap-2 whitespace-nowrap ${
+              pageTab === "recebiveis"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-primary"
+            }`}
+          >
+            <Receipt className="h-4 w-4" />
+            <span className="hidden sm:inline">Recebiveis</span>
           </button>
           <button
             onClick={() => setPageTab("repasse")}
@@ -411,6 +439,10 @@ export default function FinanceiroPage(props: FinanceiroPageProps) {
             </div>
           )}
         </>
+      )}
+
+      {pageTab === "lancamentos" && (
+        <LancamentosTab />
       )}
 
       {pageTab === "recebiveis" && (
@@ -716,11 +748,188 @@ function RecebiveisTab({ parentRestricted }: { parentRestricted: boolean }) {
 }
 
 // --- Caixa Tab ---
+//
+// Mostra o fluxo de caixa completo do periodo (entradas + saidas) com base em
+// `financial_transactions`. O saldo e faturamento - despesas no regime de
+// caixa: so conta o que ja foi pago/recebido (paid_at IS NOT NULL).
+
+interface FinanceTransaction {
+  id: string
+  type: 'income' | 'expense'
+  category_id?: string
+  category_name?: string
+  category_color?: string
+  amount: number
+  description: string
+  source: 'manual' | 'appointment' | 'session_plan' | 'commission'
+  appointment_id?: string | null
+  professional_id?: string | null
+  competence_date: string
+  due_date?: string | null
+  paid_at?: string | null
+  payment_method_id?: string | null
+  created_at: string
+}
+
+interface FinanceSummary {
+  from: string
+  to: string
+  total_income: number
+  total_expense: number
+  balance: number
+}
+
+interface FinanceCategory {
+  id: string
+  name: string
+  type: 'income' | 'expense'
+  color: string
+  is_default: boolean
+}
+
+// usePeriodPicker — este mês / mês passado / personalizado.
+// Returns:
+//   - `params` ready to spread into the finance API methods (either `month` or `from`+`to`)
+//   - `mode`, `setMode` for the selector
+//   - `customFrom`, `customTo`, setters + boolean `isReady` (only issues requests when both custom dates are filled)
+//   - `label` for display
+
+type PeriodMode = 'current' | 'last' | 'custom'
+
+function toISODate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+function usePeriodPicker() {
+  const [mode, setMode] = useState<PeriodMode>('current')
+  const [customFrom, setCustomFrom] = useState('')
+  const [customTo, setCustomTo] = useState('')
+
+  const now = new Date()
+  const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+  const last = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+  const lastMonth = `${last.getFullYear()}-${String(last.getMonth() + 1).padStart(2, '0')}`
+
+  const isCustomValid = mode === 'custom' && !!customFrom && !!customTo && customFrom <= customTo
+  const isReady = mode !== 'custom' || isCustomValid
+
+  const params: { month?: string; from?: string; to?: string } =
+    mode === 'current' ? { month: thisMonth }
+    : mode === 'last' ? { month: lastMonth }
+    : isCustomValid ? { from: customFrom, to: customTo }
+    : {}
+
+  const label =
+    mode === 'current' ? `${now.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}`
+    : mode === 'last' ? `${last.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}`
+    : isCustomValid ? `${customFrom} → ${customTo}`
+    : 'Selecione as datas'
+
+  return { mode, setMode, customFrom, setCustomFrom, customTo, setCustomTo, params, isReady, label }
+}
+
+// SourceBadge keeps origin tags visually consistent across Lançamentos/Caixa.
+// Each source has its own color so the eye can scan the column quickly.
+function SourceBadge({ source }: { source: FinanceTransaction['source'] }) {
+  const config: Record<FinanceTransaction['source'], { label: string; className: string }> = {
+    manual: {
+      label: 'Manual',
+      className: 'border-slate-300 bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700',
+    },
+    appointment: {
+      label: 'Agendamento',
+      className: 'border-blue-300 bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-200 dark:border-blue-800',
+    },
+    commission: {
+      label: 'Repasse',
+      className: 'border-violet-300 bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-200 dark:border-violet-800',
+    },
+    session_plan: {
+      label: 'Plano',
+      className: 'border-indigo-300 bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-200 dark:border-indigo-800',
+    },
+  }
+  const c = config[source] || config.manual
+  return <Badge variant="outline" className={`text-xs ${c.className}`}>{c.label}</Badge>
+}
+
+function PeriodFilter({ picker }: { picker: ReturnType<typeof usePeriodPicker> }) {
+  return (
+    <div className="flex items-center gap-2 flex-wrap">
+      <Filter className="h-4 w-4 text-muted-foreground" />
+      <Select value={picker.mode} onValueChange={(v) => picker.setMode(v as PeriodMode)}>
+        <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
+        <SelectContent>
+          <SelectItem value="current">Este mes</SelectItem>
+          <SelectItem value="last">Mes passado</SelectItem>
+          <SelectItem value="custom">Personalizado</SelectItem>
+        </SelectContent>
+      </Select>
+      {picker.mode === 'custom' && (
+        <>
+          <Input type="date" value={picker.customFrom} max={picker.customTo || undefined} onChange={(e) => picker.setCustomFrom(e.target.value)} className="w-[160px]" />
+          <span className="text-sm text-muted-foreground">ate</span>
+          <Input type="date" value={picker.customTo} min={picker.customFrom || undefined} onChange={(e) => picker.setCustomTo(e.target.value)} className="w-[160px]" />
+        </>
+      )}
+    </div>
+  )
+}
 
 function CaixaTab() {
-  const { month, setMonth, professionalId, setProfessionalId, professionals, report, isLoading, monthOptions } = useFinancialReport()
+  const picker = usePeriodPicker()
+  const [summary, setSummary] = useState<FinanceSummary | null>(null)
+  const [transactions, setTransactions] = useState<FinanceTransaction[]>([])
+  const [isLoading, setIsLoading] = useState(true)
 
-  if (isLoading) {
+  const paramsKey = JSON.stringify(picker.params)
+  const fetchData = useCallback(async () => {
+    if (!picker.isReady) return
+    setIsLoading(true)
+    try {
+      const [summaryRes, txRes] = await Promise.all([
+        api.getFinanceSummary(picker.params),
+        api.getFinanceTransactions({ ...picker.params, only_paid: true }),
+      ])
+      setSummary(summaryRes)
+      setTransactions(txRes?.data || [])
+    } catch (err) {
+      handleApiError(err, 'Erro ao carregar caixa')
+    } finally {
+      setIsLoading(false)
+    }
+  // picker.params is rebuilt each render, so gate on its serialized value.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paramsKey, picker.isReady])
+
+  useEffect(() => {
+    fetchData()
+  }, [fetchData])
+
+  // Group by day, summing income and expense separately.
+  const byDay = new Map<string, { income: number; expense: number }>()
+  for (const tx of transactions) {
+    const day = (tx.paid_at || tx.competence_date).slice(0, 10)
+    const prev = byDay.get(day) || { income: 0, expense: 0 }
+    if (tx.type === 'income') prev.income += tx.amount
+    else prev.expense += tx.amount
+    byDay.set(day, prev)
+  }
+  const daily = Array.from(byDay.entries())
+    .map(([date, sums]) => ({ date, ...sums, net: sums.income - sums.expense }))
+    .sort((a, b) => a.date.localeCompare(b.date))
+  // Accumulated balance across the sorted series.
+  const dailyWithAccumulated = daily.reduce<Array<typeof daily[number] & { accumulated: number }>>((acc, d) => {
+    const prev = acc.length > 0 ? acc[acc.length - 1].accumulated : 0
+    acc.push({ ...d, accumulated: prev + d.net })
+    return acc
+  }, [])
+  // Display newest first to match the rest of the page.
+  const displayRows = [...dailyWithAccumulated].reverse()
+
+  const s = summary || { from: '', to: '', total_income: 0, total_expense: 0, balance: 0 }
+
+  if (isLoading && !summary) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
@@ -728,96 +937,85 @@ function CaixaTab() {
     )
   }
 
-  const s = report?.summary || { total_expected: 0, total_received: 0, total_pending: 0, total_discount: 0, total_sessions: 0, paid_sessions: 0, pending_sessions: 0, conciliation_rate: 0 }
-  const daily = report?.daily_breakdown || []
-  const methods = report?.payment_method_breakdown || []
-
-  const daysWithMovement = daily.filter(d => d.received > 0).length
-  const avgDaily = daysWithMovement > 0 ? s.total_received / daysWithMovement : 0
-
-  // Calculate accumulated values (reverse order since daily is DESC)
-  const dailyWithAccumulated = [...daily].reverse().reduce<(DailyReceivable & { accumulated: number })[]>((acc, d) => {
-    const prev = acc.length > 0 ? acc[acc.length - 1].accumulated : 0
-    acc.push({ ...d, accumulated: prev + d.received })
-    return acc
-  }, []).reverse()
-
   return (
     <div className="flex-1 p-8 overflow-y-auto space-y-8">
-      <FinancialFilters month={month} setMonth={setMonth} professionalId={professionalId} setProfessionalId={setProfessionalId} professionals={professionals} monthOptions={monthOptions} />
+      <PeriodFilter picker={picker} />
 
-      {/* Hero number */}
-      <div className="py-4">
-        <p className="text-sm font-medium text-muted-foreground mb-1">Total Recebido</p>
-        <p className="text-4xl md:text-5xl font-bold tracking-tight text-emerald-600">{formatCurrencyShared(s.total_received)}</p>
+      {/* Hero: Saldo do periodo */}
+      <div className="py-4 flex flex-col md:flex-row md:items-end md:justify-between gap-6">
+        <div>
+          <p className="text-sm font-medium text-muted-foreground mb-1">Saldo do periodo</p>
+          <p className={`text-4xl md:text-5xl font-bold tracking-tight ${s.balance >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+            {formatCurrencyShared(s.balance)}
+          </p>
+          <p className="text-sm text-muted-foreground mt-2">Faturamento menos despesas no regime de caixa</p>
+        </div>
+        <div className="grid grid-cols-2 gap-4 md:gap-8">
+          <div className="md:text-right">
+            <p className="text-sm font-medium text-muted-foreground mb-1 flex items-center gap-1 md:justify-end">
+              <ArrowUpRight className="h-3.5 w-3.5 text-emerald-500" />
+              Faturamento
+            </p>
+            <p className="text-2xl md:text-3xl font-bold text-emerald-600">{formatCurrencyShared(s.total_income)}</p>
+          </div>
+          <div className="md:text-right">
+            <p className="text-sm font-medium text-muted-foreground mb-1 flex items-center gap-1 md:justify-end">
+              <ArrowDownRight className="h-3.5 w-3.5 text-red-500" />
+              Despesas
+            </p>
+            <p className="text-2xl md:text-3xl font-bold text-red-600">{formatCurrencyShared(s.total_expense)}</p>
+          </div>
+        </div>
       </div>
 
       {/* Inline metrics */}
       <div className="flex items-center gap-3 text-sm text-muted-foreground pb-6 border-b flex-wrap">
-        <span>media <strong className="text-foreground">{formatCurrencyShared(avgDaily)}</strong>/dia</span>
+        <span><strong className="text-foreground">{daily.length}</strong> dias com movimento</span>
         <span className="text-border">|</span>
-        <span><strong className="text-foreground">{daysWithMovement}</strong> dias com movimento</span>
-        <span className="text-border">|</span>
-        <span><strong className="text-foreground">{s.paid_sessions}</strong> sessoes pagas</span>
+        <span><strong className="text-foreground">{transactions.length}</strong> lancamentos</span>
       </div>
 
-      {/* Payment method breakdown */}
-      {methods.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base font-medium">Entradas por Forma de Pagamento</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-1">
-            {methods.map((m, i) => (
-              <div key={i} className="flex items-center justify-between py-2.5 border-b border-border/40 last:border-0">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
-                  <span className="text-sm truncate">{m.method_name}</span>
-                  <span className="text-xs text-muted-foreground shrink-0">{m.count} pgto{m.count !== 1 ? 's' : ''}</span>
-                </div>
-                <div className="flex items-center gap-4 shrink-0">
-                  <div className="w-24 h-1.5 bg-secondary rounded-full overflow-hidden hidden sm:block">
-                    <div className="bg-emerald-500 h-full rounded-full" style={{ width: `${m.percentage}%` }} />
-                  </div>
-                  <span className="text-sm text-muted-foreground w-12 text-right">{m.percentage.toFixed(0)}%</span>
-                  <span className="text-sm font-semibold w-28 text-right">{formatCurrencyShared(m.total)}</span>
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      )}
-
       {/* Daily movement table */}
-      {dailyWithAccumulated.length > 0 && (
+      {displayRows.length > 0 ? (
         <div>
           <h3 className="text-base font-medium mb-1">Movimentacao Diaria</h3>
-          <p className="text-sm text-muted-foreground mb-4">Entradas registradas por dia</p>
+          <p className="text-sm text-muted-foreground mb-4">Entradas e saidas pagas, agrupadas por dia</p>
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Data</TableHead>
-                <TableHead className="text-center">Sessoes</TableHead>
-                <TableHead className="text-right">Recebido</TableHead>
+                <TableHead className="text-right">Entradas</TableHead>
+                <TableHead className="text-right">Saidas</TableHead>
+                <TableHead className="text-right">Saldo do dia</TableHead>
                 <TableHead className="text-right">Acumulado</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {dailyWithAccumulated.map((d, i) => (
-                <TableRow key={i}>
+              {displayRows.map((d) => (
+                <TableRow key={d.date}>
                   <TableCell className="font-medium">{formatDateShared(d.date)}</TableCell>
-                  <TableCell className="text-center">{d.sessions}</TableCell>
-                  <TableCell className="text-right text-emerald-600">{formatCurrencyShared(d.received)}</TableCell>
-                  <TableCell className="text-right font-semibold">{formatCurrencyShared(d.accumulated)}</TableCell>
+                  <TableCell className="text-right text-emerald-600">{d.income > 0 ? formatCurrencyShared(d.income) : '—'}</TableCell>
+                  <TableCell className="text-right text-red-600">{d.expense > 0 ? formatCurrencyShared(d.expense) : '—'}</TableCell>
+                  <TableCell className={`text-right font-medium ${d.net >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                    {formatCurrencyShared(d.net)}
+                  </TableCell>
+                  <TableCell className={`text-right font-semibold ${d.accumulated >= 0 ? '' : 'text-red-600'}`}>
+                    {formatCurrencyShared(d.accumulated)}
+                  </TableCell>
                 </TableRow>
               ))}
+              <TableRow className="bg-muted/30 font-bold">
+                <TableCell>TOTAL</TableCell>
+                <TableCell className="text-right text-emerald-600">{formatCurrencyShared(s.total_income)}</TableCell>
+                <TableCell className="text-right text-red-600">{formatCurrencyShared(s.total_expense)}</TableCell>
+                <TableCell className={`text-right ${s.balance >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{formatCurrencyShared(s.balance)}</TableCell>
+                <TableCell></TableCell>
+              </TableRow>
             </TableBody>
           </Table>
         </div>
-      )}
-
-      {daily.length === 0 && !isLoading && (
-        <p className="text-sm text-muted-foreground py-4">Nenhuma entrada registrada neste periodo.</p>
+      ) : (
+        <p className="text-sm text-muted-foreground py-4">Nenhum lancamento pago neste periodo. Cadastre entradas/saidas na aba Lancamentos.</p>
       )}
     </div>
   )
@@ -1344,5 +1542,502 @@ function RepasseTab() {
         </Card>
       )}
     </div>
+  )
+}
+
+// --- Lancamentos Tab (CRUD de contas a pagar/receber) ---
+
+type TxFormState = {
+  type: 'income' | 'expense'
+  category_id: string
+  amount: string
+  description: string
+  competence_date: string
+  due_date: string
+  paid_at: string
+}
+
+function emptyTxForm(): TxFormState {
+  const today = new Date().toISOString().slice(0, 10)
+  return {
+    type: 'expense',
+    category_id: '',
+    amount: '',
+    description: '',
+    competence_date: today,
+    due_date: '',
+    paid_at: today,
+  }
+}
+
+function LancamentosTab() {
+  const picker = usePeriodPicker()
+  const [typeFilter, setTypeFilter] = useState<'all' | 'income' | 'expense'>('all')
+  const [categoryFilter, setCategoryFilter] = useState<string>('all')
+  const [transactions, setTransactions] = useState<FinanceTransaction[]>([])
+  const [categories, setCategories] = useState<FinanceCategory[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false)
+  const [editing, setEditing] = useState<FinanceTransaction | null>(null)
+  const [form, setForm] = useState<TxFormState>(emptyTxForm())
+  const [saving, setSaving] = useState(false)
+
+  const paramsKey = JSON.stringify(picker.params)
+  const fetchData = useCallback(async () => {
+    if (!picker.isReady) return
+    setIsLoading(true)
+    try {
+      const [txRes, catRes] = await Promise.all([
+        api.getFinanceTransactions({
+          ...picker.params,
+          type: typeFilter === 'all' ? undefined : typeFilter,
+          category_id: categoryFilter === 'all' ? undefined : categoryFilter,
+        }),
+        api.getFinanceCategories(),
+      ])
+      setTransactions(txRes?.data || [])
+      setCategories(catRes?.data || [])
+    } catch (err) {
+      handleApiError(err, 'Erro ao carregar lancamentos')
+    } finally {
+      setIsLoading(false)
+    }
+  // picker.params is rebuilt each render; gate on its serialized value.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paramsKey, picker.isReady, typeFilter, categoryFilter])
+
+  useEffect(() => {
+    fetchData()
+  }, [fetchData])
+
+  const openCreate = () => {
+    setEditing(null)
+    setForm(emptyTxForm())
+    setIsDialogOpen(true)
+  }
+
+  const openEdit = (tx: FinanceTransaction) => {
+    if (tx.source !== 'manual') {
+      const msg = tx.source === 'commission'
+        ? 'Lancamentos de repasse nao podem ser editados aqui. Ajuste na aba Repasse.'
+        : 'Lancamentos gerados automaticamente pelo agendamento nao podem ser editados aqui. Ajuste o pagamento no proprio agendamento.'
+      showToast.error(msg)
+      return
+    }
+    setEditing(tx)
+    setForm({
+      type: tx.type,
+      category_id: tx.category_id || '',
+      amount: String(tx.amount),
+      description: tx.description,
+      competence_date: tx.competence_date?.slice(0, 10) || '',
+      due_date: tx.due_date?.slice(0, 10) || '',
+      paid_at: tx.paid_at?.slice(0, 10) || '',
+    })
+    setIsDialogOpen(true)
+  }
+
+  const handleSave = async () => {
+    const amountNum = parseFloat(form.amount.replace(',', '.'))
+    if (!amountNum || amountNum <= 0) {
+      showToast.error('Informe um valor maior que zero.')
+      return
+    }
+    if (!form.description.trim()) {
+      showToast.error('Informe uma descricao.')
+      return
+    }
+    if (!form.competence_date) {
+      showToast.error('Informe a data de competencia.')
+      return
+    }
+    setSaving(true)
+    try {
+      const payload = {
+        type: form.type,
+        category_id: form.category_id || undefined,
+        amount: amountNum,
+        description: form.description.trim(),
+        competence_date: new Date(form.competence_date + 'T12:00:00').toISOString(),
+        due_date: form.due_date ? new Date(form.due_date + 'T12:00:00').toISOString() : null,
+        paid_at: form.paid_at ? new Date(form.paid_at + 'T12:00:00').toISOString() : null,
+      }
+      if (editing) {
+        await api.updateFinanceTransaction(editing.id, payload)
+        showToast.success('Lancamento atualizado.')
+      } else {
+        await api.createFinanceTransaction(payload)
+        showToast.success('Lancamento criado.')
+      }
+      setIsDialogOpen(false)
+      fetchData()
+    } catch (err) {
+      handleApiError(err, 'Erro ao salvar lancamento')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleDelete = async (tx: FinanceTransaction) => {
+    if (tx.source !== 'manual') {
+      showToast.error('Lancamentos gerados automaticamente nao podem ser excluidos aqui.')
+      return
+    }
+    if (!confirm(`Excluir o lancamento "${tx.description}"?`)) return
+    try {
+      await api.deleteFinanceTransaction(tx.id)
+      showToast.success('Lancamento excluido.')
+      fetchData()
+    } catch (err) {
+      handleApiError(err, 'Erro ao excluir lancamento')
+    }
+  }
+
+  const filteredCategories = categories.filter(c => c.type === form.type)
+
+  const rowTotal = transactions.reduce<{ income: number; expense: number; pending: number }>(
+    (acc, tx) => {
+      if (tx.type === 'income') acc.income += tx.amount
+      else acc.expense += tx.amount
+      if (!tx.paid_at) acc.pending += tx.amount
+      return acc
+    },
+    { income: 0, expense: 0, pending: 0 },
+  )
+
+  return (
+    <div className="flex-1 p-8 overflow-y-auto space-y-6">
+      {/* Filtros + acoes */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <PeriodFilter picker={picker} />
+        <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as 'all' | 'income' | 'expense')}>
+          <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tipo: todos</SelectItem>
+            <SelectItem value="income">Entradas</SelectItem>
+            <SelectItem value="expense">Saidas</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+          <SelectTrigger className="w-[200px]"><SelectValue placeholder="Categoria" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas as categorias</SelectItem>
+            {categories.map(c => (
+              <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <div className="flex-1" />
+
+        <Button variant="outline" size="sm" onClick={() => setIsCategoryDialogOpen(true)}>
+          <Tag className="h-4 w-4 mr-2" />
+          Categorias
+        </Button>
+        <Button size="sm" onClick={openCreate}>
+          <Plus className="h-4 w-4 mr-2" />
+          Novo lancamento
+        </Button>
+      </div>
+
+      {/* Resumo rapido dos filtros ativos */}
+      <div className="flex items-center gap-3 text-sm text-muted-foreground flex-wrap">
+        <span><strong className="text-emerald-600">{formatCurrencyShared(rowTotal.income)}</strong> em entradas</span>
+        <span className="text-border">|</span>
+        <span><strong className="text-red-600">{formatCurrencyShared(rowTotal.expense)}</strong> em saidas</span>
+        {rowTotal.pending > 0 && (
+          <>
+            <span className="text-border">|</span>
+            <span><strong className="text-orange-600">{formatCurrencyShared(rowTotal.pending)}</strong> ainda em aberto</span>
+          </>
+        )}
+      </div>
+
+      {isLoading && transactions.length === 0 ? (
+        <div className="flex items-center justify-center h-64">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        </div>
+      ) : transactions.length === 0 ? (
+        <div className="text-center py-16">
+          <ListChecks className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+          <p className="text-lg font-medium">Nenhum lancamento no periodo</p>
+          <p className="text-sm text-muted-foreground mb-4">Cadastre entradas e saidas manuais para acompanhar o caixa da clinica.</p>
+          <Button onClick={openCreate}>
+            <Plus className="h-4 w-4 mr-2" />
+            Novo lancamento
+          </Button>
+        </div>
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Data</TableHead>
+              <TableHead>Descricao</TableHead>
+              <TableHead>Categoria</TableHead>
+              <TableHead>Origem</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="text-right">Valor</TableHead>
+              <TableHead className="w-[80px] text-right">Acoes</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {transactions.map((tx) => {
+              const isAuto = tx.source !== 'manual'
+              return (
+                <TableRow key={tx.id} className={isAuto ? 'opacity-90' : ''}>
+                  <TableCell className="font-medium">{formatDateShared(tx.competence_date.slice(0, 10))}</TableCell>
+                  <TableCell>
+                    <div className="flex flex-col">
+                      <span>{tx.description}</span>
+                      {tx.due_date && !tx.paid_at && (
+                        <span className="text-xs text-orange-600">Vence em {formatDateShared(tx.due_date.slice(0, 10))}</span>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    {tx.category_name ? (
+                      <span className="inline-flex items-center gap-1.5 text-sm">
+                        {tx.category_color && <span className="w-2 h-2 rounded-full" style={{ backgroundColor: tx.category_color }} />}
+                        {tx.category_name}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <SourceBadge source={tx.source} />
+                  </TableCell>
+                  <TableCell>
+                    {tx.paid_at ? (
+                      <Badge variant="success">{tx.type === 'income' ? 'Recebido' : 'Pago'}</Badge>
+                    ) : (
+                      <Badge variant="warning">Em aberto</Badge>
+                    )}
+                  </TableCell>
+                  <TableCell className={`text-right font-semibold ${tx.type === 'income' ? 'text-emerald-600' : 'text-red-600'}`}>
+                    {tx.type === 'income' ? '+' : '−'} {formatCurrencyShared(tx.amount)}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      <Button variant="ghost" size="icon" className="h-8 w-8" disabled={isAuto} onClick={() => openEdit(tx)} title={isAuto ? 'Gerado automaticamente — ajuste na origem' : 'Editar'}>
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-red-600 hover:text-red-700" disabled={isAuto} onClick={() => handleDelete(tx)} title={isAuto ? 'Gerado automaticamente — ajuste na origem' : 'Excluir'}>
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              )
+            })}
+          </TableBody>
+        </Table>
+      )}
+
+      {/* Dialog: criar/editar lancamento */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{editing ? 'Editar lancamento' : 'Novo lancamento'}</DialogTitle>
+            <DialogDescription>Informe os dados da entrada ou saida. Deixe a data de pagamento em branco para registrar como conta a pagar/receber.</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Tipo</Label>
+                <Select value={form.type} onValueChange={(v) => setForm(f => ({ ...f, type: v as 'income' | 'expense', category_id: '' }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="income">Entrada</SelectItem>
+                    <SelectItem value="expense">Saida</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Valor (R$)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={form.amount}
+                  onChange={(e) => setForm(f => ({ ...f, amount: e.target.value }))}
+                  placeholder="0,00"
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label>Descricao</Label>
+              <Input
+                value={form.description}
+                onChange={(e) => setForm(f => ({ ...f, description: e.target.value }))}
+                placeholder="Ex: Aluguel abril, Venda avulsa"
+              />
+            </div>
+
+            <div>
+              <Label>Categoria</Label>
+              <Select value={form.category_id || 'none'} onValueChange={(v) => setForm(f => ({ ...f, category_id: v === 'none' ? '' : v }))}>
+                <SelectTrigger><SelectValue placeholder="Sem categoria" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Sem categoria</SelectItem>
+                  {filteredCategories.map(c => (
+                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <Label>Competencia</Label>
+                <Input type="date" value={form.competence_date} onChange={(e) => setForm(f => ({ ...f, competence_date: e.target.value }))} />
+              </div>
+              <div>
+                <Label>Vencimento</Label>
+                <Input type="date" value={form.due_date} onChange={(e) => setForm(f => ({ ...f, due_date: e.target.value }))} />
+              </div>
+              <div>
+                <Label>Pago em</Label>
+                <Input type="date" value={form.paid_at} onChange={(e) => setForm(f => ({ ...f, paid_at: e.target.value }))} />
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">A data de competencia define em qual mes o lancamento aparece. A data de pagamento em branco mantem o lancamento como conta a pagar/receber ate ser quitado.</p>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDialogOpen(false)} disabled={saving}>Cancelar</Button>
+            <Button onClick={handleSave} disabled={saving}>
+              {saving && <Loader2 className="h-3 w-3 animate-spin mr-2" />}
+              {editing ? 'Salvar' : 'Criar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog: gerenciar categorias */}
+      <CategoryDialog open={isCategoryDialogOpen} onOpenChange={setIsCategoryDialogOpen} categories={categories} onChanged={fetchData} />
+    </div>
+  )
+}
+
+function CategoryDialog({ open, onOpenChange, categories, onChanged }: {
+  open: boolean
+  onOpenChange: (v: boolean) => void
+  categories: FinanceCategory[]
+  onChanged: () => void
+}) {
+  const [name, setName] = useState('')
+  const [type, setType] = useState<'income' | 'expense'>('expense')
+  const [color, setColor] = useState('#8B5CF6')
+  const [saving, setSaving] = useState(false)
+
+  const handleCreate = async () => {
+    if (!name.trim()) {
+      showToast.error('Informe o nome da categoria.')
+      return
+    }
+    setSaving(true)
+    try {
+      await api.createFinanceCategory({ name: name.trim(), type, color })
+      showToast.success('Categoria criada.')
+      setName('')
+      onChanged()
+    } catch (err) {
+      handleApiError(err, 'Erro ao criar categoria')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleDelete = async (cat: FinanceCategory) => {
+    if (cat.is_default) {
+      showToast.error('Categorias padrao nao podem ser excluidas.')
+      return
+    }
+    if (!confirm(`Excluir a categoria "${cat.name}"?`)) return
+    try {
+      await api.deleteFinanceCategory(cat.id)
+      showToast.success('Categoria excluida.')
+      onChanged()
+    } catch (err) {
+      handleApiError(err, 'Erro ao excluir categoria')
+    }
+  }
+
+  const grouped = {
+    income: categories.filter(c => c.type === 'income'),
+    expense: categories.filter(c => c.type === 'expense'),
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-xl">
+        <DialogHeader>
+          <DialogTitle>Categorias</DialogTitle>
+          <DialogDescription>Organize seus lancamentos por categoria. As padroes sao criadas automaticamente e nao podem ser excluidas.</DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-6 py-2">
+          {/* Form criar */}
+          <div className="grid grid-cols-[1fr_120px_60px_auto] gap-2 items-end border-b pb-4">
+            <div>
+              <Label>Nome</Label>
+              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: Marketing" />
+            </div>
+            <div>
+              <Label>Tipo</Label>
+              <Select value={type} onValueChange={(v) => setType(v as 'income' | 'expense')}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="income">Entrada</SelectItem>
+                  <SelectItem value="expense">Saida</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Cor</Label>
+              <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="h-10 w-full rounded border border-input cursor-pointer" />
+            </div>
+            <Button onClick={handleCreate} disabled={saving}>
+              {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-4 w-4" />}
+            </Button>
+          </div>
+
+          {/* Lista */}
+          <div className="space-y-4 max-h-[400px] overflow-y-auto">
+            {(['income', 'expense'] as const).map(t => (
+              <div key={t}>
+                <h4 className="text-xs font-semibold uppercase text-muted-foreground mb-2">{t === 'income' ? 'Entradas' : 'Saidas'}</h4>
+                {grouped[t].length === 0 ? (
+                  <p className="text-xs text-muted-foreground py-1">Nenhuma categoria.</p>
+                ) : (
+                  <div className="space-y-1">
+                    {grouped[t].map(c => (
+                      <div key={c.id} className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-muted/50">
+                        <div className="flex items-center gap-2">
+                          <span className="w-3 h-3 rounded-full" style={{ backgroundColor: c.color }} />
+                          <span className="text-sm">{c.name}</span>
+                          {c.is_default && <Badge variant="outline" className="text-[10px]">padrao</Badge>}
+                        </div>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-red-600 hover:text-red-700" disabled={c.is_default} onClick={() => handleDelete(c)}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Fechar</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }

@@ -1168,6 +1168,80 @@ class ApiClient {
     return response.data
   }
 
+  // Finance module — manual income/expense + cash-flow summary.
+  async getFinanceTransactions(params?: {
+    month?: string
+    from?: string
+    to?: string
+    type?: 'income' | 'expense'
+    category_id?: string
+    source?: 'manual' | 'appointment' | 'session_plan'
+    only_paid?: boolean
+  }) {
+    const response = await this.client.get('/finance/transactions', {
+      params: { ...params, only_paid: params?.only_paid ? 'true' : undefined },
+    })
+    return response.data
+  }
+
+  async createFinanceTransaction(data: {
+    type: 'income' | 'expense'
+    category_id?: string
+    amount: number
+    description: string
+    competence_date: string
+    due_date?: string | null
+    paid_at?: string | null
+    payment_method_id?: string | null
+  }) {
+    const response = await this.client.post('/finance/transactions', data)
+    return response.data
+  }
+
+  async updateFinanceTransaction(id: string, data: Partial<{
+    type: 'income' | 'expense'
+    category_id: string | null
+    amount: number
+    description: string
+    competence_date: string
+    due_date: string | null
+    paid_at: string | null
+    payment_method_id: string | null
+  }>) {
+    const response = await this.client.patch(`/finance/transactions/${id}`, data)
+    return response.data
+  }
+
+  async deleteFinanceTransaction(id: string) {
+    const response = await this.client.delete(`/finance/transactions/${id}`)
+    return response.data
+  }
+
+  async getFinanceSummary(params?: { month?: string; from?: string; to?: string }) {
+    const response = await this.client.get('/finance/summary', { params })
+    return response.data
+  }
+
+  async getFinanceCategories() {
+    const response = await this.client.get('/finance/categories')
+    return response.data
+  }
+
+  async createFinanceCategory(data: { name: string; type: 'income' | 'expense'; color?: string }) {
+    const response = await this.client.post('/finance/categories', data)
+    return response.data
+  }
+
+  async updateFinanceCategory(id: string, data: { name?: string; color?: string }) {
+    const response = await this.client.patch(`/finance/categories/${id}`, data)
+    return response.data
+  }
+
+  async deleteFinanceCategory(id: string) {
+    const response = await this.client.delete(`/finance/categories/${id}`)
+    return response.data
+  }
+
   // Onboarding endpoints
   async getOnboardingStatus() {
     const response = await this.client.get('/onboarding/status')
