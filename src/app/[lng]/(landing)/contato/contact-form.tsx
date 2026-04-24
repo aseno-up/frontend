@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { gtagEvent } from '@/lib/gtag'
 
 export function ContactForm() {
   const [formData, setFormData] = useState({ name: '', email: '', message: '' })
@@ -25,6 +26,8 @@ export function ContactForm() {
         const data = await res.json().catch(() => null)
         throw new Error(data?.error || 'Erro ao enviar mensagem')
       }
+
+      gtagEvent('generate_lead', { source: 'contact_form' })
 
       setSubmitted(true)
       setFormData({ name: '', email: '', message: '' })

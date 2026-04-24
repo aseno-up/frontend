@@ -6,6 +6,8 @@ import { useAuthStore } from "@/stores/auth-store"
 import { api } from "@/lib/api/client"
 import { CreditCard, QrCode, ArrowRight, ArrowLeft, Check, Loader2, Copy, CheckCircle2 } from "lucide-react"
 import { FacebookPixel } from "@/components/facebook-pixel"
+import { GoogleAnalytics } from "@/components/google-analytics"
+import { gtagEvent } from "@/lib/gtag"
 
 type Step = "billing" | "payment" | "process"
 
@@ -34,6 +36,7 @@ export default function BillingSetupPage() {
   return (
     <>
       <FacebookPixel />
+      <GoogleAnalytics measurementId="G-PQNQJQ3BVH" />
       <Suspense fallback={
         <div className="flex h-screen items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -238,6 +241,13 @@ function BillingSetupContent() {
 
         // Credit card processed - reload user and redirect
         await loadUser()
+        gtagEvent("sign_up", {
+          method: "credit_card",
+          plan: selectedPlan,
+          billing: selectedBilling,
+          value: getPlanPrice(),
+          currency: "BRL",
+        })
         router.push("/agenda")
         return
       }
@@ -264,6 +274,14 @@ function BillingSetupContent() {
         if (confirmedPayment) {
           setPaymentConfirmed(true)
           if (pollingRef.current) clearInterval(pollingRef.current)
+
+          gtagEvent("sign_up", {
+            method: "pix",
+            plan: selectedPlan,
+            billing: selectedBilling,
+            value: getPlanPrice(),
+            currency: "BRL",
+          })
 
           // Reload user and redirect after short delay
           await loadUser()

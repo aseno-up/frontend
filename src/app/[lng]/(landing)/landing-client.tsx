@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/stores/auth-store'
+import { gtagEvent } from '@/lib/gtag'
 
 export interface PublicConfig {
   trial_days: number
@@ -52,6 +53,7 @@ export function HeroCTA({ lng, publicConfig: initialConfig = null }: LandingClie
     if (typeof window !== 'undefined' && (window as unknown as { fbq?: (...args: unknown[]) => void }).fbq) {
       (window as unknown as { fbq: (...args: unknown[]) => void }).fbq('track', 'Lead', { plan })
     }
+    gtagEvent('generate_lead', { plan })
     const target = isAuthenticated ? 'billing-setup' : 'register'
     const url = new URL(`/${lng}/${target}`, window.location.origin)
     url.searchParams.set('plan', plan)
@@ -87,6 +89,7 @@ export function NavCTA({ lng }: LandingClientProps) {
     if (typeof window !== 'undefined' && (window as unknown as { fbq?: (...args: unknown[]) => void }).fbq) {
       (window as unknown as { fbq: (...args: unknown[]) => void }).fbq('track', 'Lead', { plan })
     }
+    gtagEvent('generate_lead', { plan })
     const target = isAuthenticated ? 'billing-setup' : 'register'
     const url = new URL(`/${lng}/${target}`, window.location.origin)
     url.searchParams.set('plan', plan)
@@ -198,6 +201,7 @@ export function PricingSection({ lng, publicConfig: initialConfig = null }: Land
     if (typeof window !== 'undefined' && (window as unknown as { fbq?: (...args: unknown[]) => void }).fbq) {
       (window as unknown as { fbq: (...args: unknown[]) => void }).fbq('track', 'Lead', { plan })
     }
+    gtagEvent('generate_lead', { plan })
     const target = isAuthenticated ? 'billing-setup' : 'register'
     const url = new URL(`/${lng}/${target}`, window.location.origin)
     url.searchParams.set('plan', plan)
@@ -418,6 +422,7 @@ export function CtaSection({ lng, publicConfig: initialConfig = null }: LandingC
     if (typeof window !== 'undefined' && (window as unknown as { fbq?: (...args: unknown[]) => void }).fbq) {
       (window as unknown as { fbq: (...args: unknown[]) => void }).fbq('track', 'Lead', { plan })
     }
+    gtagEvent('generate_lead', { plan })
     const target = isAuthenticated ? 'billing-setup' : 'register'
     const url = new URL(`/${lng}/${target}`, window.location.origin)
     url.searchParams.set('plan', plan)

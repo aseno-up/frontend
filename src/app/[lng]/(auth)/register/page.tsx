@@ -18,6 +18,8 @@ import { showToast, handleApiError } from "@/lib/toast"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { FacebookPixel } from "@/components/facebook-pixel"
+import { GoogleAnalytics } from "@/components/google-analytics"
+import { gtagEvent } from "@/lib/gtag"
 
 const registerSchema = z.object({
   clinic_name: z.string().min(2, "Nome da clinica deve ter no minimo 2 caracteres"),
@@ -45,6 +47,7 @@ export default function RegisterPage({ params }: RegisterPageProps) {
   return (
     <>
       <FacebookPixel />
+      <GoogleAnalytics measurementId="G-PQNQJQ3BVH" />
       <Suspense fallback={
         <div className="flex h-screen items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -102,6 +105,12 @@ function RegisterContent({ params }: RegisterPageProps) {
         variant: selectedVariant === 'solo' ? 'solo' : undefined,
       })
 
+      gtagEvent('sign_up', {
+        method: 'email',
+        plan: selectedPlan || 'trial',
+        billing: selectedBilling || undefined,
+      })
+
       // Store selected plan and billing for later use
       if (selectedPlan && selectedBilling) {
         localStorage.setItem('pending_subscription', JSON.stringify({
@@ -147,6 +156,13 @@ function RegisterContent({ params }: RegisterPageProps) {
         selectedPlan || undefined,
         selectedBilling || undefined
       )
+
+      gtagEvent('sign_up', {
+        method: 'google',
+        plan: selectedPlan || 'trial',
+        billing: selectedBilling || undefined,
+      })
+
       const { lng } = await params
       showToast.success("Login com Google realizado com sucesso!")
 
