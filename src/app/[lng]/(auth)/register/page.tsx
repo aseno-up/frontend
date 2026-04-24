@@ -19,6 +19,7 @@ import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { FacebookPixel } from "@/components/facebook-pixel"
 import { GoogleAnalytics } from "@/components/google-analytics"
+import { GoogleAdsTag } from "@/components/google-ads-tag"
 import { gtagEvent } from "@/lib/gtag"
 
 const registerSchema = z.object({
@@ -48,6 +49,7 @@ export default function RegisterPage({ params }: RegisterPageProps) {
     <>
       <FacebookPixel />
       <GoogleAnalytics measurementId="G-PQNQJQ3BVH" />
+      <GoogleAdsTag conversionId="AW-758071096" />
       <Suspense fallback={
         <div className="flex h-screen items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />

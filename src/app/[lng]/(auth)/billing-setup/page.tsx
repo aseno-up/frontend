@@ -7,6 +7,7 @@ import { api } from "@/lib/api/client"
 import { CreditCard, QrCode, ArrowRight, ArrowLeft, Check, Loader2, Copy, CheckCircle2 } from "lucide-react"
 import { FacebookPixel } from "@/components/facebook-pixel"
 import { GoogleAnalytics } from "@/components/google-analytics"
+import { GoogleAdsTag } from "@/components/google-ads-tag"
 import { gtagEvent } from "@/lib/gtag"
 
 type Step = "billing" | "payment" | "process"
@@ -37,6 +38,7 @@ export default function BillingSetupPage() {
     <>
       <FacebookPixel />
       <GoogleAnalytics measurementId="G-PQNQJQ3BVH" />
+      <GoogleAdsTag conversionId="AW-758071096" />
       <Suspense fallback={
         <div className="flex h-screen items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />

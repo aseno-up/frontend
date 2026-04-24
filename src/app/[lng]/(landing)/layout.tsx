@@ -1,5 +1,6 @@
 import { FacebookPixel } from "@/components/facebook-pixel"
 import { GoogleAnalytics } from "@/components/google-analytics"
+import { GoogleAdsTag } from "@/components/google-ads-tag"
 import { WhatsAppFloat } from "./whatsapp-float"
 
 interface LandingLayoutProps {
@@ -11,6 +12,7 @@ export default function LandingLayout({ children }: LandingLayoutProps) {
     <div className="dark">
       <FacebookPixel />
       <GoogleAnalytics measurementId="G-PQNQJQ3BVH" />
+      <GoogleAdsTag conversionId="AW-758071096" />
       {children}
       <WhatsAppFloat />
     </div>
