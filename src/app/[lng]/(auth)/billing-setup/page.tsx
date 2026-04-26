@@ -250,11 +250,25 @@ function BillingSetupContent() {
           value: getPlanPrice(),
           currency: "BRL",
         })
-        gtagEvent("purchase", {
-          transaction_id: `cc-${user?.id ?? "anon"}-${Date.now()}`,
-          value: getPlanPrice(),
-          currency: "BRL",
-        })
+        // Only fire purchase when Asaas confirmed the first charge.
+        // If the payment is still PENDING/PROCESSING we skip the
+        // event so we don't report a conversion that may never settle.
+        try {
+          const paymentsResponse = await api.getSubscriptionPayments()
+          const payments = paymentsResponse?.data || []
+          const confirmedPayment = payments.find((p: any) =>
+            p.status === "CONFIRMED" || p.status === "RECEIVED"
+          )
+          if (confirmedPayment) {
+            gtagEvent("purchase", {
+              transaction_id: confirmedPayment.id,
+              value: getPlanPrice(),
+              currency: "BRL",
+            })
+          }
+        } catch {
+          // Silently skip: failing to verify status should not block redirect.
+        }
         router.push("/agenda")
         return
       }
