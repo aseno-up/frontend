@@ -23,7 +23,8 @@ import { TimePicker, TimePickerInline } from "@/components/ui/time-picker"
 import { cn } from "@/lib/utils"
 import { api } from "@/lib/api/client"
 import { handleApiError, showToast } from "@/lib/toast"
-import { SessionPlan, PlanStatus, Frequency, Enrollment } from "@/types/api"
+import { SessionPlan, PlanStatus, Frequency, Enrollment, SessionPlanSlot, PartnerNetwork } from "@/types/api"
+import { SlotsManager } from "@/components/session-plans/slots-manager"
 
 const statusLabels: Record<PlanStatus, string> = {
   active: "Ativo",
@@ -66,7 +67,7 @@ interface PlanDetailModalProps {
   appointments: any[]
   payments: any[]
   loading: boolean
-  onOpenEnrollment: () => void
+  onOpenEnrollment: (editEnrollmentId?: string) => void
   onOpenAttendance: (appointmentId: string, sessionPlanId: string) => void
   onOpenPayment: () => void
   onOpenPaymentForEnrollment?: (enrollmentId: string) => void
@@ -90,6 +91,8 @@ export function PlanDetailModal({
 }: PlanDetailModalProps) {
   const [enrollments, setEnrollments] = useState<Enrollment[]>([])
   const [enrollmentsLoading, setEnrollmentsLoading] = useState(false)
+  const [detailSlots, setDetailSlots] = useState<SessionPlanSlot[]>([])
+  const [partnerPlanLabels, setPartnerPlanLabels] = useState<Record<string, string>>({})
   const [enrollmentPayments, setEnrollmentPayments] = useState<Record<string, any[]>>({})
   const [isEditing, setIsEditing] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -192,6 +195,23 @@ export function PlanDetailModal({
         .then((resp: any) => setEnrollments(resp?.data || resp || []))
         .catch(() => setEnrollments([]))
         .finally(() => setEnrollmentsLoading(false))
+      // Slots needed to render "Seg 09:00" chips per enrollment.
+      api.getSessionPlanSlots(plan.id)
+        .then((resp: any) => setDetailSlots(resp?.data || []))
+        .catch(() => setDetailSlots([]))
+      // Partner plans for "Convênio: Gympass — Silver" labels.
+      api.getActivePartnerNetworks()
+        .then((resp: any) => {
+          const networks: PartnerNetwork[] = resp?.data || []
+          const labels: Record<string, string> = {}
+          networks.forEach((n) => {
+            ;(n.plans || []).forEach((p) => {
+              labels[p.id] = `${n.name} — ${p.name}`
+            })
+          })
+          setPartnerPlanLabels(labels)
+        })
+        .catch(() => setPartnerPlanLabels({}))
     }
   }, [open, plan?.id, isGroup, refreshKey])
 
@@ -571,6 +591,14 @@ export function PlanDetailModal({
                 Alunos
               </TabsTrigger>
             )}
+            {isGroup && (
+              <TabsTrigger
+                value="horarios"
+                className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none text-[13px] font-normal text-muted-foreground data-[state=active]:text-foreground data-[state=active]:font-semibold px-3.5 py-2.5 -mb-px"
+              >
+                Horários
+              </TabsTrigger>
+            )}
             <TabsTrigger
               value="pagamentos"
               className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none text-[13px] font-normal text-muted-foreground data-[state=active]:text-foreground data-[state=active]:font-semibold px-3.5 py-2.5 -mb-px"
@@ -717,7 +745,7 @@ export function PlanDetailModal({
                   variant="outline"
                   size="sm"
                   className="h-7 text-xs gap-1"
-                  onClick={onOpenEnrollment}
+                  onClick={() => onOpenEnrollment()}
                 >
                   <UserPlus className="h-3 w-3" />
                   Gerenciar
@@ -734,45 +762,96 @@ export function PlanDetailModal({
                 </p>
               ) : (
                 <div className="flex flex-col gap-[7px]">
-                  {enrollments.map((enrollment) => (
-                    <div
-                      key={enrollment.id}
-                      className="flex items-center gap-3 px-3.5 py-2.5 border rounded-lg"
-                    >
-                      {/* Avatar */}
-                      <div className="w-9 h-9 rounded-full bg-blue-50 text-blue-700 text-xs font-semibold flex items-center justify-center shrink-0 tracking-tight">
-                        {getInitials(enrollment.patient_name || "?")}
-                      </div>
-
-                      {/* Info */}
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium truncate">
-                          {enrollment.patient_name || "Paciente"}
+                  {enrollments.map((enrollment) => {
+                    const enrolledSlots = (enrollment.slot_ids || [])
+                      .map((id) => detailSlots.find((s) => s.id === id))
+                      .filter((s): s is NonNullable<typeof s> => !!s)
+                      .sort(
+                        (a, b) =>
+                          a.weekday - b.weekday || a.start_time.localeCompare(b.start_time)
+                      )
+                    return (
+                      <div
+                        key={enrollment.id}
+                        className="flex items-center gap-3 px-3.5 py-2.5 border rounded-lg"
+                      >
+                        {/* Avatar */}
+                        <div className="w-9 h-9 rounded-full bg-blue-50 text-blue-700 text-xs font-semibold flex items-center justify-center shrink-0 tracking-tight">
+                          {getInitials(enrollment.patient_name || "?")}
                         </div>
-                        <div className="text-xs text-muted-foreground mt-px flex items-center gap-2">
-                          <span>Desde {format(new Date(enrollment.joined_at), "dd/MM/yyyy")}</span>
-                          {enrollment.week_days && enrollment.week_days.length > 0 && (
-                            <span>
-                              · {enrollment.week_days.map(d => ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"][d]).join(", ")}
+
+                        {/* Info */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-sm font-medium truncate">
+                              {enrollment.patient_name || "Paciente"}
                             </span>
+                            {enrollment.partner_plan_id && (
+                              <span className="inline-flex items-center gap-1 rounded-md bg-violet-50 px-1.5 py-0.5 text-[10px] font-semibold text-violet-700">
+                                {partnerPlanLabels[enrollment.partner_plan_id] || "Convênio"}
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-xs text-muted-foreground mt-px flex items-center gap-2">
+                            <span>Desde {format(new Date(enrollment.joined_at), "dd/MM/yyyy")}</span>
+                            {enrolledSlots.length === 0 && enrollment.week_days && enrollment.week_days.length > 0 && (
+                              <span>
+                                · {enrollment.week_days.map(d => ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"][d]).join(", ")}
+                              </span>
+                            )}
+                          </div>
+                          {enrolledSlots.length > 0 && (
+                            <div className="mt-1.5 flex flex-wrap gap-1">
+                              {enrolledSlots.map((slot) => (
+                                <span
+                                  key={slot.id}
+                                  className="inline-flex items-center gap-1 rounded-md border border-primary/20 bg-primary/5 px-2 py-0.5 text-[11px] font-medium text-primary"
+                                >
+                                  {["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"][slot.weekday]} {slot.start_time}
+                                </span>
+                              ))}
+                            </div>
                           )}
                         </div>
-                      </div>
 
-                      {/* Status */}
-                      <span
-                        className={cn(
-                          "inline-flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-full",
-                          enrollmentStatusStyle[enrollment.status] || "bg-slate-100 text-slate-600"
+                        {/* Status */}
+                        <span
+                          className={cn(
+                            "inline-flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-full",
+                            enrollmentStatusStyle[enrollment.status] || "bg-slate-100 text-slate-600"
+                          )}
+                        >
+                          <span className="w-1.5 h-1.5 rounded-full bg-current opacity-70" />
+                          {enrollmentStatusLabel[enrollment.status] || enrollment.status}
+                        </span>
+
+                        {/* Actions */}
+                        {enrollment.status !== "cancelled" && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                            title="Editar inscrição"
+                            onClick={() => onOpenEnrollment(enrollment.id)}
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
                         )}
-                      >
-                        <span className="w-1.5 h-1.5 rounded-full bg-current opacity-70" />
-                        {enrollmentStatusLabel[enrollment.status] || enrollment.status}
-                      </span>
-                    </div>
-                  ))}
+                      </div>
+                    )
+                  })}
                 </div>
               )}
+            </TabsContent>
+          )}
+
+          {/* ── Tab: Horários (group plans only) ── */}
+          {isGroup && plan && (
+            <TabsContent
+              value="horarios"
+              className="flex-1 min-h-0 overflow-y-auto px-6 pb-6 pt-4 mt-0"
+            >
+              <SlotsManager sessionPlanId={plan.id} defaultCapacity={plan.capacity} />
             </TabsContent>
           )}
 

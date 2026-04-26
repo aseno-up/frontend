@@ -106,7 +106,7 @@ const sessionPlanSchema = z.object({
   professional_mode: z.enum(["fixed", "flexible"]).default("fixed"),
   generation_mode: z.enum(["auto", "manual"]).default("auto"),
   generate_all: z.boolean().default(false),
-  whatsapp_confirmation: z.boolean().optional().default(true),
+
 }).refine((data) => {
   if (data.plan_type === "individual" && !data.patient_id) {
     return false
@@ -249,6 +249,7 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
 
   // Enrollment dialog state (group plans)
   const [enrollmentDialogOpen, setEnrollmentDialogOpen] = useState(false)
+  const [enrollmentEditId, setEnrollmentEditId] = useState<string | null>(null)
 
   // Group attendance dialog state
   const [attendanceDialogOpen, setAttendanceDialogOpen] = useState(false)
@@ -308,7 +309,6 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
       professional_mode: "fixed",
       generation_mode: "auto",
       generate_all: false,
-      whatsapp_confirmation: true,
     },
   })
 
@@ -602,7 +602,7 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
       total_sessions: 10, is_indeterminate: false, start_date: format(new Date(), "yyyy-MM-dd"),
       session_price: 0, procedure_id: "", capacity: 10, payment_mode: "per_session",
       notes: "", professional_mode: "fixed", generation_mode: "auto",
-      generate_all: false, whatsapp_confirmation: true,
+      generate_all: false,
     })
     setPaymentEntries([])
     setCurrentStep(1)
@@ -1126,16 +1126,6 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
               </div>
             )}
 
-            <div className="space-y-3 pt-4 border-t">
-              <Label>Comunicação</Label>
-              <div className="flex items-center justify-between rounded-lg border p-4">
-                <div className="space-y-0.5">
-                  <Label className="text-base">Confirmação via WhatsApp</Label>
-                  <DialogDescription>Enviar lembretes e solicitar confirmação automática</DialogDescription>
-                </div>
-                <Switch checked={watch("whatsapp_confirmation")} onCheckedChange={(checked) => setValue("whatsapp_confirmation", checked)} />
-              </div>
-            </div>
           </div>
         )
       case 5: // Review
@@ -1200,7 +1190,6 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
                 {watchedPlanType === "group" && <li>Você poderá <strong>inscrever pacientes</strong> na turma após criar o plano.</li>}
                 {watchedPaymentMode === "upfront" && watchedPlanType !== "group" && <li>O pagamento total deverá ser registrado no plano. Cada sessão aparecerá como "já paga".</li>}
                 {watchedPaymentMode === "upfront" && watchedPlanType === "group" && <li>O pagamento antecipado será registrado ao inscrever cada aluno.</li>}
-                {watch("whatsapp_confirmation") && <li>Confirmações via WhatsApp serão enviadas antes de cada sessão.</li>}
               </ul>
             </div>
           </div>
@@ -1420,7 +1409,10 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
         appointments={detailAppointments}
         payments={detailPayments}
         loading={detailLoading}
-        onOpenEnrollment={() => setEnrollmentDialogOpen(true)}
+        onOpenEnrollment={(editEnrollmentId) => {
+          setEnrollmentEditId(editEnrollmentId ?? null)
+          setEnrollmentDialogOpen(true)
+        }}
         onOpenAttendance={(appointmentId, sessionPlanId) => {
           setAttendanceAppointmentId(appointmentId)
           setAttendanceSessionPlanId(sessionPlanId)
@@ -1470,12 +1462,15 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
           open={enrollmentDialogOpen}
           onOpenChange={(open) => {
             setEnrollmentDialogOpen(open)
-            if (!open && detailPlan) {
-              setDetailRefreshKey(k => k + 1)
-              // Refresh enrollments when dialog closes
-              api.getEnrollments(detailPlan.id)
-                .then((resp: any) => setDetailEnrollments(resp?.data || resp || []))
-                .catch(() => {})
+            if (!open) {
+              setEnrollmentEditId(null)
+              if (detailPlan) {
+                setDetailRefreshKey(k => k + 1)
+                // Refresh enrollments when dialog closes
+                api.getEnrollments(detailPlan.id)
+                  .then((resp: any) => setDetailEnrollments(resp?.data || resp || []))
+                  .catch(() => {})
+              }
             }
           }}
           sessionPlanId={detailPlan.id}
@@ -1487,6 +1482,7 @@ export default function PlanosSessaoPage({ params }: PlanosSessaoPageProps) {
           planWeekDays={detailPlan.week_days || []}
           planDayTimes={detailPlan.day_times}
           planPreferredTime={detailPlan.preferred_time}
+          editEnrollmentId={enrollmentEditId}
           onOpenPaymentForEnrollment={(enrollmentId) => {
             setPaymentEnrollmentId(enrollmentId)
             setPaymentSessionPlanId(detailPlan.id)

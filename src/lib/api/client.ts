@@ -379,6 +379,63 @@ class ApiClient {
     return response.data
   }
 
+  // Partner Networks (Convênios) — Gympass, Total Pass, Namu Pass, Gogood, etc.
+  async getPartnerNetworks() {
+    const response = await this.client.get('/partner-networks')
+    return response.data
+  }
+
+  async getActivePartnerNetworks() {
+    const response = await this.client.get('/partner-networks/active')
+    return response.data
+  }
+
+  async getPartnerNetwork(id: string) {
+    const response = await this.client.get(`/partner-networks/${id}`)
+    return response.data
+  }
+
+  async createPartnerNetwork(data: { name: string }) {
+    const response = await this.client.post('/partner-networks', data)
+    return response.data
+  }
+
+  async updatePartnerNetwork(id: string, data: { name?: string; is_active?: boolean }) {
+    const response = await this.client.put(`/partner-networks/${id}`, data)
+    return response.data
+  }
+
+  async deletePartnerNetwork(id: string) {
+    const response = await this.client.delete(`/partner-networks/${id}`)
+    return response.data
+  }
+
+  // Partner Plans — plans within a network (Silver, Tp2, Básico III...)
+  async getPartnerPlansByNetwork(networkId: string) {
+    const response = await this.client.get(`/partner-plans/by-network/${networkId}`)
+    return response.data
+  }
+
+  async getPartnerPlan(id: string) {
+    const response = await this.client.get(`/partner-plans/${id}`)
+    return response.data
+  }
+
+  async createPartnerPlan(data: { partner_network_id: string; name: string; max_sessions_per_week?: number | null }) {
+    const response = await this.client.post('/partner-plans', data)
+    return response.data
+  }
+
+  async updatePartnerPlan(id: string, data: { name?: string; max_sessions_per_week?: number | null; is_active?: boolean }) {
+    const response = await this.client.put(`/partner-plans/${id}`, data)
+    return response.data
+  }
+
+  async deletePartnerPlan(id: string) {
+    const response = await this.client.delete(`/partner-plans/${id}`)
+    return response.data
+  }
+
   // Appointments endpoints
   async getAppointments(params: {
     page?: number
@@ -846,7 +903,9 @@ class ApiClient {
   // Enrollment endpoints
   async enrollPatient(sessionPlanId: string, data: {
     patient_id: string
-    week_days: number[]
+    week_days?: number[]
+    slot_ids?: string[]
+    partner_plan_id?: string | null
     total_sessions?: number
     payment_mode?: string
     monthly_amount?: number
@@ -856,8 +915,54 @@ class ApiClient {
     return response.data
   }
 
+  // SessionPlanSlot endpoints (group plans with multiple times per day)
+  async getSessionPlanSlots(sessionPlanId: string) {
+    const response = await this.client.get(`/session-plans/${sessionPlanId}/slots`)
+    return response.data
+  }
+
+  async createSessionPlanSlot(sessionPlanId: string, data: {
+    weekday: number
+    start_time: string
+    capacity: number
+    professional_id?: string | null
+  }) {
+    const response = await this.client.post(`/session-plans/${sessionPlanId}/slots`, data)
+    return response.data
+  }
+
+  async updateSessionPlanSlot(sessionPlanId: string, slotId: string, data: {
+    weekday?: number
+    start_time?: string
+    capacity?: number
+    professional_id?: string | null
+    is_active?: boolean
+  }) {
+    const response = await this.client.put(`/session-plans/${sessionPlanId}/slots/${slotId}`, data)
+    return response.data
+  }
+
+  async deleteSessionPlanSlot(sessionPlanId: string, slotId: string) {
+    const response = await this.client.delete(`/session-plans/${sessionPlanId}/slots/${slotId}`)
+    return response.data
+  }
+
   async getEnrollments(sessionPlanId: string) {
     const response = await this.client.get(`/session-plans/${sessionPlanId}/enrollments`)
+    return response.data
+  }
+
+  async updateEnrollment(sessionPlanId: string, enrollmentId: string, data: {
+    week_days?: number[]
+    slot_ids?: string[]
+    partner_plan_id?: string | null
+    clear_partner_plan?: boolean
+    total_sessions?: number
+    payment_mode?: string
+    monthly_amount?: number
+    billing_day?: number
+  }) {
+    const response = await this.client.put(`/session-plans/${sessionPlanId}/enrollments/${enrollmentId}`, data)
     return response.data
   }
 

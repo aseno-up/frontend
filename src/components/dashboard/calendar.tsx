@@ -75,6 +75,7 @@ interface CalendarEventInternal {
     isVirtual: boolean
     sessionPlanId?: string
     virtualDate?: string
+    slotId?: string
     professionalColor?: string
     professionalName?: string
     patientId?: string
@@ -88,7 +89,7 @@ interface CalendarEventInternal {
 
 interface CalendarProps {
   onEventClick: (appointment: Appointment) => void
-  onGroupEventClick?: (sessionPlanId: string, date: string) => void
+  onGroupEventClick?: (sessionPlanId: string, date: string, slotId?: string) => void
   onDateSelect: (start: Date, end: Date, professionalId?: string) => void
   selectedProfessionalId?: string
   professionals: Professional[]
@@ -202,8 +203,14 @@ export function Calendar({
                 : evt.patient_name || evt.title || "Sessao"
 
               const profColor = professional?.color || evt.professional_color
+              // For slot-based group events, multiple virtuals share the same
+              // (plan, date) — the slot id disambiguates them so FullCalendar
+              // doesn't dedupe by id.
+              const virtualId = evt.slot_id
+                ? `virtual_${evt.session_plan_id}_${evt.virtual_date}_${evt.slot_id}`
+                : `virtual_${evt.session_plan_id}_${evt.virtual_date}`
               return {
-                id: `virtual_${evt.session_plan_id}_${evt.virtual_date}`,
+                id: virtualId,
                 title,
                 start: evt.start_time,
                 end: evt.end_time,
@@ -214,6 +221,7 @@ export function Calendar({
                   isVirtual: true,
                   sessionPlanId: evt.session_plan_id,
                   virtualDate: evt.virtual_date,
+                  slotId: evt.slot_id,
                   professionalColor: professional?.color || evt.professional_color,
                   professionalName: professional?.name || evt.professional_name,
                   patientId: evt.patient_id,
@@ -300,12 +308,12 @@ export function Calendar({
   const handleEventClick = async (info: EventClickArg) => {
     setTooltip((t) => ({ ...t, visible: false }))
 
-    const { isVirtual, sessionPlanId, virtualDate, appointment, planType } = info.event.extendedProps
+    const { isVirtual, sessionPlanId, virtualDate, slotId, appointment, planType } = info.event.extendedProps
 
     // Group events: open group panel directly, no materialization needed
     if (planType === "group" && sessionPlanId && onGroupEventClick) {
       const date = virtualDate || info.event.startStr.slice(0, 10)
-      onGroupEventClick(sessionPlanId, date)
+      onGroupEventClick(sessionPlanId, date, slotId)
       return
     }
 

@@ -255,6 +255,7 @@ export interface CalendarEvent {
   // Group-only
   enrolled_count?: number
   capacity?: number
+  slot_id?: string // populated for slot-based group events
   // Real appointment fields (only when is_virtual=false)
   id?: string
   status?: AppointmentStatus
@@ -765,6 +766,8 @@ export interface Enrollment {
   patient_id: string
   status: EnrollmentStatus
   week_days: number[]
+  slot_ids?: string[]
+  partner_plan_id?: string | null
   total_sessions?: number | null
   sessions_done: number
   progress: number
@@ -774,6 +777,16 @@ export interface Enrollment {
   joined_at: string
   left_at?: string | null
   patient_name?: string
+}
+
+export interface SessionPlanSlot {
+  id: string
+  session_plan_id: string
+  weekday: number // 0=Sun..6=Sat
+  start_time: string // HH:MM
+  capacity: number
+  professional_id?: string | null
+  is_active: boolean
 }
 
 // Attendance Types
@@ -1257,4 +1270,22 @@ export interface BulkMergeResponse {
   appointments_reassigned: number
   target_patient_id: string
   merged_count: number
+}
+
+export interface PartnerPlan {
+  id: string
+  partner_network_id: string
+  name: string
+  max_sessions_per_week: number | null
+  is_active: boolean
+  created_at: string
+}
+
+export interface PartnerNetwork {
+  id: string
+  clinic_id: string
+  name: string
+  is_active: boolean
+  plans?: PartnerPlan[]
+  created_at: string
 }

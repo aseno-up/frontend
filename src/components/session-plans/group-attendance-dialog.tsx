@@ -32,6 +32,12 @@ interface GroupAttendanceDialogProps {
   appointmentId?: string
   sessionPlanId: string
   sessionDate?: string // YYYY-MM-DD for group attendance without appointment
+  /**
+   * Slot id of the clicked occurrence (slot-based group plans). When set,
+   * enrollments are filtered to those that include this specific slot
+   * instead of falling back to the broader weekday filter.
+   */
+  slotId?: string
 }
 
 interface AttendanceEntry {
@@ -60,7 +66,7 @@ const statusConfig: Record<AttendanceStatus, { label: string; icon: React.ReactN
   substituted: { label: "Substituto", icon: <Minus className="h-3.5 w-3.5" />, color: "bg-yellow-100 text-yellow-800 hover:bg-yellow-200" },
 }
 
-export function GroupAttendanceDialog({ open, onOpenChange, appointmentId, sessionPlanId, sessionDate }: GroupAttendanceDialogProps) {
+export function GroupAttendanceDialog({ open, onOpenChange, appointmentId, sessionPlanId, sessionDate, slotId }: GroupAttendanceDialogProps) {
   const [entries, setEntries] = useState<AttendanceEntry[]>([])
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -112,21 +118,27 @@ export function GroupAttendanceDialog({ open, onOpenChange, appointmentId, sessi
 
       const newEntries: AttendanceEntry[] = []
 
-      // If we have a session date, only include enrollments whose week_days cover that weekday.
-      // Date is parsed as UTC (YYYY-MM-DD) to avoid timezone drift shifting the weekday.
+      // Slot-based plans (the clicked event has a slotId): filter strictly by
+      // slot membership so a 9h event doesn't show students enrolled at 11h
+      // on the same weekday.
+      // Legacy plans without slots: fall back to the broader weekday filter.
       const weekDayFilter = sessionDate
         ? new Date(sessionDate + "T00:00:00Z").getUTCDay()
         : null
 
+      const matchesSession = (e: Enrollment): boolean => {
+        if (slotId) {
+          return Array.isArray(e.slot_ids) && e.slot_ids.includes(slotId)
+        }
+        if (weekDayFilter === null) return true
+        if (!e.week_days || e.week_days.length === 0) return true
+        return e.week_days.includes(weekDayFilter)
+      }
+
       // Add all active enrollments with their session counts
       enrollments
         .filter(e => e.status === "active")
-        .filter(e =>
-          weekDayFilter === null ||
-          !e.week_days ||
-          e.week_days.length === 0 ||
-          e.week_days.includes(weekDayFilter)
-        )
+        .filter(matchesSession)
         .forEach(e => {
           const existing = attendanceMap.get(e.patient_id)
           newEntries.push({
@@ -162,7 +174,7 @@ export function GroupAttendanceDialog({ open, onOpenChange, appointmentId, sessi
     } finally {
       setLoading(false)
     }
-  }, [appointmentId, sessionPlanId, sessionDate])
+  }, [appointmentId, sessionPlanId, sessionDate, slotId])
 
   useEffect(() => {
     if (open) {

@@ -28,6 +28,7 @@ export default function AgendaPage({ params }: AgendaPageProps) {
   const [groupAttendanceOpen, setGroupAttendanceOpen] = useState(false)
   const [groupAttendanceSessionPlanId, setGroupAttendanceSessionPlanId] = useState("")
   const [groupAttendanceDate, setGroupAttendanceDate] = useState("")
+  const [groupAttendanceSlotId, setGroupAttendanceSlotId] = useState<string | undefined>(undefined)
 
   useEffect(() => {
     params.then(({ lng }) => setLng(lng))
@@ -87,9 +88,10 @@ export default function AgendaPage({ params }: AgendaPageProps) {
     setDialogOpen(true)
   }
 
-  const handleGroupEventClick = useCallback((sessionPlanId: string, date: string) => {
+  const handleGroupEventClick = useCallback((sessionPlanId: string, date: string, slotId?: string) => {
     setGroupAttendanceSessionPlanId(sessionPlanId)
     setGroupAttendanceDate(date)
+    setGroupAttendanceSlotId(slotId)
     setGroupAttendanceOpen(true)
   }, [])
 
@@ -142,6 +144,7 @@ export default function AgendaPage({ params }: AgendaPageProps) {
         onOpenChange={setGroupAttendanceOpen}
         sessionPlanId={groupAttendanceSessionPlanId}
         sessionDate={groupAttendanceDate}
+        slotId={groupAttendanceSlotId}
       />
 
       {/* Appointment Dialog */}
