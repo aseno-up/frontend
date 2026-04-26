@@ -51,7 +51,7 @@ export function WhatsAppConnectionTab() {
   const [error, setError] = useState<string>()
   const [isSending, setIsSending] = useState(false)
   const [pollingStartTime, setPollingStartTime] = useState<number | null>(null)
-  const [connectionMethod, setConnectionMethod] = useState<'evolution' | 'official'>('official')
+  const [connectionMethod, setConnectionMethod] = useState<'evolution' | 'official'>('evolution')
   const MAX_POLLING_TIME_MS = 1 * 60 * 1000
 
   const officialForm = useForm<OfficialApiFormData>({
