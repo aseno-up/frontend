@@ -1,23 +1,11 @@
-'use client'
-
 import Script from 'next/script'
-import { useEffect, useState } from 'react'
-
-const DEV_HOSTS = ['localhost', '127.0.0.1', '']
 
 interface GoogleAdsTagProps {
   conversionId: string
 }
 
 export function GoogleAdsTag({ conversionId }: GoogleAdsTagProps) {
-  const [enabled, setEnabled] = useState(false)
-
-  useEffect(() => {
-    if (DEV_HOSTS.includes(window.location.hostname)) return
-    setEnabled(true)
-  }, [])
-
-  if (!enabled) return null
+  if (process.env.NODE_ENV !== 'production') return null
 
   return (
     <>

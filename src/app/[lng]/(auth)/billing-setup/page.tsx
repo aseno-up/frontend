@@ -250,6 +250,11 @@ function BillingSetupContent() {
           value: getPlanPrice(),
           currency: "BRL",
         })
+        gtagEvent("purchase", {
+          transaction_id: `cc-${user?.id ?? "anon"}-${Date.now()}`,
+          value: getPlanPrice(),
+          currency: "BRL",
+        })
         router.push("/agenda")
         return
       }
@@ -281,6 +286,11 @@ function BillingSetupContent() {
             method: "pix",
             plan: selectedPlan,
             billing: selectedBilling,
+            value: getPlanPrice(),
+            currency: "BRL",
+          })
+          gtagEvent("purchase", {
+            transaction_id: confirmedPayment.id,
             value: getPlanPrice(),
             currency: "BRL",
           })

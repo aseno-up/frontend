@@ -1,9 +1,7 @@
 'use client'
 
 import Script from 'next/script'
-import { useEffect, useState } from 'react'
-
-const DEV_HOSTS = ['localhost', '127.0.0.1', '']
+import { useEffect } from 'react'
 
 type GtagFn = (...args: unknown[]) => void
 
@@ -16,11 +14,8 @@ interface GoogleAnalyticsProps {
 }
 
 export function GoogleAnalytics({ measurementId }: GoogleAnalyticsProps) {
-  const [enabled, setEnabled] = useState(false)
-
   useEffect(() => {
-    if (DEV_HOSTS.includes(window.location.hostname)) return
-    setEnabled(true)
+    if (process.env.NODE_ENV !== 'production') return
 
     const gtag = getGtag()
     if (gtag) {
@@ -36,7 +31,7 @@ export function GoogleAnalytics({ measurementId }: GoogleAnalyticsProps) {
     }
   }, [measurementId])
 
-  if (!enabled) return null
+  if (process.env.NODE_ENV !== 'production') return null
 
   return (
     <>
