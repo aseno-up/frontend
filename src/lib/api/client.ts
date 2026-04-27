@@ -1573,6 +1573,16 @@ class ApiClient {
     return response.data
   }
 
+  async getAITokenUsageByModel(params?: { start_date?: string; end_date?: string }) {
+    const response = await this.client.get('/admin/ai-token-usage/by-model', { params })
+    return response.data
+  }
+
+  async getAdminClinicsLookup() {
+    const response = await this.client.get('/admin/clinics')
+    return response.data
+  }
+
   // ==========================================
   // CRM Leads (admin - dev clinics only)
   // ==========================================
