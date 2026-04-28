@@ -51,11 +51,15 @@ export interface ClinicSettings {
   ai_tool_confirm?: boolean | null
   ai_tool_cancel?: boolean | null
   ai_tool_reschedule?: boolean | null
+  ai_tool_enroll_class?: boolean | null
+  ai_tool_confirm_class?: boolean | null
   ai_blocked_intent_reply?: string
   ai_human_takeover_pause_hours?: number | null
   payment_reminder_whatsapp_enabled?: boolean | null
   payment_reminder_email_enabled?: boolean | null
   payment_reminder_days_before?: number | null
+  group_class_reminder_24h_enabled?: boolean | null
+  group_class_reminder_2h_enabled?: boolean | null
 }
 
 export interface Clinic {

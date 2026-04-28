@@ -168,6 +168,12 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
   const [aiToolReschedule, setAiToolReschedule] = useState<boolean>(
     clinic?.settings?.ai_tool_reschedule ?? true
   )
+  const [aiToolEnrollClass, setAiToolEnrollClass] = useState<boolean>(
+    clinic?.settings?.ai_tool_enroll_class ?? true
+  )
+  const [aiToolConfirmClass, setAiToolConfirmClass] = useState<boolean>(
+    clinic?.settings?.ai_tool_confirm_class ?? true
+  )
   const [isSavingAiTool, setIsSavingAiTool] = useState<string | null>(null)
 
   // Payment reminder (mensalidade) state. WhatsApp defaults to ON so new
@@ -199,6 +205,18 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
     clinic?.settings?.whatsapp_reminder_48h_enabled ?? true
   )
   const [isSavingApptReminder, setIsSavingApptReminder] = useState<string | null>(null)
+
+  // Group class reminder windows. Group plans (Pilates, etc.) never
+  // materialize as appointments, so they have a separate reminder worker
+  // and separate per-window flags. 48h is intentionally not offered —
+  // weekly classes don't benefit from a 48h heads-up.
+  const [classReminder24h, setClassReminder24h] = useState<boolean>(
+    clinic?.settings?.group_class_reminder_24h_enabled ?? true
+  )
+  const [classReminder2h, setClassReminder2h] = useState<boolean>(
+    clinic?.settings?.group_class_reminder_2h_enabled ?? true
+  )
+  const [isSavingClassReminder, setIsSavingClassReminder] = useState<string | null>(null)
 
   // Online booking state
   const [allowOnlineBooking, setAllowOnlineBooking] = useState(
@@ -392,6 +410,10 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
       setAiToolConfirm(clinic.settings.ai_tool_confirm ?? true)
       setAiToolCancel(clinic.settings.ai_tool_cancel ?? true)
       setAiToolReschedule(clinic.settings.ai_tool_reschedule ?? true)
+      setAiToolEnrollClass(clinic.settings.ai_tool_enroll_class ?? true)
+      setAiToolConfirmClass(clinic.settings.ai_tool_confirm_class ?? true)
+      setClassReminder24h(clinic.settings.group_class_reminder_24h_enabled ?? true)
+      setClassReminder2h(clinic.settings.group_class_reminder_2h_enabled ?? true)
       setBlockedIntentReply(clinic.settings.ai_blocked_intent_reply || "")
       setHumanTakeoverHours(
         clinic.settings.ai_human_takeover_pause_hours != null
@@ -721,7 +743,7 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
     }
   }
 
-  type AITool = "schedule" | "confirm" | "cancel" | "reschedule"
+  type AITool = "schedule" | "confirm" | "cancel" | "reschedule" | "enroll_class" | "confirm_class"
 
   const handleToggleAITool = async (tool: AITool, enabled: boolean) => {
     if (!canEditClinic) return
@@ -731,12 +753,16 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
       confirm: setAiToolConfirm,
       cancel: setAiToolCancel,
       reschedule: setAiToolReschedule,
+      enroll_class: setAiToolEnrollClass,
+      confirm_class: setAiToolConfirmClass,
     }
     const apiKey: Record<AITool, keyof ClinicSettings> = {
       schedule: "ai_tool_schedule",
       confirm: "ai_tool_confirm",
       cancel: "ai_tool_cancel",
       reschedule: "ai_tool_reschedule",
+      enroll_class: "ai_tool_enroll_class",
+      confirm_class: "ai_tool_confirm_class",
     }
 
     const setter = setters[tool]
@@ -755,6 +781,47 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
       handleApiError(err)
     } finally {
       setIsSavingAiTool(null)
+    }
+  }
+
+  // Toggle a single group class reminder window (24h/2h). Mirrors
+  // handleToggleAppointmentReminder but for the separate class worker —
+  // group plans never materialize as appointments, so the per-window flags
+  // must be independent.
+  const handleToggleClassReminder = async (window: "24h" | "2h", enabled: boolean) => {
+    if (!canEditClinic) return
+    const setters: Record<typeof window, (v: boolean) => void> = {
+      "24h": setClassReminder24h,
+      "2h": setClassReminder2h,
+    }
+    const labels: Record<typeof window, string> = {
+      "24h": "24 horas antes",
+      "2h": "2 horas antes",
+    }
+    const settingsKey: Record<typeof window, keyof ClinicSettings> = {
+      "24h": "group_class_reminder_24h_enabled",
+      "2h": "group_class_reminder_2h_enabled",
+    }
+    try {
+      setIsSavingClassReminder(window)
+      setters[window](enabled)
+      const updatedClinic = await api.updateClinic({
+        settings: {
+          ...clinic?.settings,
+          [settingsKey[window]]: enabled,
+        },
+      })
+      setClinic(updatedClinic)
+      showToast.success(
+        enabled
+          ? `Lembrete de aula ${labels[window]} ativado`
+          : `Lembrete de aula ${labels[window]} desativado`,
+      )
+    } catch (err) {
+      setters[window](!enabled)
+      handleApiError(err)
+    } finally {
+      setIsSavingClassReminder(null)
     }
   }
 
@@ -1362,6 +1429,36 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
                         <Separator />
 
                         <p className="text-xs text-muted-foreground">
+                          Lembrete de aulas em grupo (Pilates, etc): enviado para alunos matriculados em turma, antes da próxima aula. Independente do lembrete de consulta acima — turmas em grupo não geram appointment individual, então usam um fluxo separado.
+                        </p>
+
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium">Lembrete de aula 24 horas antes</p>
+                            <p className="text-xs text-muted-foreground">Pede ao aluno para confirmar presença na próxima aula da turma. A resposta &quot;sim&quot; é processada automaticamente pela IA.</p>
+                          </div>
+                          <Switch
+                            checked={classReminder24h}
+                            onCheckedChange={(v) => handleToggleClassReminder("24h", v)}
+                            disabled={isSavingClassReminder === "24h" || !canEditClinic}
+                          />
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium">Lembrete de aula 2 horas antes</p>
+                            <p className="text-xs text-muted-foreground">Aviso curto de última hora (&quot;sua aula é hoje às HH:MM, te esperamos&quot;), sem pedir confirmação.</p>
+                          </div>
+                          <Switch
+                            checked={classReminder2h}
+                            onCheckedChange={(v) => handleToggleClassReminder("2h", v)}
+                            disabled={isSavingClassReminder === "2h" || !canEditClinic}
+                          />
+                        </div>
+
+                        <Separator />
+
+                        <p className="text-xs text-muted-foreground">
                           Lembrete de mensalidade: enviado para alunos com plano mensal (individual ou em grupo) alguns dias antes do vencimento, apenas quando o pagamento ainda não foi registrado no sistema.
                         </p>
 
@@ -1473,6 +1570,30 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
                             checked={aiToolReschedule}
                             onCheckedChange={(v) => handleToggleAITool("reschedule", v)}
                             disabled={isSavingAiTool === "reschedule" || !canEditClinic}
+                          />
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium">Matricular em turma (Pilates etc.)</p>
+                            <p className="text-xs text-muted-foreground">IA pode matricular o aluno numa turma em grupo apos coletar frequencia, dias e convenio. Quando desligado, a IA coleta as informacoes e transfere pro time humano confirmar a matricula.</p>
+                          </div>
+                          <Switch
+                            checked={aiToolEnrollClass}
+                            onCheckedChange={(v) => handleToggleAITool("enroll_class", v)}
+                            disabled={isSavingAiTool === "enroll_class" || !canEditClinic}
+                          />
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium">Confirmar presenca em aula de turma</p>
+                            <p className="text-xs text-muted-foreground">IA pode confirmar a participacao do aluno na proxima aula da turma. Independente da confirmacao de consulta individual acima.</p>
+                          </div>
+                          <Switch
+                            checked={aiToolConfirmClass}
+                            onCheckedChange={(v) => handleToggleAITool("confirm_class", v)}
+                            disabled={isSavingAiTool === "confirm_class" || !canEditClinic}
                           />
                         </div>
 
