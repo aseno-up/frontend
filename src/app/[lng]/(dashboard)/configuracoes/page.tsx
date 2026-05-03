@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import { Building2, Bell, CreditCard, Users, Calendar, Loader2, Check, Copy, ExternalLink, Link2, Wallet, Plus, Pencil, Trash2, Store, CheckCircle2, Clock, XCircle, Eye, EyeOff, FileText, Layout, Sparkles } from "lucide-react"
+import { Building2, Bell, CreditCard, Users, Loader2, Check, Copy, ExternalLink, Link2, Wallet, Plus, Pencil, Trash2, Store, CheckCircle2, Clock, XCircle, Eye, EyeOff, FileText, Layout, Sparkles, ChevronRight } from "lucide-react"
 
 import { Header } from "@/components/dashboard/header"
 import { Button } from "@/components/ui/button"
@@ -29,7 +29,8 @@ import {
 import { useAuthStore } from "@/stores/auth-store"
 import { api } from "@/lib/api/client"
 import { handleApiError, showToast } from "@/lib/toast"
-import { CalendarIntegration, GoogleCalendar, BillingCustomer, Payment, Subscription, PaymentStatus, PixQRCode, PaymentMethod, PaymentMethodType, Subaccount, SplitConfig, ClinicSettings } from "@/types/api"
+import { CalendarIntegration, BillingCustomer, Payment, Subscription, PaymentStatus, PixQRCode, PaymentMethod, PaymentMethodType, Subaccount, SplitConfig, ClinicSettings } from "@/types/api"
+import { GoogleCalendarLogo } from "@/components/icons/google-logos"
 import { PlanRestriction } from "@/components/plan-restriction"
 
 // Schema de validacao para dados de cobranca
@@ -224,12 +225,9 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
   )
   const [isSavingOnlineBooking, setIsSavingOnlineBooking] = useState(false)
 
-  // Calendar integration state
+  // Calendar integration state (status only — full management lives in /configuracoes/integracoes/google-calendar)
   const [calendarIntegration, setCalendarIntegration] = useState<CalendarIntegration | null>(null)
-  const [calendars, setCalendars] = useState<GoogleCalendar[]>([])
   const [isLoadingCalendar, setIsLoadingCalendar] = useState(true)
-  const [isConnecting, setIsConnecting] = useState(false)
-  const [selectedCalendarId, setSelectedCalendarId] = useState<string>("")
 
   // Billing state (from faturamento)
   const [customer, setCustomer] = useState<BillingCustomer | null>(null)
@@ -370,20 +368,14 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
     params.then(({ lng }) => setLng(lng))
   }, [params])
 
-  // Handle calendar OAuth callback result
+  // OAuth callback lands here; forward to the detail page so the toast and state surface there.
   useEffect(() => {
     const calendarStatus = searchParams.get("calendar")
-    if (calendarStatus === "connected" || calendarStatus === "error") {
-      if (calendarStatus === "connected") {
-        showToast.success("Google Calendar conectado com sucesso!")
-      } else {
-        showToast.error("Erro ao conectar Google Calendar. Tente novamente.")
-      }
-      const params = new URLSearchParams(searchParams.toString())
-      params.delete("calendar")
-      const qs = params.toString()
-      router.replace(`/${lng}/configuracoes${qs ? `?${qs}` : ""}`, { scroll: false })
-    }
+    if (calendarStatus !== "connected" && calendarStatus !== "error") return
+    router.replace(
+      `/${lng}/configuracoes/integracoes/google-calendar?calendar=${calendarStatus}`,
+      { scroll: false },
+    )
   }, [searchParams, router, lng])
 
   // Sync clinic name with store
@@ -875,19 +867,11 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
     fetchClinicData()
   }, [fetchClinicData])
 
-  // Calendar handlers
   const fetchCalendarIntegration = useCallback(async () => {
     try {
       setIsLoadingCalendar(true)
       const data = await api.getCalendarIntegration()
       setCalendarIntegration(data)
-      if (data.calendar_id) {
-        setSelectedCalendarId(data.calendar_id)
-      }
-      if (data.connected) {
-        const calendarsData = await api.listGoogleCalendars()
-        setCalendars(calendarsData.calendars || [])
-      }
     } catch {
       setCalendarIntegration(null)
     } finally {
@@ -946,52 +930,6 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
       handleApiError(err, "Erro ao criar conta financeira")
     } finally {
       setIsCreatingSubaccount(false)
-    }
-  }
-
-  const handleConnectGoogle = async () => {
-    try {
-      setIsConnecting(true)
-      const data = await api.getCalendarAuthURL()
-      window.location.href = data.auth_url
-    } catch (err) {
-      handleApiError(err)
-      setIsConnecting(false)
-    }
-  }
-
-  const handleDisconnectGoogle = async () => {
-    try {
-      await api.disconnectCalendar()
-      setCalendarIntegration(null)
-      setCalendars([])
-    } catch (err) {
-      console.error('Failed to disconnect:', err)
-    }
-  }
-
-  const handleSelectCalendar = async (calendarId: string) => {
-    try {
-      await api.setGoogleCalendar(calendarId)
-      setSelectedCalendarId(calendarId)
-    } catch (err) {
-      console.error('Failed to set calendar:', err)
-    }
-  }
-
-  const handleToggleSync = async () => {
-    if (!calendarIntegration) return
-    try {
-      await api.updateCalendarSettings(
-        !calendarIntegration.sync_enabled,
-        calendarIntegration.sync_direction
-      )
-      setCalendarIntegration({
-        ...calendarIntegration,
-        sync_enabled: !calendarIntegration.sync_enabled,
-      })
-    } catch (err) {
-      console.error('Failed to update sync settings:', err)
     }
   }
 
@@ -1151,7 +1089,7 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
                   className="relative h-12 rounded-none border-b-2 border-transparent bg-transparent px-2 md:px-4 pb-3 pt-3 font-medium text-muted-foreground shadow-none transition-none data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none hover:text-primary flex items-center gap-2 whitespace-nowrap"
                 >
                   <Link2 className="h-4 w-4" />
-                  <span className="hidden sm:inline">Integracoes</span>
+                  <span className="hidden sm:inline">Integrações</span>
                 </TabsTrigger>
                 <TabsTrigger 
                   value="assinatura" 
@@ -1693,8 +1631,71 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
             </TabsContent>
 
             {/* Tab: Integracoes */}
-            <TabsContent value="integracoes" className="mt-0 outline-none space-y-6">
-... (mesmo conteudo) ...
+            <TabsContent value="integracoes" className="mt-0 outline-none">
+              <div className="space-y-7">
+                <div className="space-y-1">
+                  <h2 className="text-xl font-semibold tracking-tight">Integrações</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Conecte ferramentas externas para automatizar e ampliar sua clínica.
+                  </p>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      router.push(`/${lng}/configuracoes/integracoes/google-calendar`)
+                    }
+                    className="group relative flex flex-col overflow-hidden rounded-2xl border border-border bg-card p-6 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-foreground/15 hover:shadow-[0_12px_32px_-16px_rgba(0,0,0,0.20)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  >
+                    <span
+                      aria-hidden
+                      className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+                      style={{
+                        background:
+                          "radial-gradient(70% 80% at 100% 0%, rgba(66,133,244,0.07), transparent 60%), radial-gradient(60% 70% at 0% 100%, rgba(234,67,53,0.04), transparent 60%)",
+                      }}
+                    />
+
+                    <div className="relative flex items-start justify-between gap-4">
+                      <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white shadow-[0_2px_10px_-2px_rgba(0,0,0,0.08)] ring-1 ring-border">
+                        <GoogleCalendarLogo className="h-10 w-10" />
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        {isLoadingCalendar ? (
+                          <span className="inline-flex h-6 w-24 animate-pulse rounded-full bg-muted" />
+                        ) : calendarIntegration?.connected ? (
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-600/20 dark:bg-emerald-500/10 dark:text-emerald-300 dark:ring-emerald-400/30">
+                            <span className="relative flex h-1.5 w-1.5">
+                              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-60" />
+                              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                            </span>
+                            Conectado
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground ring-1 ring-inset ring-border">
+                            <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/40" />
+                            Não conectado
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="relative mt-5 space-y-1.5">
+                      <h3 className="text-lg font-semibold tracking-tight">Google Calendar</h3>
+                      <p className="text-sm leading-relaxed text-muted-foreground">
+                        Sincronize automaticamente os agendamentos da clínica com a sua agenda do Google.
+                      </p>
+                    </div>
+
+                    <div className="relative mt-6 flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors group-hover:text-foreground">
+                      {calendarIntegration?.connected ? "Gerenciar" : "Configurar"}
+                      <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                    </div>
+                  </button>
+                </div>
+              </div>
             </TabsContent>
 
             {/* Tab: Anamnese */}
