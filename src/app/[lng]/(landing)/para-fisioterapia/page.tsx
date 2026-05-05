@@ -45,9 +45,9 @@ const data: SpecialtyData = {
     messageReply: 'Sua presença está confirmada. Até amanhã!',
   },
   testimonials: [
-    { text: 'Desde que implementamos, nossas faltas caíram drasticamente. A confirmação automática pelo WhatsApp é incrível — não precisamos mais ligar para cada paciente.', author: 'Clínica FisioVida', role: 'Fisioterapia' },
-    { text: 'O controle do plano de tratamento mudou tudo. Antes eu perdia paciente no meio da reabilitação. Agora vejo quem está em risco de abandonar.', author: 'Instituto de Reabilitação Postural', role: 'Fisioterapia e RPG' },
-    { text: 'Ter o histórico clínico acessível em qualquer dispositivo economiza tempo entre atendimentos. Não preciso mais procurar fichas em papel.', author: 'Clínica Movimento & Saúde', role: 'Fisioterapia Esportiva' },
+    { text: 'Desde que implementamos, nossas faltas caíram drasticamente. A confirmação automática pelo WhatsApp é incrível — não precisamos mais ligar para cada paciente.', name: 'Camila Ferreira', role: 'Fisioterapeuta', clinic: 'Clínica FisioVida', photo: 'https://i.pravatar.cc/96?img=5' },
+    { text: 'O controle do plano de tratamento mudou tudo. Antes eu perdia paciente no meio da reabilitação. Agora vejo quem está em risco de abandonar.', name: 'Henrique Souza', role: 'Diretor Clínico', clinic: 'Instituto de Reabilitação Postural', photo: 'https://i.pravatar.cc/96?img=8' },
+    { text: 'Ter o histórico clínico acessível em qualquer dispositivo economiza tempo entre atendimentos. Não preciso mais procurar fichas em papel.', name: 'Juliana Lima', role: 'Coordenadora Clínica', clinic: 'Clínica Movimento & Saúde', photo: 'https://i.pravatar.cc/96?img=1' },
   ],
   faqs: [
     { question: 'O Aseno funciona para fisioterapeuta autônomo, sem clínica?', answer: 'Sim. O plano Básico atende até 3 profissionais e é usado tanto por clínicas pequenas quanto por fisioterapeutas independentes.' },

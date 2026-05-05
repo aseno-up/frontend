@@ -45,9 +45,9 @@ const data: SpecialtyData = {
     messageReply: 'Sua presença está confirmada. Até amanhã!',
   },
   testimonials: [
-    { text: 'Desde que implementamos, nossas faltas caíram drasticamente. A confirmação automática pelo WhatsApp é incrível — não precisamos mais ligar para cada cliente.', author: 'Clínica FisioVida', role: 'Gestão de Clínica' },
-    { text: 'O controle do pacote de sessões mudou tudo. Antes eu perdia cliente no meio do serviço. Agora vejo quem está em risco de abandonar.', author: 'Instituto Postura', role: 'Gestão de Clínica' },
-    { text: 'Ter o histórico de atendimento acessível em qualquer dispositivo economiza tempo entre um cliente e outro. Não preciso mais procurar fichas em papel.', author: 'Clínica Movimento & Saúde', role: 'Gestão de Clínica' },
+    { text: 'Desde que implementamos, nossas faltas caíram drasticamente. A confirmação automática pelo WhatsApp é incrível — não precisamos mais ligar para cada cliente.', name: 'Eduardo Teixeira', role: 'Diretor Clínico', clinic: 'Clínica FisioVida', photo: 'https://i.pravatar.cc/96?img=60' },
+    { text: 'O controle do pacote de sessões mudou tudo. Antes eu perdia cliente no meio do serviço. Agora vejo quem está em risco de abandonar.', name: 'Letícia Barbosa', role: 'Gestora Administrativa', clinic: 'Instituto Postura', photo: 'https://i.pravatar.cc/96?img=45' },
+    { text: 'Ter o histórico de atendimento acessível em qualquer dispositivo economiza tempo entre um cliente e outro. Não preciso mais procurar fichas em papel.', name: 'Pedro Alves', role: 'Diretor', clinic: 'Clínica Movimento & Saúde', photo: 'https://i.pravatar.cc/96?img=33' },
   ],
   faqs: [
     { question: 'O Aseno funciona para profissional autônomo, sem clínica?', answer: 'Sim. O plano Básico atende até 3 profissionais e é usado tanto por clínicas pequenas quanto por profissionais independentes.' },

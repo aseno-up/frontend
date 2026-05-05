@@ -45,9 +45,9 @@ const data: SpecialtyData = {
     messageReply: 'Sua presença está confirmada. Até amanhã!',
   },
   testimonials: [
-    { text: 'Desde que comecei a usar, minhas faltas caíram pela metade. A confirmação automática pelo WhatsApp mudou minha rotina.', author: 'Consultório Psicologia Integrada', role: 'Psicologia Clínica' },
-    { text: 'O histórico centralizado é incrível. Antes eu perdia tempo procurando anotações. Agora tenho tudo em um clique antes de cada sessão.', author: 'Clínica Mente & Saúde', role: 'Psicoterapia' },
-    { text: 'Não preciso mais cobrar pelo WhatsApp. O paciente recebe o link de pagamento e paga antes da sessão. Muito mais profissional.', author: 'Espaço Terapêutico Viver', role: 'Psicologia' },
+    { text: 'Desde que comecei a usar, minhas faltas caíram pela metade. A confirmação automática pelo WhatsApp mudou minha rotina.', name: 'Bruno Carvalho', role: 'Psicólogo Clínico', clinic: 'Consultório Psicologia Integrada', photo: 'https://i.pravatar.cc/96?img=14' },
+    { text: 'O histórico centralizado é incrível. Antes eu perdia tempo procurando anotações. Agora tenho tudo em um clique antes de cada sessão.', name: 'Patrícia Gomes', role: 'Diretora Clínica', clinic: 'Clínica Mente & Saúde', photo: 'https://i.pravatar.cc/96?img=9' },
+    { text: 'Não preciso mais cobrar pelo WhatsApp. O paciente recebe o link de pagamento e paga antes da sessão. Muito mais profissional.', name: 'Diego Ribeiro', role: 'Psicoterapeuta', clinic: 'Espaço Terapêutico Viver', photo: 'https://i.pravatar.cc/96?img=11' },
   ],
   faqs: [
     { question: 'O Aseno funciona para psicólogo autônomo, não só para clínicas?', answer: 'Sim. O plano Básico atende até 3 profissionais e é usado tanto por consultórios individuais quanto por clínicas pequenas.' },

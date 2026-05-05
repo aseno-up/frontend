@@ -26,6 +26,44 @@ interface LandingClientProps {
 
 type PricingVariant = 'solo' | 'clinic'
 
+// Fallback config used when the public config endpoint is unreachable.
+// Values mirror backend defaults (settings_service.go) and can be overridden
+// per-environment via NEXT_PUBLIC_FALLBACK_* env vars.
+const num = (v: string | undefined, d: number) => {
+  const n = parseInt(v ?? '', 10)
+  return Number.isFinite(n) && n > 0 ? n : d
+}
+
+const FALLBACK_CONFIG: PublicConfig = {
+  trial_days: num(process.env.NEXT_PUBLIC_FALLBACK_TRIAL_DAYS, 14),
+  plans: {
+    basic: {
+      limit_professionals: 3,
+      price_monthly: num(process.env.NEXT_PUBLIC_FALLBACK_PRICE_BASIC, 99),
+      price_yearly: num(process.env.NEXT_PUBLIC_FALLBACK_PRICE_BASIC_YEARLY, 990),
+      solo_price_monthly: 0,
+      solo_price_yearly: 0,
+      excess_price: 20,
+    },
+    professional: {
+      limit_professionals: 7,
+      price_monthly: num(process.env.NEXT_PUBLIC_FALLBACK_PRICE_PROFESSIONAL, 199),
+      price_yearly: num(process.env.NEXT_PUBLIC_FALLBACK_PRICE_PROFESSIONAL_YEARLY, 1990),
+      solo_price_monthly: 0,
+      solo_price_yearly: 0,
+      excess_price: 20,
+    },
+    advanced: {
+      limit_professionals: 14,
+      price_monthly: num(process.env.NEXT_PUBLIC_FALLBACK_PRICE_ADVANCED, 349),
+      price_yearly: num(process.env.NEXT_PUBLIC_FALLBACK_PRICE_ADVANCED_YEARLY, 3490),
+      solo_price_monthly: 0,
+      solo_price_yearly: 0,
+      excess_price: 0,
+    },
+  },
+}
+
 // Client component for interactive hero CTA buttons
 export function HeroCTA({ lng, publicConfig: initialConfig = null }: LandingClientProps) {
   const router = useRouter()
@@ -75,7 +113,6 @@ export function HeroCTA({ lng, publicConfig: initialConfig = null }: LandingClie
   return (
     <div className="hero-actions">
       <button className="btn-lg" onClick={() => handlePlanSelect('trial')}>Testar grátis por {getTrialDays()} dias &rarr;</button>
-      <a href="#como-funciona" className="btn-lg-out">Ver demonstração</a>
     </div>
   )
 }
@@ -120,11 +157,12 @@ export function PricingSection({ lng, publicConfig: initialConfig = null }: Land
     basic: 'solo',
     professional: 'solo',
   })
-  const [publicConfig, setPublicConfig] = useState<PublicConfig | null>(initialConfig)
+  const [publicConfig, setPublicConfig] = useState<PublicConfig>(initialConfig ?? FALLBACK_CONFIG)
   const [advancedUnits, setAdvancedUnits] = useState<number>(2)
+  const hadInitial = initialConfig != null
 
   useEffect(() => {
-    if (publicConfig) return
+    if (hadInitial) return
     const fetchConfig = async () => {
       try {
         const baseUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4901').replace(/\/api\/v1\/?$/, '')
@@ -136,12 +174,11 @@ export function PricingSection({ lng, publicConfig: initialConfig = null }: Land
       } catch (err) {}
     }
     fetchConfig()
-  }, [publicConfig])
+  }, [hadInitial])
 
-  const getTrialDays = (): number => publicConfig?.trial_days || 14
+  const getTrialDays = (): number => publicConfig.trial_days || FALLBACK_CONFIG.trial_days
 
   const planHasSolo = (plan: 'basic' | 'professional' | 'advanced'): boolean => {
-    if (!publicConfig) return false
     const p = publicConfig.plans[plan]
     if (!p) return false
     return p.solo_price_monthly > 0 || p.solo_price_yearly > 0
@@ -150,9 +187,11 @@ export function PricingSection({ lng, publicConfig: initialConfig = null }: Land
   const variantOf = (plan: 'basic' | 'professional'): PricingVariant => variantByPlan[plan]
 
   const calculateMonthlyPrice = (plan: 'basic' | 'professional' | 'advanced') => {
-    if (!publicConfig) return '—'
-    const planData = publicConfig.plans[plan]
-    if (!planData) return '—'
+    const fallback = FALLBACK_CONFIG.plans[plan]
+    const apiPlan = publicConfig.plans[plan]
+    // Treat a 0 monthly price from the API as "not configured" and use the fallback
+    // so visitors never see an empty price card.
+    const planData = apiPlan && apiPlan.price_monthly > 0 ? apiPlan : fallback
 
     const useSolo =
       (plan === 'basic' || plan === 'professional') &&
@@ -175,7 +214,6 @@ export function PricingSection({ lng, publicConfig: initialConfig = null }: Land
   }
 
   const annualDiscountPct = (): number | null => {
-    if (!publicConfig) return null
     const plans: Array<'basic' | 'professional' | 'advanced'> = ['basic', 'professional', 'advanced']
     let min: number | null = null
     for (const key of plans) {

@@ -27,8 +27,10 @@ export interface SpecialtyWhatsApp {
 
 export interface SpecialtyTestimonial {
   text: string
-  author: string
+  name: string
   role: string
+  clinic: string
+  photo: string
 }
 
 export interface SpecialtyFaq {
@@ -194,9 +196,16 @@ export function SpecialtyTemplate({ lng, data }: SpecialtyTemplateProps) {
             <div key={i} className="testimonial-card">
               <p className="testimonial-text">&ldquo;{t.text}&rdquo;</p>
               <div className="testimonial-author">
+                <Image
+                  src={t.photo}
+                  alt={t.name}
+                  width={48}
+                  height={48}
+                  className="testimonial-photo"
+                />
                 <div className="testimonial-info">
-                  <div className="testimonial-name">{t.author}</div>
-                  <div className="testimonial-role">{t.role}</div>
+                  <div className="testimonial-name">{t.name}</div>
+                  <div className="testimonial-role">{t.role} · {t.clinic}</div>
                 </div>
               </div>
             </div>

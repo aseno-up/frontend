@@ -45,9 +45,9 @@ const data: SpecialtyData = {
     messageReply: 'Sua presença está confirmada. Até amanhã!',
   },
   testimonials: [
-    { text: 'Antes eu perdia pacientes no meio do protocolo e nem percebia. Agora vejo no painel quem parou e consigo retomar o contato a tempo.', author: 'Espaço Corpo & Equilíbrio', role: 'Massoterapia' },
-    { text: 'A confirmação automática pelo WhatsApp reduziu muito as faltas. Meus pacientes confirmam sem eu precisar mandar mensagem.', author: 'Quiro Vida Clínica', role: 'Quiropraxia' },
-    { text: 'O agendamento online mudou tudo. Meus pacientes agendam pela bio do Instagram e eu só recebo a notificação.', author: 'Studio Massoterapia Integral', role: 'Massoterapia' },
+    { text: 'Antes eu perdia pacientes no meio do protocolo e nem percebia. Agora vejo no painel quem parou e consigo retomar o contato a tempo.', name: 'Tiago Rodrigues', role: 'Massoterapeuta', clinic: 'Espaço Corpo & Equilíbrio', photo: 'https://i.pravatar.cc/96?img=53' },
+    { text: 'A confirmação automática pelo WhatsApp reduziu muito as faltas. Meus pacientes confirmam sem eu precisar mandar mensagem.', name: 'Gabriela Cardoso', role: 'Quiropraxista', clinic: 'Quiro Vida Clínica', photo: 'https://i.pravatar.cc/96?img=44' },
+    { text: 'O agendamento online mudou tudo. Meus pacientes agendam pela bio do Instagram e eu só recebo a notificação.', name: 'Marcelo Araújo', role: 'Massoterapeuta', clinic: 'Studio Massoterapia Integral', photo: 'https://i.pravatar.cc/96?img=56' },
   ],
   faqs: [
     { question: 'O Aseno funciona para massoterapeuta autônomo, ou só para clínicas?', answer: 'Funciona para os dois. O plano Básico atende até 3 profissionais e já inclui agenda, confirmações automáticas e ficha de paciente.' },

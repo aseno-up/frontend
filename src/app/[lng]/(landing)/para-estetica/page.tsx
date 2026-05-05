@@ -45,9 +45,9 @@ const data: SpecialtyData = {
     messageReply: 'Sua presença está confirmada. Até amanhã!',
   },
   testimonials: [
-    { text: 'Desde que implementamos, nossas faltas caíram drasticamente. A confirmação automática pelo WhatsApp é incrível.', author: 'Clínica Vitalitá', role: 'Estética e Dermatologia' },
-    { text: 'O controle de protocolos mudou tudo. Antes eu perdia paciente no meio do tratamento e nem sabia. Agora vejo tudo no painel.', author: 'Studio Beleza & Saúde', role: 'Estética Corporal' },
-    { text: 'A lista de espera automática é fantástica. Quando uma paciente cancela, o sistema preenche a vaga rápido.', author: 'Clínica Derma Corpo', role: 'Estética Avançada' },
+    { text: 'Desde que implementamos, nossas faltas caíram drasticamente. A confirmação automática pelo WhatsApp é incrível.', name: 'Ana Pereira', role: 'Esteticista', clinic: 'Clínica Vitalitá', photo: 'https://i.pravatar.cc/96?img=16' },
+    { text: 'O controle de protocolos mudou tudo. Antes eu perdia paciente no meio do tratamento e nem sabia. Agora vejo tudo no painel.', name: 'Larissa Oliveira', role: 'Diretora do Spa', clinic: 'Studio Beleza & Saúde', photo: 'https://i.pravatar.cc/96?img=23' },
+    { text: 'A lista de espera automática é fantástica. Quando uma paciente cancela, o sistema preenche a vaga rápido.', name: 'Thaís Almeida', role: 'Dermatologista', clinic: 'Clínica Derma Corpo', photo: 'https://i.pravatar.cc/96?img=26' },
   ],
   faqs: [
     { question: 'O Aseno funciona para clínicas que têm vários tipos de protocolo ao mesmo tempo?', answer: 'Sim. Você cadastra quantos protocolos quiser — drenagem linfática, radiofrequência, criolipólise, skincare — e acompanha cada paciente de forma independente. Um paciente pode estar em dois protocolos ao mesmo tempo, e o sistema mantém o controle separado.' },

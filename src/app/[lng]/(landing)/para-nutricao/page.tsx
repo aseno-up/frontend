@@ -45,9 +45,9 @@ const data: SpecialtyData = {
     messageReply: 'Presença confirmada. Até amanhã!',
   },
   testimonials: [
-    { text: 'Meus pacientes agora agendam o retorno sozinhos. Parei de perder retornos de 30 dias e minha taxa de retenção melhorou muito.', author: 'Clínica NutriVida', role: 'Nutrição Clínica' },
-    { text: 'A confirmação automática pelo WhatsApp é incrível. Antes eu passava horas ligando para confirmar, agora o sistema faz tudo.', author: 'Consultório Equilíbrio', role: 'Nutrição Esportiva' },
-    { text: 'O pagamento online mudou tudo. Paciente paga na hora de agendar e eu não preciso mais ficar cobrando por PIX no WhatsApp.', author: 'NutriCenter Saúde', role: 'Nutrição' },
+    { text: 'Meus pacientes agora agendam o retorno sozinhos. Parei de perder retornos de 30 dias e minha taxa de retenção melhorou muito.', name: 'Fernanda Silva', role: 'Nutricionista', clinic: 'Clínica NutriVida', photo: 'https://i.pravatar.cc/96?img=49' },
+    { text: 'A confirmação automática pelo WhatsApp é incrível. Antes eu passava horas ligando para confirmar, agora o sistema faz tudo.', name: 'Gustavo Lima', role: 'Nutricionista Esportivo', clinic: 'Consultório Equilíbrio', photo: 'https://i.pravatar.cc/96?img=51' },
+    { text: 'O pagamento online mudou tudo. Paciente paga na hora de agendar e eu não preciso mais ficar cobrando por PIX no WhatsApp.', name: 'Mariana Gomes', role: 'Diretora', clinic: 'NutriCenter Saúde', photo: 'https://i.pravatar.cc/96?img=10' },
   ],
   faqs: [
     { question: 'O Aseno funciona para nutricionista autônoma, sem clínica?', answer: 'Sim. O plano Básico atende até 3 profissionais e já inclui tudo que você precisa para começar.' },

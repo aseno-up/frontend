@@ -45,9 +45,9 @@ const data: SpecialtyData = {
     messageReply: 'Presença confirmada. Até amanhã!',
   },
   testimonials: [
-    { text: 'Antes eu perdia paciente porque ninguém atendia fora do horário. Agora recebo agendamentos até de madrugada pelo portal.', author: 'Clínica Vitalitá', role: 'Estética' },
-    { text: 'A confirmação automática pelo WhatsApp cortou nossas faltas pela metade. Minha recepcionista finalmente tem tempo para o que importa.', author: 'Studio Bem Estar', role: 'Fisioterapia' },
-    { text: 'Coloquei o link na bio do Instagram e os agendamentos dispararam. Simples assim.', author: 'Espaço Corpo & Mente', role: 'Pilates' },
+    { text: 'Antes eu perdia paciente porque ninguém atendia fora do horário. Agora recebo agendamentos até de madrugada pelo portal.', name: 'Ana Pereira', role: 'Esteticista', clinic: 'Clínica Vitalitá', photo: 'https://i.pravatar.cc/96?img=16' },
+    { text: 'A confirmação automática pelo WhatsApp cortou nossas faltas pela metade. Minha recepcionista finalmente tem tempo para o que importa.', name: 'Vinícius Martins', role: 'Diretor', clinic: 'Studio Bem Estar', photo: 'https://i.pravatar.cc/96?img=64' },
+    { text: 'Coloquei o link na bio do Instagram e os agendamentos dispararam. Simples assim.', name: 'Bruna Pereira', role: 'Coordenadora', clinic: 'Espaço Corpo & Mente', photo: 'https://i.pravatar.cc/96?img=68' },
   ],
   faqs: [
     { question: 'O paciente precisa instalar algum aplicativo para agendar?', answer: 'Não. O portal funciona direto no navegador, no celular ou computador. O paciente acessa o link, escolhe o horário e confirma — sem baixar nada.' },

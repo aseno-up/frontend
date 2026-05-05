@@ -262,27 +262,48 @@ export default async function LandingPage(props: PageProps) {
           <div className="testimonial-card">
             <p className="testimonial-text">&ldquo;Desde que implementamos, nossas faltas caíram drasticamente. A confirmação automática pelo WhatsApp é incrível — a recepção não precisa mais ligar pra ninguém.&rdquo;</p>
             <div className="testimonial-author">
+              <Image
+                src="https://i.pravatar.cc/96?img=32"
+                alt="Marina Costa"
+                width={48}
+                height={48}
+                className="testimonial-photo"
+              />
               <div className="testimonial-info">
-                <div className="testimonial-name">Clínica Vitalitá</div>
-                <div className="testimonial-role">Estética e Dermatologia</div>
+                <div className="testimonial-name">Marina Costa</div>
+                <div className="testimonial-role">Coordenadora Clínica · Clínica Vitalitá</div>
               </div>
             </div>
           </div>
           <div className="testimonial-card">
             <p className="testimonial-text">&ldquo;Nossa recepcionista economiza horas por dia. O Aseno faz o trabalho pesado de confirmar e reagendar sozinho. A gente só acompanha.&rdquo;</p>
             <div className="testimonial-author">
+              <Image
+                src="https://i.pravatar.cc/96?img=47"
+                alt="Beatriz Mendes"
+                width={48}
+                height={48}
+                className="testimonial-photo"
+              />
               <div className="testimonial-info">
-                <div className="testimonial-name">Clínica Bem Estar</div>
-                <div className="testimonial-role">Fisioterapia</div>
+                <div className="testimonial-name">Beatriz Mendes</div>
+                <div className="testimonial-role">Diretora · Clínica Bem Estar</div>
               </div>
             </div>
           </div>
           <div className="testimonial-card">
             <p className="testimonial-text">&ldquo;A lista de espera automática é fantástica. Quando uma paciente cancela, o sistema notifica quem está aguardando e preenche a vaga em minutos.&rdquo;</p>
             <div className="testimonial-author">
+              <Image
+                src="https://i.pravatar.cc/96?img=12"
+                alt="Rafael Almeida"
+                width={48}
+                height={48}
+                className="testimonial-photo"
+              />
               <div className="testimonial-info">
-                <div className="testimonial-name">Instituto Mente Sã</div>
-                <div className="testimonial-role">Psicologia e Terapia</div>
+                <div className="testimonial-name">Rafael Almeida</div>
+                <div className="testimonial-role">Psicólogo Clínico · Instituto Mente Sã</div>
               </div>
             </div>
           </div>

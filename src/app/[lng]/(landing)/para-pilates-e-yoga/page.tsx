@@ -45,9 +45,9 @@ const data: SpecialtyData = {
     messageReply: 'Presença confirmada. Até amanhã, Mariana!',
   },
   testimonials: [
-    { text: 'As faltas caíram pela metade desde que ativamos a confirmação automática. Os alunos adoram receber o lembrete no WhatsApp.', author: 'Studio Corpo em Equilíbrio', role: 'Pilates' },
-    { text: 'Antes eu gastava horas organizando a agenda de 3 instrutores em planilha. Agora cada um vê a própria agenda e eu tenho visão de tudo.', author: 'Espaço Yoga & Movimento', role: 'Yoga e Pilates' },
-    { text: 'A lista de espera automática mudou tudo. Quando alguém cancela, a vaga é preenchida sem eu precisar ligar para ninguém.', author: 'Pilates Studio Viva', role: 'Pilates' },
+    { text: 'As faltas caíram pela metade desde que ativamos a confirmação automática. Os alunos adoram receber o lembrete no WhatsApp.', name: 'Felipe Santos', role: 'Instrutor de Pilates', clinic: 'Studio Corpo em Equilíbrio', photo: 'https://i.pravatar.cc/96?img=29' },
+    { text: 'Antes eu gastava horas organizando a agenda de 3 instrutores em planilha. Agora cada um vê a própria agenda e eu tenho visão de tudo.', name: 'Renata Carvalho', role: 'Coordenadora', clinic: 'Espaço Yoga & Movimento', photo: 'https://i.pravatar.cc/96?img=36' },
+    { text: 'A lista de espera automática mudou tudo. Quando alguém cancela, a vaga é preenchida sem eu precisar ligar para ninguém.', name: 'Lucas Mendes', role: 'Diretor do Studio', clinic: 'Pilates Studio Viva', photo: 'https://i.pravatar.cc/96?img=41' },
   ],
   faqs: [
     { question: 'O Aseno funciona para turmas coletivas de Pilates e Yoga?', answer: 'Sim. Você configura horários por turma e por instrutor, com número máximo de alunos por sessão. Lista de espera e autoagendamento funcionam para esses formatos.' },

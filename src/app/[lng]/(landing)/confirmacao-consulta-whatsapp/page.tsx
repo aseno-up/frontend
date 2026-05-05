@@ -45,9 +45,9 @@ const data: SpecialtyData = {
     messageReply: 'Perfeito! Sua presença está confirmada. Até amanhã!',
   },
   testimonials: [
-    { text: 'Nossas faltas caíram pela metade no primeiro mês. A confirmação automática pelo WhatsApp é o que mais fez diferença.', author: 'Clínica Vitalitá', role: 'Estética e Dermatologia' },
-    { text: 'Nossa recepcionista economiza horas por dia. O Aseno faz o trabalho pesado de confirmar e reagendar sozinho.', author: 'Clínica Bem Estar', role: 'Fisioterapia' },
-    { text: 'A lista de espera automática é fantástica. Quando um paciente cancela, o sistema preenche a vaga rápido.', author: 'Instituto Mente Sã', role: 'Psicologia' },
+    { text: 'Nossas faltas caíram pela metade no primeiro mês. A confirmação automática pelo WhatsApp é o que mais fez diferença.', name: 'Marina Costa', role: 'Coordenadora Clínica', clinic: 'Clínica Vitalitá', photo: 'https://i.pravatar.cc/96?img=32' },
+    { text: 'Nossa recepcionista economiza horas por dia. O Aseno faz o trabalho pesado de confirmar e reagendar sozinho.', name: 'Beatriz Mendes', role: 'Diretora', clinic: 'Clínica Bem Estar', photo: 'https://i.pravatar.cc/96?img=47' },
+    { text: 'A lista de espera automática é fantástica. Quando um paciente cancela, o sistema preenche a vaga rápido.', name: 'Rafael Almeida', role: 'Psicólogo Clínico', clinic: 'Instituto Mente Sã', photo: 'https://i.pravatar.cc/96?img=12' },
   ],
   faqs: [
     { question: 'Como funciona a confirmação automática pelo WhatsApp?', answer: 'O Aseno envia lembretes 48h, 24h e 2h antes de cada consulta. O paciente responde direto no WhatsApp e o sistema atualiza o status. No plano Profissional, a IA entende respostas em linguagem natural.' },

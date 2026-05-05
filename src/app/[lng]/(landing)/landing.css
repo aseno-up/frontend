@@ -562,6 +562,14 @@ html{scroll-behavior:smooth}
   align-items:center;
   gap:.75rem;
 }
+.testimonial-photo{
+  width:48px;
+  height:48px;
+  border-radius:50%;
+  object-fit:cover;
+  flex-shrink:0;
+  border:1px solid var(--border);
+}
 .testimonial-name{
   font-size:.84rem;
   font-weight:600;
