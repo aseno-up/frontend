@@ -250,6 +250,9 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
   const [editingMethod, setEditingMethod] = useState<PaymentMethod | null>(null)
   const [newMethodName, setNewMethodName] = useState("")
   const [newMethodType, setNewMethodType] = useState<PaymentMethodType>("pix")
+  const [newMethodSettlementDays, setNewMethodSettlementDays] = useState(0)
+  const [newMethodInstallmentsAllowed, setNewMethodInstallmentsAllowed] = useState(false)
+  const [newMethodMaxInstallments, setNewMethodMaxInstallments] = useState(1)
   const [isSavingMethod, setIsSavingMethod] = useState(false)
   const [showNewMethodForm, setShowNewMethodForm] = useState(false)
 
@@ -288,10 +291,19 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
     if (!newMethodName.trim()) return
     try {
       setIsSavingMethod(true)
-      await api.createPaymentMethod({ name: newMethodName.trim(), type: newMethodType })
+      await api.createPaymentMethod({
+        name: newMethodName.trim(),
+        type: newMethodType,
+        settlement_days: newMethodSettlementDays,
+        installments_allowed: newMethodInstallmentsAllowed,
+        max_installments: newMethodInstallmentsAllowed ? newMethodMaxInstallments : 1,
+      })
       showToast.success("Metodo de pagamento criado!")
       setNewMethodName("")
       setNewMethodType("pix")
+      setNewMethodSettlementDays(0)
+      setNewMethodInstallmentsAllowed(false)
+      setNewMethodMaxInstallments(1)
       setShowNewMethodForm(false)
       loadPaymentMethods()
     } catch (err) {
@@ -304,7 +316,14 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
   const handleUpdateMethod = async (method: PaymentMethod) => {
     try {
       setIsSavingMethod(true)
-      await api.updatePaymentMethod(method.id, { name: method.name, type: method.type, active: method.active })
+      await api.updatePaymentMethod(method.id, {
+        name: method.name,
+        type: method.type,
+        active: method.active,
+        settlement_days: method.settlement_days,
+        installments_allowed: method.installments_allowed,
+        max_installments: method.installments_allowed ? method.max_installments : 1,
+      })
       showToast.success("Metodo atualizado!")
       setEditingMethod(null)
       loadPaymentMethods()
@@ -2173,31 +2192,62 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
                 </CardHeader>
                 <CardContent className="space-y-3">
                   {showNewMethodForm && (
-                    <div className="flex items-end gap-3 p-4 border rounded-lg bg-muted/30">
-                      <div className="flex-1 space-y-1.5">
-                        <Label className="text-xs">Nome</Label>
-                        <Input
-                          placeholder="Ex: Maquininha Stone"
-                          value={newMethodName}
-                          onChange={(e) => setNewMethodName(e.target.value)}
-                          autoFocus
-                        />
+                    <div className="space-y-3 p-4 border rounded-lg bg-muted/30">
+                      <div className="flex items-end gap-3">
+                        <div className="flex-1 space-y-1.5">
+                          <Label className="text-xs">Nome</Label>
+                          <Input
+                            placeholder="Ex: Maquininha Stone"
+                            value={newMethodName}
+                            onChange={(e) => setNewMethodName(e.target.value)}
+                            autoFocus
+                          />
+                        </div>
+                        <div className="w-40 space-y-1.5">
+                          <Label className="text-xs">Tipo</Label>
+                          <Select value={newMethodType} onValueChange={(v) => setNewMethodType(v as PaymentMethodType)}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {Object.entries(paymentTypeLabels).map(([key, label]) => (
+                                <SelectItem key={key} value={key}>{label}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
                       </div>
-                      <div className="w-40 space-y-1.5">
-                        <Label className="text-xs">Tipo</Label>
-                        <Select value={newMethodType} onValueChange={(v) => setNewMethodType(v as PaymentMethodType)}>
-                          <SelectTrigger><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            {Object.entries(paymentTypeLabels).map(([key, label]) => (
-                              <SelectItem key={key} value={key}>{label}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                      <div className="flex items-end gap-3">
+                        <div className="w-40 space-y-1.5">
+                          <Label className="text-xs">Recebe em (dias)</Label>
+                          <Input
+                            type="number"
+                            min={0}
+                            value={newMethodSettlementDays}
+                            onChange={(e) => setNewMethodSettlementDays(Math.max(0, parseInt(e.target.value || "0", 10)))}
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1.5">
+                          <Label className="text-xs">Aceita parcelar</Label>
+                          <Switch
+                            checked={newMethodInstallmentsAllowed}
+                            onCheckedChange={setNewMethodInstallmentsAllowed}
+                          />
+                        </div>
+                        <div className="w-40 space-y-1.5">
+                          <Label className="text-xs">Máx. parcelas</Label>
+                          <Input
+                            type="number"
+                            min={1}
+                            value={newMethodMaxInstallments}
+                            onChange={(e) => setNewMethodMaxInstallments(Math.max(1, parseInt(e.target.value || "1", 10)))}
+                            disabled={!newMethodInstallmentsAllowed}
+                          />
+                        </div>
+                        <div className="flex-1" />
+                        <Button size="sm" onClick={handleCreateMethod} disabled={isSavingMethod || !newMethodName.trim()}>
+                          {isSavingMethod ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => setShowNewMethodForm(false)}>Cancelar</Button>
                       </div>
-                      <Button size="sm" onClick={handleCreateMethod} disabled={isSavingMethod || !newMethodName.trim()}>
-                        {isSavingMethod ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={() => setShowNewMethodForm(false)}>Cancelar</Button>
                     </div>
                   )}
 
@@ -2212,7 +2262,7 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
                       {paymentMethods.map((method) => (
                         <div key={method.id} className={`flex items-center justify-between p-3 border rounded-lg ${method.active ? '' : 'opacity-50'}`}>
                           {editingMethod?.id === method.id ? (
-                            <div className="flex items-center gap-3 flex-1">
+                            <div className="flex flex-wrap items-center gap-3 flex-1">
                               <Input
                                 value={editingMethod.name}
                                 onChange={(e) => setEditingMethod({ ...editingMethod, name: e.target.value })}
@@ -2226,6 +2276,34 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
                                   ))}
                                 </SelectContent>
                               </Select>
+                              <div className="flex items-center gap-1.5">
+                                <Label className="text-xs whitespace-nowrap">Dias</Label>
+                                <Input
+                                  type="number"
+                                  min={0}
+                                  className="w-20"
+                                  value={editingMethod.settlement_days}
+                                  onChange={(e) => setEditingMethod({ ...editingMethod, settlement_days: Math.max(0, parseInt(e.target.value || "0", 10)) })}
+                                />
+                              </div>
+                              <div className="flex items-center gap-1.5">
+                                <Label className="text-xs whitespace-nowrap">Parcela</Label>
+                                <Switch
+                                  checked={editingMethod.installments_allowed}
+                                  onCheckedChange={(v) => setEditingMethod({ ...editingMethod, installments_allowed: v })}
+                                />
+                              </div>
+                              <div className="flex items-center gap-1.5">
+                                <Label className="text-xs whitespace-nowrap">Máx</Label>
+                                <Input
+                                  type="number"
+                                  min={1}
+                                  className="w-20"
+                                  value={editingMethod.max_installments}
+                                  onChange={(e) => setEditingMethod({ ...editingMethod, max_installments: Math.max(1, parseInt(e.target.value || "1", 10)) })}
+                                  disabled={!editingMethod.installments_allowed}
+                                />
+                              </div>
                               <Button size="sm" onClick={() => handleUpdateMethod(editingMethod)} disabled={isSavingMethod}>
                                 {isSavingMethod ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
                               </Button>
@@ -2236,6 +2314,10 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
                               <div className="flex items-center gap-3">
                                 <span className="font-medium text-sm">{method.name}</span>
                                 <Badge variant="secondary" className="text-xs">{paymentTypeLabels[method.type] || method.type}</Badge>
+                                <span className="text-xs text-muted-foreground">
+                                  {method.settlement_days === 0 ? "À vista" : `${method.settlement_days} dias`}
+                                  {method.installments_allowed && ` • até ${method.max_installments}x`}
+                                </span>
                                 {!method.active && <Badge variant="outline" className="text-xs text-muted-foreground">Inativo</Badge>}
                               </div>
                               <div className="flex items-center gap-2">

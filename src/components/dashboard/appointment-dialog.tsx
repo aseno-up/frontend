@@ -115,6 +115,11 @@ export function AppointmentDialog({
   // Procedures
   const [procedures, setProcedures] = useState<any[]>([])
   const [proceduresLoading, setProceduresLoading] = useState(false)
+
+  // Package balances per procedure for the currently-selected patient.
+  // Used to render "(X/Y)" hints on the procedure picker so the user can see at
+  // a glance which procedures are billed against an existing sales package.
+  const [packageBalances, setPackageBalances] = useState<Record<string, { used: number; quantity: number }>>({})
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [showShareReceipt, setShowShareReceipt] = useState(false)
   const isEditing = !!appointment
@@ -220,14 +225,45 @@ export function AppointmentDialog({
   }, [specialties])
 
   const procedureOptions: SelectOption[] = useMemo(() => {
-    return procedures.map((proc) => ({
-      value: proc.id,
-      label: `${proc.name} (R$ ${proc.price.toFixed(2)})`,
-      basePrice: proc.price,
-    }))
-  }, [procedures])
+    return procedures.map((proc) => {
+      const balance = packageBalances[proc.id]
+      const balanceSuffix = balance ? ` — Pacote (${balance.used}/${balance.quantity})` : ""
+      return {
+        value: proc.id,
+        label: `${proc.name} (R$ ${proc.price.toFixed(2)})${balanceSuffix}`,
+        basePrice: proc.price,
+      }
+    })
+  }, [procedures, packageBalances])
 
   const watchedPatientId = watch("patient_id")
+  // Load package balances whenever the patient changes — drives the "(X/Y)"
+  // suffix on the procedure picker. We only render the hint; the FIFO item
+  // binding itself is resolved by the backend on appointment create.
+  useEffect(() => {
+    if (!watchedPatientId) {
+      setPackageBalances({})
+      return
+    }
+    let cancelled = false
+    api
+      .getPatientPackageBalances(watchedPatientId)
+      .then((resp) => {
+        if (cancelled) return
+        const map: Record<string, { used: number; quantity: number }> = {}
+        for (const b of resp.data || []) {
+          map[b.procedure_id] = { used: b.used_total, quantity: b.quantity_total }
+        }
+        setPackageBalances(map)
+      })
+      .catch(() => {
+        if (!cancelled) setPackageBalances({})
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [watchedPatientId])
+
   const selectedPatientOption = useMemo(() => {
     if (!watchedPatientId) return null
     return patientOptions.find((opt) => opt.value === watchedPatientId) || null

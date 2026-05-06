@@ -6,6 +6,7 @@ import { Plus } from "lucide-react"
 import { Header } from "@/components/dashboard/header"
 import { Calendar } from "@/components/dashboard/calendar"
 import { AppointmentDialog } from "@/components/dashboard/appointment-dialog"
+import { AgendaVendasTabs } from "@/components/dashboard/agenda-vendas-tabs"
 import { GroupAttendanceDialog } from "@/components/session-plans/group-attendance-dialog"
 import { Button } from "@/components/ui/button"
 import { ReactSelect, SelectOption } from "@/components/ui/react-select"
@@ -104,6 +105,10 @@ export default function AgendaPage({ params }: AgendaPageProps) {
       <Header lng={lng} title="Agenda" tutorialPage="agenda" />
 
       <div className="flex-1 p-4 md:p-6">
+        <div className="mb-4">
+          <AgendaVendasTabs active="agenda" />
+        </div>
+
         {/* Toolbar */}
         <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
           <div className="w-64" data-tutorial="professional-filter">

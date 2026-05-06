@@ -1641,12 +1641,25 @@ class ApiClient {
     return response.data
   }
 
-  async createPaymentMethod(data: { name: string; type: string }) {
+  async createPaymentMethod(data: {
+    name: string
+    type: string
+    settlement_days?: number
+    installments_allowed?: boolean
+    max_installments?: number
+  }) {
     const response = await this.client.post('/payment-methods', data)
     return response.data
   }
 
-  async updatePaymentMethod(id: string, data: { name?: string; type?: string; active?: boolean }) {
+  async updatePaymentMethod(id: string, data: {
+    name?: string
+    type?: string
+    active?: boolean
+    settlement_days?: number
+    installments_allowed?: boolean
+    max_installments?: number
+  }) {
     const response = await this.client.put(`/payment-methods/${id}`, data)
     return response.data
   }
@@ -1674,6 +1687,75 @@ class ApiClient {
 
   async deleteAppointmentPayment(appointmentId: string, paymentId: string) {
     const response = await this.client.delete(`/appointments/${appointmentId}/payments/${paymentId}`)
+    return response.data
+  }
+
+  // ==========================================
+  // Sales Packages (vendas avulsas com saldo flutuante)
+  // ==========================================
+
+  async getSalesPackages(params?: {
+    page?: number
+    per_page?: number
+    status?: string
+    q?: string
+    from?: string
+    to?: string
+  }) {
+    const response = await this.client.get('/sales-packages', { params })
+    return response.data
+  }
+
+  async getSalesPackage(id: string) {
+    const response = await this.client.get(`/sales-packages/${id}`)
+    return response.data
+  }
+
+  async createSalesPackage(data: import('@/types/api').CreateSalesPackageRequest) {
+    const response = await this.client.post('/sales-packages', data)
+    return response.data
+  }
+
+  async updateSalesPackage(id: string, data: {
+    sale_date?: string
+    valid_until?: string
+    discount?: number
+    notes?: string
+  }) {
+    const response = await this.client.patch(`/sales-packages/${id}`, data)
+    return response.data
+  }
+
+  async convertSalesPackageQuote(id: string, payments: import('@/types/api').CreateSalesPackagePaymentInput[]) {
+    const response = await this.client.post(`/sales-packages/${id}/convert`, { payments })
+    return response.data
+  }
+
+  async cancelSalesPackage(id: string) {
+    const response = await this.client.post(`/sales-packages/${id}/cancel`)
+    return response.data
+  }
+
+  async getPatientPackageBalances(patientId: string): Promise<{ data: import('@/types/api').ProcedureBalance[] }> {
+    const response = await this.client.get('/sales-packages/balances', {
+      params: { patient_id: patientId },
+    })
+    return response.data
+  }
+
+  async pickPackageFIFOItem(patientId: string, procedureId: string): Promise<{ item_id: string | null }> {
+    const response = await this.client.get('/sales-packages/balances', {
+      params: { patient_id: patientId, procedure_id: procedureId },
+    })
+    return response.data
+  }
+
+  async registerSalesPackagePayment(paymentId: string, data: {
+    paid_at: string
+    payment_method_id?: string
+    amount?: number
+  }) {
+    const response = await this.client.post(`/sales-packages/payments/${paymentId}/register`, data)
     return response.data
   }
 

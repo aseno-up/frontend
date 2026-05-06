@@ -95,15 +95,17 @@ export const handleApiError = (error: unknown, fallbackMessage = "Ocorreu um err
       return
     }
 
-    // Try to get translated message from backend error type: response.data.error.type
+    // Prefer the backend's specific message over the generic translation,
+    // because validation errors typically carry actionable details
+    // ("Desconto maior que o subtotal." beats a fallback "Dados inválidos").
+    // Only fall back to errorMap[type] when no message was provided.
     if (typeof errData === 'object' && errData) {
-      if (errData.type && errorMap[errData.type]) {
-        showToast.error(errorMap[errData.type])
+      if (errData.message && errData.message.trim()) {
+        showToast.error(errData.message)
         return
       }
-
-      if (errData.message) {
-        showToast.error(errData.message)
+      if (errData.type && errorMap[errData.type]) {
+        showToast.error(errorMap[errData.type])
         return
       }
     }

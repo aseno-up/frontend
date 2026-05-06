@@ -198,7 +198,96 @@ export interface AppointmentProcedure {
   appointment_id: string
   procedure_id: string
   price: number
+  sales_package_item_id?: string | null
   procedure?: Procedure
+}
+
+export type SalesPackageStatus = 'quote' | 'active' | 'completed' | 'canceled'
+
+export interface SalesPackageItem {
+  id: string
+  sales_package_id: string
+  procedure_id: string
+  unit_price: number
+  quantity: number
+  line_total: number
+  procedure?: Procedure
+}
+
+export interface SalesPackagePayment {
+  id: string
+  sales_package_id: string
+  // Nullable: an unpaid sale stores a method-less open-receivable row until
+  // the user actually charges the patient.
+  payment_method_id?: string | null
+  amount: number
+  discount: number
+  installment: number
+  total_installments: number
+  due_date: string
+  paid_at?: string | null
+  created_at: string
+}
+
+export interface SalesPackageItemBalance {
+  item_id: string
+  procedure_id: string
+  used: number
+  quantity: number
+}
+
+export interface SalesPackage {
+  id: string
+  clinic_id: string
+  patient_id: string
+  patient_name?: string
+  patient_phone?: string
+  code: string
+  status: SalesPackageStatus
+  sale_date: string
+  valid_until?: string | null
+  subtotal: number
+  discount: number
+  total: number
+  notes?: string
+  created_by?: string | null
+  created_at: string
+  items?: SalesPackageItem[]
+  payments?: SalesPackagePayment[]
+  items_balance?: SalesPackageItemBalance[]
+}
+
+export interface ProcedureBalance {
+  procedure_id: string
+  procedure_name: string
+  used_total: number
+  quantity_total: number
+}
+
+export interface CreateSalesPackageItemInput {
+  procedure_id: string
+  unit_price: number
+  quantity: number
+}
+
+export interface CreateSalesPackagePaymentInput {
+  payment_method_id: string
+  amount: number
+  discount?: number
+  installments?: number
+  due_date?: string
+  paid_at?: string
+}
+
+export interface CreateSalesPackageRequest {
+  patient_id: string
+  status: 'quote' | 'active'
+  sale_date?: string
+  valid_until?: string
+  discount?: number
+  notes?: string
+  items: CreateSalesPackageItemInput[]
+  payments?: CreateSalesPackagePaymentInput[]
 }
 
 export interface AppointmentSpecialty {
@@ -504,6 +593,9 @@ export interface PaymentMethod {
   name: string
   type: PaymentMethodType
   active: boolean
+  settlement_days: number
+  installments_allowed: boolean
+  max_installments: number
   created_at: string
 }
 
