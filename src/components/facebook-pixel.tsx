@@ -44,7 +44,12 @@ export function FacebookPixel() {
           s.parentNode.insertBefore(t,s)}(window, document,'script',
           'https://connect.facebook.net/en_US/fbevents.js');
           fbq('consent', 'grant');
-          fbq('set', 'autoConfig', false, '1268822281463738');
+          // autoConfig=false desativa "Configuracao automatica" da Meta:
+          // sem isso, eventos do Event Setup Tool / Eventos Automaticos
+          // configurados no Events Manager disparam SEM value/currency.
+          // Meta aceita string 'false' por documentacao oficial — boolean
+          // nem sempre eh respeitado pelo fbevents.js.
+          fbq('set', 'autoConfig', 'false', '1268822281463738');
           fbq('init', '1268822281463738');
           fbq('track', 'PageView');
         `}
