@@ -166,6 +166,31 @@ export default async function LandingPage(props: PageProps) {
               />
             </div>
           </div>
+
+          {/* Bloco: Venda de pacotes */}
+          <div className="bento-wide">
+            <div className="bento-wide-text">
+              <div className="bento-label">Venda de pacotes</div>
+              <h3 className="bento-title">Monte um orçamento, feche a venda e o financeiro já sabe. Sem planilha, sem retrabalho.</h3>
+              <ul className="bento-list">
+                <li>Orçamento e venda fechada no mesmo lugar — converta com 1 clique</li>
+                <li>Parcelas geradas automaticamente no financeiro (PIX, cartão ou parcelado)</li>
+                <li>Recibo enviado pelo WhatsApp para o paciente</li>
+                <li>Saldo de sessões consumido conforme os agendamentos</li>
+                <li>Baixa automática no caixa quando o pagamento cai</li>
+              </ul>
+            </div>
+            <div className="bento-wide-img">
+              <Image
+                src="/screenshots/financeiro-caixa.png"
+                alt="Recebíveis e parcelas geradas automaticamente a partir de uma venda de pacote no Aseno"
+                width={960}
+                height={480}
+                quality={85}
+                className="bento-img"
+              />
+            </div>
+          </div>
         </div>
       </section>
 

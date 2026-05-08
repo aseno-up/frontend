@@ -186,6 +186,47 @@ export function SpecialtyTemplate({ lng, data }: SpecialtyTemplateProps) {
         </div>
       </section>
 
+      {/* VENDA DE PACOTES */}
+      <section className="sec sec-alt" id="venda-pacotes">
+        <div className="sec-hd" style={{ textAlign: 'center' }}>
+          <h2 className="display-title">Venda de pacotes ligada ao financeiro.</h2>
+          <p className="sec-sub">
+            Monte um orçamento, feche a venda em 1 clique e o Aseno cuida do resto: gera parcelas no
+            financeiro, envia recibo no WhatsApp e desconta as sessões conforme os agendamentos.
+          </p>
+        </div>
+        <div className="sp-features-grid">
+          <div className="sp-feature-card">
+            <h3>Orçamento e venda fechada</h3>
+            <p>
+              Crie o orçamento com os procedimentos que o paciente vai contratar — sessão a sessão, com
+              desconto e validade. Quando ele aceita, converte para venda em 1 clique.
+            </p>
+          </div>
+          <div className="sp-feature-card">
+            <h3>Parcelas no financeiro automáticas</h3>
+            <p>
+              Ao fechar a venda, o Aseno gera as parcelas direto no financeiro (PIX, cartão, à vista ou
+              parcelado), com data de vencimento e status. Sem digitar nada duas vezes.
+            </p>
+          </div>
+          <div className="sp-feature-card">
+            <h3>Saldo de sessões automático</h3>
+            <p>
+              Cada agendamento desconta uma sessão do saldo do pacote. Você sabe o tempo todo
+              quanto o paciente já consumiu e quanto ainda falta — sem planilha paralela.
+            </p>
+          </div>
+          <div className="sp-feature-card">
+            <h3>Recibo no WhatsApp e baixa automática</h3>
+            <p>
+              O paciente recebe o recibo da venda direto no WhatsApp. Quando o pagamento cai (PIX/cartão),
+              a baixa entra automática no caixa e atualiza o relatório financeiro.
+            </p>
+          </div>
+        </div>
+      </section>
+
       {/* DEPOIMENTOS */}
       <section className="sec-testimonials">
         <div className="sec-hd" style={{ textAlign: 'center' }}>

@@ -309,6 +309,7 @@ export function PricingSection({ lng, publicConfig: initialConfig = null }: Land
             <li>Confirmações WhatsApp</li>
             <li>Lembrete de mensalidade por WhatsApp e Email</li>
             <li>Sessões recorrentes</li>
+            <li>Venda de pacotes e orçamentos (com baixa automática no financeiro)</li>
             <li>Gestão de pacientes</li>
             <li>Ficha e histórico do paciente</li>
             <li>Dashboard financeiro e operacional</li>

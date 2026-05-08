@@ -139,6 +139,65 @@ export default function PsicologiaLandingPage(props: PageProps) {
         </div>
       </section>
 
+      {/* Venda de Pacotes Section */}
+      <section className="py-20 bg-muted/50">
+        <div className="container mx-auto px-4 max-w-4xl">
+          <h2 className="text-3xl font-bold text-center mb-4">
+            Venda de pacotes ligada ao financeiro
+          </h2>
+          <p className="text-lg text-muted-foreground text-center mb-12">
+            Monte um orçamento, feche a venda em 1 clique e o sistema cuida do resto: gera parcelas no
+            financeiro, envia recibo no WhatsApp e desconta as sessões conforme os agendamentos.
+          </p>
+          <div className="grid md:grid-cols-2 gap-6">
+            <Card className="bg-background">
+              <CardHeader>
+                <CardTitle className="text-lg">Orçamento e venda fechada</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground">
+                  Crie o orçamento com as sessões que o paciente vai contratar — com desconto e
+                  validade. Quando ele aceita, converte para venda em 1 clique.
+                </p>
+              </CardContent>
+            </Card>
+            <Card className="bg-background">
+              <CardHeader>
+                <CardTitle className="text-lg">Parcelas no financeiro automáticas</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground">
+                  Ao fechar a venda, o sistema gera as parcelas direto no financeiro (PIX, cartão, à
+                  vista ou parcelado), com data de vencimento e status. Sem digitar nada duas vezes.
+                </p>
+              </CardContent>
+            </Card>
+            <Card className="bg-background">
+              <CardHeader>
+                <CardTitle className="text-lg">Saldo de sessões automático</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground">
+                  Cada agendamento desconta uma sessão do saldo do pacote. Você sabe o tempo todo
+                  quanto o paciente já consumiu e quanto ainda falta — sem planilha paralela.
+                </p>
+              </CardContent>
+            </Card>
+            <Card className="bg-background">
+              <CardHeader>
+                <CardTitle className="text-lg">Recibo no WhatsApp e baixa automática</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground">
+                  O paciente recebe o recibo da venda direto no WhatsApp. Quando o pagamento cai
+                  (PIX/cartão), a baixa entra automática no caixa e atualiza o relatório financeiro.
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </section>
+
       {/* CTA Section */}
       <section className="py-20 bg-primary text-primary-foreground">
         <div className="container mx-auto px-4 text-center">

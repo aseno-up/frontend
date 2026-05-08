@@ -34,6 +34,12 @@ const integrations = [
     status: 'available' as const,
   },
   {
+    name: 'Venda de Pacotes ↔ Financeiro',
+    description: 'Monte um orçamento, feche a venda em 1 clique e o Aseno gera as parcelas no financeiro automaticamente (PIX, cartão ou parcelado). Recibo no WhatsApp, baixa automática no caixa quando o pagamento cai e saldo de sessões consumido a cada agendamento.',
+    icon: '🧾',
+    status: 'available' as const,
+  },
+  {
     name: 'Google Meu Negócio',
     description: 'Botão "Agendar" direto na ficha da sua clínica no Google. Pacientes que encontram sua clínica na busca podem marcar consulta com um clique.',
     icon: '📍',
