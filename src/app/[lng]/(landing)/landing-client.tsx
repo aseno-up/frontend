@@ -4,64 +4,19 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/stores/auth-store'
 import { gtagEvent } from '@/lib/gtag'
+import {
+  FALLBACK_CONFIG,
+  trackPlanLead,
+  type PlanKey,
+  type PricingVariant,
+  type PublicConfig,
+} from '@/lib/meta-pixel'
 
-export interface PublicConfig {
-  trial_days: number
-  plans: {
-    [key: string]: {
-      limit_professionals: number
-      price_monthly: number
-      price_yearly: number
-      solo_price_monthly: number
-      solo_price_yearly: number
-      excess_price: number
-    }
-  }
-}
+export type { PublicConfig }
 
 interface LandingClientProps {
   lng: string
   publicConfig?: PublicConfig | null
-}
-
-type PricingVariant = 'solo' | 'clinic'
-
-// Fallback config used when the public config endpoint is unreachable.
-// Values mirror backend defaults (settings_service.go) and can be overridden
-// per-environment via NEXT_PUBLIC_FALLBACK_* env vars.
-const num = (v: string | undefined, d: number) => {
-  const n = parseInt(v ?? '', 10)
-  return Number.isFinite(n) && n > 0 ? n : d
-}
-
-const FALLBACK_CONFIG: PublicConfig = {
-  trial_days: num(process.env.NEXT_PUBLIC_FALLBACK_TRIAL_DAYS, 14),
-  plans: {
-    basic: {
-      limit_professionals: 3,
-      price_monthly: num(process.env.NEXT_PUBLIC_FALLBACK_PRICE_BASIC, 99),
-      price_yearly: num(process.env.NEXT_PUBLIC_FALLBACK_PRICE_BASIC_YEARLY, 990),
-      solo_price_monthly: 0,
-      solo_price_yearly: 0,
-      excess_price: 20,
-    },
-    professional: {
-      limit_professionals: 7,
-      price_monthly: num(process.env.NEXT_PUBLIC_FALLBACK_PRICE_PROFESSIONAL, 199),
-      price_yearly: num(process.env.NEXT_PUBLIC_FALLBACK_PRICE_PROFESSIONAL_YEARLY, 1990),
-      solo_price_monthly: 0,
-      solo_price_yearly: 0,
-      excess_price: 20,
-    },
-    advanced: {
-      limit_professionals: 14,
-      price_monthly: num(process.env.NEXT_PUBLIC_FALLBACK_PRICE_ADVANCED, 349),
-      price_yearly: num(process.env.NEXT_PUBLIC_FALLBACK_PRICE_ADVANCED_YEARLY, 3490),
-      solo_price_monthly: 0,
-      solo_price_yearly: 0,
-      excess_price: 0,
-    },
-  },
 }
 
 // Client component for interactive hero CTA buttons
@@ -88,9 +43,7 @@ export function HeroCTA({ lng, publicConfig: initialConfig = null }: LandingClie
   const getTrialDays = (): number => publicConfig?.trial_days || 14
 
   const handlePlanSelect = (plan: string) => {
-    if (typeof window !== 'undefined' && (window as unknown as { fbq?: (...args: unknown[]) => void }).fbq) {
-      (window as unknown as { fbq: (...args: unknown[]) => void }).fbq('track', 'Lead', { plan })
-    }
+    trackPlanLead({ plan: plan as PlanKey, billingCycle: 'monthly', publicConfig })
     gtagEvent('generate_lead', { plan })
     const target = isAuthenticated ? 'billing-setup' : 'register'
     const url = new URL(`/${lng}/${target}`, window.location.origin)
@@ -118,14 +71,12 @@ export function HeroCTA({ lng, publicConfig: initialConfig = null }: LandingClie
 }
 
 // Client component for the navigation CTA buttons
-export function NavCTA({ lng }: LandingClientProps) {
+export function NavCTA({ lng, publicConfig = null }: LandingClientProps) {
   const router = useRouter()
   const { isAuthenticated } = useAuthStore()
 
   const handlePlanSelect = (plan: string) => {
-    if (typeof window !== 'undefined' && (window as unknown as { fbq?: (...args: unknown[]) => void }).fbq) {
-      (window as unknown as { fbq: (...args: unknown[]) => void }).fbq('track', 'Lead', { plan })
-    }
+    trackPlanLead({ plan: plan as PlanKey, billingCycle: 'monthly', publicConfig })
     gtagEvent('generate_lead', { plan })
     const target = isAuthenticated ? 'billing-setup' : 'register'
     const url = new URL(`/${lng}/${target}`, window.location.origin)
@@ -236,9 +187,17 @@ export function PricingSection({ lng, publicConfig: initialConfig = null }: Land
   }
 
   const handlePlanSelect = (plan: string) => {
-    if (typeof window !== 'undefined' && (window as unknown as { fbq?: (...args: unknown[]) => void }).fbq) {
-      (window as unknown as { fbq: (...args: unknown[]) => void }).fbq('track', 'Lead', { plan })
-    }
+    const isPaidWithSolo =
+      (plan === 'basic' || plan === 'professional') &&
+      variantOf(plan) === 'solo' &&
+      planHasSolo(plan)
+    trackPlanLead({
+      plan: plan as PlanKey,
+      billingCycle: plan === 'trial' ? 'monthly' : billingCycle,
+      variant: isPaidWithSolo ? 'solo' : 'clinic',
+      units: plan === 'advanced' ? Math.max(2, advancedUnits) : undefined,
+      publicConfig,
+    })
     gtagEvent('generate_lead', { plan })
     const target = isAuthenticated ? 'billing-setup' : 'register'
     const url = new URL(`/${lng}/${target}`, window.location.origin)
@@ -250,11 +209,7 @@ export function PricingSection({ lng, publicConfig: initialConfig = null }: Land
     url.searchParams.set('billing', cycle)
 
     // Only carry the solo variant forward for plans that actually offer it and for paid plans.
-    if (
-      (plan === 'basic' || plan === 'professional') &&
-      variantOf(plan) === 'solo' &&
-      planHasSolo(plan)
-    ) {
+    if (isPaidWithSolo) {
       url.searchParams.set('variant', 'solo')
     }
 
@@ -457,9 +412,7 @@ export function CtaSection({ lng, publicConfig: initialConfig = null }: LandingC
   const getTrialDays = (): number => publicConfig?.trial_days || 14
 
   const handlePlanSelect = (plan: string) => {
-    if (typeof window !== 'undefined' && (window as unknown as { fbq?: (...args: unknown[]) => void }).fbq) {
-      (window as unknown as { fbq: (...args: unknown[]) => void }).fbq('track', 'Lead', { plan })
-    }
+    trackPlanLead({ plan: plan as PlanKey, billingCycle: 'monthly', publicConfig })
     gtagEvent('generate_lead', { plan })
     const target = isAuthenticated ? 'billing-setup' : 'register'
     const url = new URL(`/${lng}/${target}`, window.location.origin)

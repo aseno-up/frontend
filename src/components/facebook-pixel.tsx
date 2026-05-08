@@ -44,6 +44,7 @@ export function FacebookPixel() {
           s.parentNode.insertBefore(t,s)}(window, document,'script',
           'https://connect.facebook.net/en_US/fbevents.js');
           fbq('consent', 'grant');
+          fbq('set', 'autoConfig', false, '1268822281463738');
           fbq('init', '1268822281463738');
           fbq('track', 'PageView');
         `}

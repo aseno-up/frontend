@@ -21,6 +21,7 @@ import { FacebookPixel } from "@/components/facebook-pixel"
 import { GoogleAnalytics } from "@/components/google-analytics"
 import { GoogleAdsTag } from "@/components/google-ads-tag"
 import { gtagEvent } from "@/lib/gtag"
+import { trackCompleteRegistration, type PlanKey } from "@/lib/meta-pixel"
 
 const registerSchema = z.object({
   clinic_name: z.string().min(2, "Nome da clinica deve ter no minimo 2 caracteres"),
@@ -112,6 +113,13 @@ function RegisterContent({ params }: RegisterPageProps) {
         plan: selectedPlan || 'trial',
         billing: selectedBilling || undefined,
       })
+      trackCompleteRegistration({
+        plan: (selectedPlan || 'trial') as PlanKey,
+        billingCycle: selectedBilling || 'monthly',
+        variant: selectedVariant,
+        units: selectedUnits,
+        method: 'email',
+      })
 
       // Store selected plan and billing for later use
       if (selectedPlan && selectedBilling) {
@@ -163,6 +171,13 @@ function RegisterContent({ params }: RegisterPageProps) {
         method: 'google',
         plan: selectedPlan || 'trial',
         billing: selectedBilling || undefined,
+      })
+      trackCompleteRegistration({
+        plan: (selectedPlan || 'trial') as PlanKey,
+        billingCycle: selectedBilling || 'monthly',
+        variant: selectedVariant,
+        units: selectedUnits,
+        method: 'google',
       })
 
       const { lng } = await params

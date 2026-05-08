@@ -56,9 +56,18 @@ export function KitPlanilhasForm() {
         throw new Error(data?.error || 'Erro ao enviar')
       }
 
-      // Dispara o evento de Lead do Facebook Pixel
+      // Dispara o evento de Lead do Facebook Pixel com value/currency.
+      // Lead magnet: valor estimado configurável via env (default = 1 BRL apenas para
+      // satisfazer a exigência da Meta de value > 0).
       if (typeof window !== 'undefined' && (window as any).fbq) {
-        (window as any).fbq('track', 'Lead');
+        const leadValue = Number(process.env.NEXT_PUBLIC_KIT_PLANILHAS_LEAD_VALUE) || 1
+        const currency = process.env.NEXT_PUBLIC_PIXEL_CURRENCY || 'BRL'
+        ;(window as any).fbq('track', 'Lead', {
+          content_name: 'kit_planilhas',
+          content_category: 'lead_magnet',
+          value: leadValue,
+          currency,
+        })
       }
       gtagEvent('generate_lead', { source: 'kit_planilhas' })
 

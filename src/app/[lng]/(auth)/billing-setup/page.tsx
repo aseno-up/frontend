@@ -9,6 +9,7 @@ import { FacebookPixel } from "@/components/facebook-pixel"
 import { GoogleAnalytics } from "@/components/google-analytics"
 import { GoogleAdsTag } from "@/components/google-ads-tag"
 import { gtagEvent } from "@/lib/gtag"
+import { trackSubscribe, type PlanKey } from "@/lib/meta-pixel"
 
 type Step = "billing" | "payment" | "process"
 
@@ -265,6 +266,16 @@ function BillingSetupContent() {
               value: getPlanPrice(),
               currency: "BRL",
             })
+            trackSubscribe({
+              plan: selectedPlan as PlanKey,
+              billingCycle: selectedBilling === "YEARLY" ? "annually" : "monthly",
+              variant: selectedVariant,
+              units: selectedPlan === "advanced" ? Math.max(2, units) : undefined,
+              cycleValue: getPlanPrice(),
+              transactionId: confirmedPayment.id,
+              paymentMethod: "credit_card",
+              publicConfig,
+            })
           }
         } catch {
           // Silently skip: failing to verify status should not block redirect.
@@ -307,6 +318,16 @@ function BillingSetupContent() {
             transaction_id: confirmedPayment.id,
             value: getPlanPrice(),
             currency: "BRL",
+          })
+          trackSubscribe({
+            plan: selectedPlan as PlanKey,
+            billingCycle: selectedBilling === "YEARLY" ? "annually" : "monthly",
+            variant: selectedVariant,
+            units: selectedPlan === "advanced" ? Math.max(2, units) : undefined,
+            cycleValue: getPlanPrice(),
+            transactionId: confirmedPayment.id,
+            paymentMethod: "pix",
+            publicConfig,
           })
 
           // Reload user and redirect after short delay
