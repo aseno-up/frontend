@@ -29,6 +29,7 @@ import { AppointmentPaymentModal } from "./appointment-payment-modal"
 import { DeleteAppointmentDialog } from "./delete-appointment-dialog"
 import { ShareReceiptDialog } from "./share-receipt-dialog"
 import { WhatsAppReminderButton } from "@/components/whatsapp/whatsapp-reminder-button"
+import { PatientPackagesDialog } from "@/components/dashboard/patient-packages-dialog"
 import { pickWhatsAppPhone } from "@/lib/whatsapp-web"
 import { Share2 } from "lucide-react"
 
@@ -122,6 +123,7 @@ export function AppointmentDialog({
   const [packageBalances, setPackageBalances] = useState<Record<string, { used: number; quantity: number }>>({})
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [showShareReceipt, setShowShareReceipt] = useState(false)
+  const [packagesDialogOpen, setPackagesDialogOpen] = useState(false)
   const isEditing = !!appointment
 
   const defaultDuration =
@@ -227,22 +229,47 @@ export function AppointmentDialog({
   const procedureOptions: SelectOption[] = useMemo(() => {
     return procedures.map((proc) => {
       const balance = packageBalances[proc.id]
-      const balanceSuffix = balance ? ` — Pacote (${balance.used}/${balance.quantity})` : ""
+      const hasAvailableBalance =
+        balance != null && balance.quantity - balance.used > 0
+      // When the patient has a remaining package balance for this procedure,
+      // the label hides the catalog price (it's already paid through the
+      // package) and surfaces only the consumption hint. The chip in
+      // "Valores na Sessão" picks this up too — package items don't
+      // contribute to the appointment's billable total.
+      const label = hasAvailableBalance
+        ? `${proc.name} — Pacote (${balance!.used}/${balance!.quantity})`
+        : `${proc.name} (R$ ${proc.price.toFixed(2)})`
       return {
         value: proc.id,
-        label: `${proc.name} (R$ ${proc.price.toFixed(2)})${balanceSuffix}`,
-        basePrice: proc.price,
-      }
+        label,
+        basePrice: hasAvailableBalance ? 0 : proc.price,
+        viaPackage: hasAvailableBalance,
+      } as SelectOption & { viaPackage?: boolean }
     })
   }, [procedures, packageBalances])
 
+  // Convenience set: which selected procedures consume a package slot.
+  const proceduresViaPackage = useMemo(() => {
+    const set = new Set<string>()
+    procedures.forEach((proc) => {
+      const balance = packageBalances[proc.id]
+      if (balance && balance.quantity - balance.used > 0) {
+        set.add(proc.id)
+      }
+    })
+    return set
+  }, [procedures, packageBalances])
+
   const watchedPatientId = watch("patient_id")
-  // Load package balances whenever the patient changes — drives the "(X/Y)"
-  // suffix on the procedure picker. We only render the hint; the FIFO item
-  // binding itself is resolved by the backend on appointment create.
+  // Load package balances whenever the patient changes OR the dialog reopens.
+  // Reopening matters because the user might have just booked an appointment
+  // that consumed a package slot — without `open` in the deps, the X/Y hint
+  // would lag behind reality the next time they open the dialog for the same
+  // patient. The effect also carries `appointment?.id` so editing a different
+  // appointment for the same patient triggers a refresh too.
   useEffect(() => {
-    if (!watchedPatientId) {
-      setPackageBalances({})
+    if (!open || !watchedPatientId) {
+      if (!watchedPatientId) setPackageBalances({})
       return
     }
     let cancelled = false
@@ -262,7 +289,7 @@ export function AppointmentDialog({
     return () => {
       cancelled = true
     }
-  }, [watchedPatientId])
+  }, [watchedPatientId, open, appointment?.id])
 
   const selectedPatientOption = useMemo(() => {
     if (!watchedPatientId) return null
@@ -444,6 +471,17 @@ export function AppointmentDialog({
             {errors.patient_id && (
               <p className="text-sm text-destructive">{errors.patient_id.message}</p>
             )}
+            {watchedPatientId && Object.keys(packageBalances).length > 0 && (
+              <Button
+                type="button"
+                variant="link"
+                size="sm"
+                className="h-auto p-0 text-xs"
+                onClick={() => setPackagesDialogOpen(true)}
+              >
+                Ver pacotes deste paciente ({Object.keys(packageBalances).length})
+              </Button>
+            )}
           </div>
 
           {/* Professional */}
@@ -586,21 +624,30 @@ export function AppointmentDialog({
               value={selectedProcedureOptions}
               onChange={(options) => {
                 const selected = (options as MultiValue<SelectOption>) || []
-                
-                // Keep the existing price if the procedure was already selected,
-                // otherwise assign the basePrice.
+
+                // Procedures consumed from a package never bill the patient
+                // again — the patient already paid for them via the sale, so
+                // we hard-zero their per-row price even if the catalog has a
+                // value. Existing rows preserve their price unless they
+                // crossed into "via package" since the last edit.
                 const newProcedures = selected.map((opt) => {
-                  const existing = watchedProcedures.find(p => p.procedure_id === opt.value)
+                  const existing = watchedProcedures.find((p) => p.procedure_id === opt.value)
+                  if (proceduresViaPackage.has(opt.value)) {
+                    return { procedure_id: opt.value, price: 0 }
+                  }
                   return {
                     procedure_id: opt.value,
-                    price: existing !== undefined ? existing.price : (opt.basePrice || 0)
+                    price: existing !== undefined ? existing.price : (opt.basePrice || 0),
                   }
                 })
 
                 setValue("procedures", newProcedures, { shouldValidate: true })
 
-                // Always calculate total from procedures safely wrapping in cents
-                const calculatedTotalCents = newProcedures.reduce((sum, p) => sum + Math.round((p.price || 0) * 100), 0)
+                // Total ignores package-backed lines (price already 0 there).
+                const calculatedTotalCents = newProcedures.reduce(
+                  (sum, p) => sum + Math.round((p.price || 0) * 100),
+                  0,
+                )
                 setValue("price", calculatedTotalCents / 100, { shouldValidate: true })
               }}
               options={procedureOptions}
@@ -609,51 +656,103 @@ export function AppointmentDialog({
               isLoading={proceduresLoading}
               isClearable
             />
-            {watchedProcedures.length > 0 && (
-              <div className="mt-2 space-y-2 rounded-md border p-3 bg-slate-50">
-                <Label className="text-xs text-muted-foreground uppercase tracking-wider">
-                  Valores na Sessão
-                </Label>
-                {watchedProcedures.map((proc, index) => {
-                  // Fallback chain: active catalog → appointment preload (for
-                  // soft-deleted procedures still linked to this appointment).
-                  const fromOptions = procedureOptions.find(o => o.value === proc.procedure_id)?.label
-                  const fromAppointment = appointment?.procedures?.find(
-                    (ap: { procedure_id: string; procedure?: { name?: string } }) => ap.procedure_id === proc.procedure_id
-                  )?.procedure?.name
-                  const label = fromOptions || fromAppointment || "Procedimento"
-                  /* Strip off the price suffix from label */
-                  const cleanLabel = label.replace(/\(R\$.+\)$/, '').trim()
-                  
-                  return (
-                    <div key={proc.procedure_id} className="flex items-center gap-3">
-                      <span className="flex-1 text-sm font-medium leading-none">{cleanLabel}</span>
-                      <div className="w-32">
-                        <Controller
-                          name={`procedures.${index}.price`}
-                          control={control}
-                          render={({ field }) => (
-                            <CurrencyInput
-                              autoFocus={false}
-                              value={field.value}
-                              onChange={(val) => {
-                                field.onChange(val)
-                                const proceduresCopy = [...watchedProcedures]
-                                proceduresCopy[index].price = val
-                                // Calculo seguro em centavos
-                                const sumCents = proceduresCopy.reduce((acc, p) => acc + Math.round((p.price || 0) * 100), 0)
-                                setValue("price", sumCents / 100, { shouldValidate: true })
-                              }}
-                              disabled={isLoading}
-                            />
-                          )}
-                        />
+            {watchedProcedures.length > 0 && (() => {
+              // Procedures already covered by a package don't get a price
+              // input — they're listed separately as "Via pacote (X/Y)" so
+              // the receptionist sees what's pre-paid without confusing it
+              // with billable items.
+              const billable = watchedProcedures
+                .map((p, idx) => ({ proc: p, index: idx }))
+                .filter(({ proc }) => !proceduresViaPackage.has(proc.procedure_id))
+              const viaPackage = watchedProcedures.filter((p) =>
+                proceduresViaPackage.has(p.procedure_id),
+              )
+
+              const procName = (id: string) => {
+                const fromOptions = procedureOptions.find((o) => o.value === id)?.label
+                const fromAppointment = appointment?.procedures?.find(
+                  (ap: { procedure_id: string; procedure?: { name?: string } }) =>
+                    ap.procedure_id === id,
+                )?.procedure?.name
+                const label = fromOptions || fromAppointment || "Procedimento"
+                return label
+                  .replace(/—\s*Pacote \(\d+\/\d+\)\s*$/, "")
+                  .replace(/\(R\$.+\)$/, "")
+                  .trim()
+              }
+
+              if (billable.length === 0 && viaPackage.length === 0) return null
+
+              return (
+                <div className="mt-2 space-y-3 rounded-md border p-3 bg-slate-50">
+                  {viaPackage.length > 0 && (
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground uppercase tracking-wider">
+                        Inclusos no pacote do paciente
+                      </Label>
+                      <div className="space-y-1">
+                        {viaPackage.map((proc) => {
+                          const balance = packageBalances[proc.procedure_id]
+                          return (
+                            <div
+                              key={proc.procedure_id}
+                              className="flex items-center justify-between gap-3 text-sm"
+                            >
+                              <span className="font-medium leading-none">
+                                {procName(proc.procedure_id)}
+                              </span>
+                              {balance && (
+                                <Badge variant="outline" className="text-xs">
+                                  Pacote ({balance.used}/{balance.quantity})
+                                </Badge>
+                              )}
+                            </div>
+                          )
+                        })}
                       </div>
                     </div>
-                  )
-                })}
-              </div>
-            )}
+                  )}
+
+                  {billable.length > 0 && (
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground uppercase tracking-wider">
+                        Valores na Sessão
+                      </Label>
+                      {billable.map(({ proc, index }) => (
+                        <div key={proc.procedure_id} className="flex items-center gap-3">
+                          <span className="flex-1 text-sm font-medium leading-none">
+                            {procName(proc.procedure_id)}
+                          </span>
+                          <div className="w-32">
+                            <Controller
+                              name={`procedures.${index}.price`}
+                              control={control}
+                              render={({ field }) => (
+                                <CurrencyInput
+                                  autoFocus={false}
+                                  value={field.value}
+                                  onChange={(val) => {
+                                    field.onChange(val)
+                                    const proceduresCopy = [...watchedProcedures]
+                                    proceduresCopy[index].price = val
+                                    const sumCents = proceduresCopy.reduce(
+                                      (acc, p) => acc + Math.round((p.price || 0) * 100),
+                                      0,
+                                    )
+                                    setValue("price", sumCents / 100, { shouldValidate: true })
+                                  }}
+                                  disabled={isLoading}
+                                />
+                              )}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
           </div>
 
           {/* Price */}
@@ -763,6 +862,14 @@ export function AppointmentDialog({
         </form>
       </DialogContent>
     </Dialog>
+    {watchedPatientId && (
+      <PatientPackagesDialog
+        open={packagesDialogOpen}
+        onOpenChange={setPackagesDialogOpen}
+        patientId={watchedPatientId}
+        patientName={selectedPatient?.name}
+      />
+    )}
     <DeleteAppointmentDialog
       open={deleteDialogOpen}
       onOpenChange={setDeleteDialogOpen}

@@ -21,7 +21,7 @@ import { Badge } from "@/components/ui/badge"
 import { SalesPackageWhatsAppButton } from "@/components/dashboard/sales-package-whatsapp-button"
 import { api } from "@/lib/api/client"
 import { handleApiError, showToast } from "@/lib/toast"
-import { formatPhone, cn } from "@/lib/utils"
+import { formatPhone, cn, dateInputToISO } from "@/lib/utils"
 import type {
   CreateSalesPackagePaymentInput,
   Patient,
@@ -57,6 +57,15 @@ interface PaymentMethodLite {
   settlement_days: number
   installments_allowed: boolean
   max_installments: number
+}
+
+// OpenReceivable mirrors the method-less SalesPackagePayment rows the
+// backend keeps to represent the unpaid remainder of a sale. The user
+// resolves them via the "Registrar pagamento" button.
+interface OpenReceivable {
+  id: string
+  amount: number
+  due_date: string
 }
 
 interface SalesPackageDialogProps {
@@ -157,6 +166,10 @@ interface PaymentEditDialogProps {
   onOpenChange: (open: boolean) => void
   initial?: PaymentRow | null
   remaining: number
+  // saleTotal and paidSum are passed in so the dialog header shows where the
+  // user stands without them having to close it and look at the sale.
+  saleTotal: number
+  paidSum: number
   paymentMethods: PaymentMethodLite[]
   onSave: (row: PaymentRow) => void
 }
@@ -166,6 +179,8 @@ function PaymentEditDialog({
   onOpenChange,
   initial,
   remaining,
+  saleTotal,
+  paidSum,
   paymentMethods,
   onSave,
 }: PaymentEditDialogProps) {
@@ -178,8 +193,15 @@ function PaymentEditDialog({
   const [methodId, setMethodId] = useState(initial?.payment_method_id || activeMethods[0]?.id || "")
   const [amount, setAmount] = useState(initial?.amount ?? remaining)
   const [discount, setDiscount] = useState(initial?.discount ?? 0)
-  const [installments, setInstallments] = useState(initial?.installments ?? 1)
-  const [paidAt, setPaidAt] = useState(initial?.paid_at || "")
+  // installments accepts an empty string while the user is retyping — the
+  // raw <input type=number> would otherwise clamp to min=1 mid-edit, forcing
+  // backspace+digit instead of letting the user clear and type freely.
+  // Validation runs on save.
+  const [installments, setInstallments] = useState<number | "">(initial?.installments ?? 1)
+  // Default Pago em to today so the common case (registering a sale that's
+  // being paid right now) doesn't require an extra click. The user can still
+  // clear the field to leave it as a receivable.
+  const [paidAt, setPaidAt] = useState(initial?.paid_at || todayStr())
 
   useEffect(() => {
     if (!open) return
@@ -187,7 +209,7 @@ function PaymentEditDialog({
     setAmount(initial?.amount ?? remaining)
     setDiscount(initial?.discount ?? 0)
     setInstallments(initial?.installments ?? 1)
-    setPaidAt(initial?.paid_at || "")
+    setPaidAt(initial?.paid_at || todayStr())
   }, [open, initial, remaining, activeMethods])
 
   const method = useMemo(
@@ -210,11 +232,12 @@ function PaymentEditDialog({
       showToast.error("Desconto deve ser menor que o valor.")
       return
     }
-    if (installments > 1 && !canInstall) {
+    const finalInstallments = typeof installments === "number" && installments >= 1 ? installments : 1
+    if (finalInstallments > 1 && !canInstall) {
       showToast.error("A forma de pagamento selecionada não aceita parcelamento.")
       return
     }
-    if (installments > maxInstallments) {
+    if (finalInstallments > maxInstallments) {
       showToast.error(`Máximo de ${maxInstallments} parcelas para esta forma.`)
       return
     }
@@ -224,7 +247,7 @@ function PaymentEditDialog({
       payment_method_id: methodId,
       amount,
       discount,
-      installments,
+      installments: finalInstallments,
       paid_at: paidAt,
     })
     onOpenChange(false)
@@ -238,6 +261,24 @@ function PaymentEditDialog({
         </DialogHeader>
 
         <div className="space-y-3">
+          {/* Summary so the user knows what's left without closing the dialog. */}
+          <div className="grid grid-cols-3 gap-2 rounded-md border bg-muted/30 p-3 text-center">
+            <div>
+              <div className="text-xs text-muted-foreground">Total</div>
+              <div className="text-sm font-semibold">R$ {saleTotal.toFixed(2)}</div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">Já pago</div>
+              <div className="text-sm font-semibold text-emerald-600">R$ {paidSum.toFixed(2)}</div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">Restante</div>
+              <div className={`text-sm font-semibold ${remaining > 0.01 ? "text-orange-600" : "text-foreground"}`}>
+                R$ {remaining.toFixed(2)}
+              </div>
+            </div>
+          </div>
+
           <div>
             <Label>Forma de pagamento</Label>
             <ReactSelect
@@ -267,10 +308,17 @@ function PaymentEditDialog({
                 type="number"
                 min={1}
                 max={maxInstallments}
-                value={installments}
-                onChange={(e) =>
-                  setInstallments(Math.max(1, parseInt(e.target.value || "1", 10)))
-                }
+                value={installments === "" ? "" : installments}
+                onChange={(e) => {
+                  const v = e.target.value
+                  if (v === "") {
+                    setInstallments("")
+                    return
+                  }
+                  const n = parseInt(v, 10)
+                  if (Number.isNaN(n)) return
+                  setInstallments(n)
+                }}
                 disabled={!canInstall}
                 title={canInstall ? `Até ${maxInstallments}x` : "Esta forma não aceita parcelamento"}
               />
@@ -285,9 +333,10 @@ function PaymentEditDialog({
             </div>
           </div>
           <p className="text-xs text-muted-foreground">
-            Se &quot;Pago em&quot; ficar em branco, o valor é registrado como conta a receber.
-            A data prevista de recebimento é calculada automaticamente a partir da
-            forma de pagamento.
+            &quot;Pago em&quot; é uma marca: preenchido = pago, em branco = a receber.
+            A data real do recebimento é sempre <b>data da venda + prazo da forma</b>.
+            Para registrar uma venda atrasada, ajuste a &quot;Data da venda&quot; em vez
+            de mexer aqui.
           </p>
         </div>
 
@@ -296,6 +345,192 @@ function PaymentEditDialog({
             Cancelar
           </Button>
           <Button onClick={handleSave}>Salvar</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// --- Register-payment dialog ----------------------------------------------
+//
+// Settles a method-less open receivable by attaching a method, an amount and
+// a paid_at, hitting the backend's registerSalesPackagePayment endpoint.
+// Closes after success and asks the parent to refetch.
+
+interface RegisterPaymentDialogProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  receivable: OpenReceivable | null
+  paymentMethods: PaymentMethodLite[]
+  onRegistered: () => void
+}
+
+function RegisterPaymentDialog({
+  open,
+  onOpenChange,
+  receivable,
+  paymentMethods,
+  onRegistered,
+}: RegisterPaymentDialogProps) {
+  const activeMethods = useMemo(
+    () => paymentMethods.filter((m) => m.active),
+    [paymentMethods],
+  )
+  const [methodId, setMethodId] = useState("")
+  const [amount, setAmount] = useState(0)
+  const [discount, setDiscount] = useState(0)
+  // installments accepts an empty string while the user is retyping — see
+  // PaymentEditDialog for the rationale. Validation runs on save.
+  const [installments, setInstallments] = useState<number | "">(1)
+  const [paidAt, setPaidAt] = useState(todayStr())
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    if (!open || !receivable) return
+    setMethodId(activeMethods[0]?.id || "")
+    setAmount(receivable.amount)
+    setDiscount(0)
+    setInstallments(1)
+    setPaidAt(todayStr())
+  }, [open, receivable, activeMethods])
+
+  const method = useMemo(
+    () => paymentMethods.find((m) => m.id === methodId),
+    [paymentMethods, methodId],
+  )
+  const canInstall = method?.installments_allowed ?? false
+  const maxInstallments = method?.max_installments ?? 1
+
+  if (!receivable) return null
+
+  const handleSave = async () => {
+    if (!methodId) {
+      showToast.error("Selecione uma forma de pagamento.")
+      return
+    }
+    if (amount <= 0) {
+      showToast.error("Valor deve ser maior que zero.")
+      return
+    }
+    if (discount < 0 || discount >= amount) {
+      showToast.error("Desconto deve ser menor que o valor.")
+      return
+    }
+    const finalInstallments = typeof installments === "number" && installments >= 1 ? installments : 1
+    if (finalInstallments > 1 && !canInstall) {
+      showToast.error("A forma de pagamento selecionada não aceita parcelamento.")
+      return
+    }
+    if (finalInstallments > maxInstallments) {
+      showToast.error(`Máximo de ${maxInstallments} parcelas para esta forma.`)
+      return
+    }
+    setSaving(true)
+    try {
+      await api.registerSalesPackagePayment(receivable.id, {
+        paid_at: dateInputToISO(paidAt) || new Date().toISOString(),
+        payment_method_id: methodId,
+        amount,
+        discount: discount > 0 ? discount : undefined,
+        installments: finalInstallments > 1 ? finalInstallments : undefined,
+      })
+      showToast.success("Pagamento registrado.")
+      onRegistered()
+      onOpenChange(false)
+    } catch (err) {
+      handleApiError(err)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Registrar pagamento</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-3">
+          <div className="rounded-md bg-muted/40 p-3 text-xs text-muted-foreground">
+            Conta a receber de <b>R$ {receivable.amount.toFixed(2)}</b>.
+            Escolha como o cliente pagou para baixar este lançamento.
+          </div>
+
+          <div>
+            <Label>Forma de pagamento</Label>
+            <ReactSelect
+              value={
+                methodId
+                  ? {
+                      value: methodId,
+                      label:
+                        activeMethods.find((m) => m.id === methodId)?.name || "",
+                    }
+                  : null
+              }
+              onChange={(opt) => opt && setMethodId(opt.value)}
+              options={activeMethods.map((m) => ({ value: m.id, label: m.name }))}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Valor</Label>
+              <CurrencyInput value={amount} onChange={(v: number) => setAmount(v)} />
+            </div>
+            <div>
+              <Label>Desconto</Label>
+              <CurrencyInput value={discount} onChange={(v: number) => setDiscount(v)} />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Parcelas</Label>
+              <Input
+                type="number"
+                min={1}
+                max={maxInstallments}
+                value={installments === "" ? "" : installments}
+                onChange={(e) => {
+                  const v = e.target.value
+                  if (v === "") {
+                    setInstallments("")
+                    return
+                  }
+                  const n = parseInt(v, 10)
+                  if (Number.isNaN(n)) return
+                  setInstallments(n)
+                }}
+                disabled={!canInstall}
+                title={canInstall ? `Até ${maxInstallments}x` : "Esta forma não aceita parcelamento"}
+              />
+            </div>
+            <div>
+              <Label>Pago em</Label>
+              <Input
+                type="date"
+                value={paidAt}
+                onChange={(e) => setPaidAt(e.target.value)}
+              />
+            </div>
+          </div>
+          {typeof installments === "number" && installments > 1 && (
+            <p className="text-xs text-muted-foreground">
+              {installments}x cria {installments} contas a receber no caixa, uma por parcela.
+              Quando parcelado, o lançamento permanece como &quot;a receber&quot; até o banco repassar cada parcela.
+            </p>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={saving}>
+            Cancelar
+          </Button>
+          <Button onClick={handleSave} disabled={saving}>
+            Registrar
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -322,12 +557,16 @@ export function SalesPackageDialog({
   const [validUntil, setValidUntil] = useState("")
   const [discount, setDiscount] = useState(0)
   // Discount input mode — toggles between absolute amount and a percentage of
-  // the subtotal. Only the absolute value is sent to the backend.
+  // the subtotal. Only the absolute value is sent to the backend. Percent is
+  // stored as `number | ""` so the input can be cleared and retyped without
+  // forcing the user to delete the previous digit first.
   const [discountMode, setDiscountMode] = useState<"amount" | "percent">("amount")
-  const [discountPercent, setDiscountPercent] = useState(0)
+  const [discountPercent, setDiscountPercent] = useState<number | "">(0)
   const [notes, setNotes] = useState("")
   const [items, setItems] = useState<ItemRow[]>([])
   const [payments, setPayments] = useState<PaymentRow[]>([])
+  const [openReceivables, setOpenReceivables] = useState<OpenReceivable[]>([])
+  const [registeringId, setRegisteringId] = useState<string | null>(null)
 
   // Procedure picker (top of items section)
   const [pickerProcedureId, setPickerProcedureId] = useState<string>("")
@@ -337,6 +576,8 @@ export function SalesPackageDialog({
   const [editingPayment, setEditingPayment] = useState<PaymentRow | null>(null)
   const [quickPatientOpen, setQuickPatientOpen] = useState(false)
   const [quickPatientName, setQuickPatientName] = useState("")
+  const [registerDialogOpen, setRegisterDialogOpen] = useState(false)
+  const [registerTarget, setRegisterTarget] = useState<OpenReceivable | null>(null)
 
   const [submitting, setSubmitting] = useState(false)
 
@@ -344,6 +585,10 @@ export function SalesPackageDialog({
   const isConvertingQuote = !!existing && existing.status === "quote" && mode === "sale"
   const showPayments = mode === "sale" || (existing && existing.status === "active")
   const showSaleDate = mode === "sale" || (existing && existing.status !== "quote")
+  // Active sales aren't editable as a whole, but the user can still add new
+  // payments — the new amount is consumed from the sale's open receivables.
+  const isActiveSale = !!existing && existing.status === "active"
+  const canAddPayments = !isReadonly || isActiveSale
 
   // --- Initial load ----------------------------------------------------
 
@@ -398,12 +643,13 @@ export function SalesPackageDialog({
           quantity: it.quantity,
         })),
       )
-      // Method-less rows on the backend represent the open receivable (the
-      // unpaid remainder of a sale) and aren't editable as concrete payments
-      // in this dialog — we surface them implicitly via the "X a receber"
-      // hint at the bottom of the payments section.
+      // Method-less rows are the open receivables (unpaid remainder). They
+      // get their own "Conta a receber" section with a "Registrar pagamento"
+      // button so the user can resolve them later (e.g. after the patient
+      // chooses a method on the day).
+      const allPayments = existing.payments || []
       setPayments(
-        (existing.payments || [])
+        allPayments
           .filter((p): p is typeof p & { payment_method_id: string } => !!p.payment_method_id)
           .map((p) => ({
             id: p.id,
@@ -412,6 +658,15 @@ export function SalesPackageDialog({
             discount: p.discount,
             installments: p.total_installments,
             paid_at: p.paid_at ? p.paid_at.slice(0, 10) : "",
+          })),
+      )
+      setOpenReceivables(
+        allPayments
+          .filter((p) => !p.payment_method_id)
+          .map((p) => ({
+            id: p.id,
+            amount: p.amount - p.discount,
+            due_date: p.due_date.slice(0, 10),
           })),
       )
     } else {
@@ -424,6 +679,7 @@ export function SalesPackageDialog({
       setNotes("")
       setItems([])
       setPayments([])
+      setOpenReceivables([])
     }
     setPickerProcedureId("")
   }, [open, existing])
@@ -439,10 +695,11 @@ export function SalesPackageDialog({
     [items],
   )
 
-  // Effective discount in $: depends on the mode.
+  // Effective discount in $: depends on the mode. Empty percent input == 0.
   const effectiveDiscount = useMemo(() => {
     if (discountMode === "percent") {
-      return Math.min(subtotal, (subtotal * discountPercent) / 100)
+      const pct = typeof discountPercent === "number" ? discountPercent : 0
+      return Math.min(subtotal, (subtotal * pct) / 100)
     }
     return Math.min(subtotal, Math.max(0, discount))
   }, [discountMode, discount, discountPercent, subtotal])
@@ -516,7 +773,47 @@ export function SalesPackageDialog({
     setEditingPayment(row)
     setPaymentDialogOpen(true)
   }
-  const handleSavePayment = (row: PaymentRow) => {
+  const handleSavePayment = async (row: PaymentRow) => {
+    // On an active sale, payment changes are persisted immediately and the
+    // parent refreshes. For new sales / quotes the payment is only collected
+    // locally until the parent submits.
+    const existingRow = payments.find((r) => r.id === row.id)
+    const isNewRow = !existingRow
+    if (existing && existing.status === "active") {
+      try {
+        if (isNewRow) {
+          await api.addSalesPackagePayment(existing.id, {
+            payment_method_id: row.payment_method_id,
+            amount: row.amount,
+            discount: row.discount > 0 ? row.discount : undefined,
+            installments: row.installments > 1 ? row.installments : undefined,
+            paid_at: dateInputToISO(row.paid_at),
+          })
+          showToast.success("Pagamento adicionado.")
+        } else {
+          // Edit: send only the fields that actually changed. Backend
+          // rebalances the open receivables to keep the sale's total honest.
+          const payload: { payment_method_id?: string; amount?: number; paid?: boolean } = {}
+          if (row.payment_method_id !== existingRow.payment_method_id) {
+            payload.payment_method_id = row.payment_method_id
+          }
+          if (row.amount !== existingRow.amount) {
+            payload.amount = row.amount
+          }
+          const wasPaid = !!existingRow.paid_at
+          const isPaidNow = !!row.paid_at
+          if (wasPaid !== isPaidNow) {
+            payload.paid = isPaidNow
+          }
+          await api.updateSalesPackagePayment(row.id, payload)
+          showToast.success("Pagamento atualizado.")
+        }
+        onSuccess()
+      } catch (err) {
+        handleApiError(err)
+      }
+      return
+    }
     setPayments((rows) => {
       const idx = rows.findIndex((r) => r.id === row.id)
       if (idx === -1) return [...rows, row]
@@ -525,8 +822,21 @@ export function SalesPackageDialog({
       return next
     })
   }
-  const removePayment = (id: string) =>
+  const removePayment = async (id: string) => {
+    // Active sale: server removes the row and restores the amount as an
+    // open receivable. Finance ledger drops the corresponding transaction.
+    if (existing && existing.status === "active") {
+      try {
+        await api.deleteSalesPackagePayment(id)
+        showToast.success("Pagamento removido.")
+        onSuccess()
+      } catch (err) {
+        handleApiError(err)
+      }
+      return
+    }
     setPayments((rows) => rows.filter((r) => r.id !== id))
+  }
 
   // --- Patient creatable ------------------------------------------------
 
@@ -553,8 +863,8 @@ export function SalesPackageDialog({
         amount: p.amount,
         discount: p.discount || undefined,
         installments: p.installments > 1 ? p.installments : undefined,
-        due_date: dueDate,
-        paid_at: p.paid_at || undefined,
+        due_date: dateInputToISO(dueDate),
+        paid_at: dateInputToISO(p.paid_at),
       }
     })
 
@@ -592,8 +902,8 @@ export function SalesPackageDialog({
         showToast.success("Orçamento convertido em venda")
       } else if (existing) {
         await api.updateSalesPackage(existing.id, {
-          sale_date: showSaleDate ? saleDate : undefined,
-          valid_until: validUntil || undefined,
+          sale_date: showSaleDate ? dateInputToISO(saleDate) : undefined,
+          valid_until: dateInputToISO(validUntil),
           discount: effectiveDiscount,
           notes,
         })
@@ -602,8 +912,8 @@ export function SalesPackageDialog({
         await api.createSalesPackage({
           patient_id: selectedPatient!.id,
           status: mode === "sale" ? "active" : "quote",
-          sale_date: showSaleDate ? saleDate : undefined,
-          valid_until: validUntil || undefined,
+          sale_date: showSaleDate ? dateInputToISO(saleDate) : undefined,
+          valid_until: dateInputToISO(validUntil),
           discount: effectiveDiscount,
           notes,
           items: items.map((it) => ({
@@ -853,10 +1163,17 @@ export function SalesPackageDialog({
                     min={0}
                     max={100}
                     step="0.01"
-                    value={discountPercent}
-                    onChange={(e) =>
-                      setDiscountPercent(Math.max(0, Math.min(100, parseFloat(e.target.value) || 0)))
-                    }
+                    value={discountPercent === "" ? "" : discountPercent}
+                    onChange={(e) => {
+                      const v = e.target.value
+                      if (v === "") {
+                        setDiscountPercent("")
+                        return
+                      }
+                      const n = parseFloat(v)
+                      if (Number.isNaN(n)) return
+                      setDiscountPercent(Math.max(0, Math.min(100, n)))
+                    }}
                     disabled={isReadonly}
                   />
                   <Percent className="pointer-events-none absolute right-3 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground" />
@@ -879,7 +1196,7 @@ export function SalesPackageDialog({
             <div>
               <div className="flex items-center justify-between">
                 <Label>Formas de pagamento</Label>
-                {!isReadonly && (
+                {canAddPayments && (
                   <Button type="button" size="sm" variant="outline" onClick={openAddPayment}>
                     <Plus className="mr-1 h-3 w-3" />
                     Adicionar
@@ -921,7 +1238,7 @@ export function SalesPackageDialog({
                             <Badge variant="outline" className="text-xs">A receber</Badge>
                           )}
                         </div>
-                        {!isReadonly && (
+                        {canAddPayments && (
                           <div className="flex items-center gap-1">
                             <Button
                               size="icon"
@@ -934,7 +1251,12 @@ export function SalesPackageDialog({
                             <Button
                               size="icon"
                               variant="ghost"
-                              onClick={() => removePayment(row.id)}
+                              onClick={() => {
+                                if (existing && existing.status === "active") {
+                                  if (!confirm("Remover este pagamento? O valor volta a ficar a receber e o lançamento sai do caixa.")) return
+                                }
+                                removePayment(row.id)
+                              }}
                               title="Excluir"
                             >
                               <Trash2 className="h-4 w-4" />
@@ -959,6 +1281,48 @@ export function SalesPackageDialog({
                     ) : null}
                   </div>
                 )}
+              </div>
+            </div>
+          )}
+
+          {/* Conta a receber — open-receivable rows the backend created for the
+              unpaid remainder of the sale. The user resolves them with the
+              "Registrar pagamento" button when the patient actually pays. */}
+          {existing && openReceivables.length > 0 && (
+            <div>
+              <Label>Conta a receber</Label>
+              <div className="mt-2 space-y-2">
+                {openReceivables.map((row) => (
+                  <div
+                    key={row.id}
+                    className="flex items-center justify-between rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm"
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge variant="outline" className="text-xs border-amber-400 text-amber-800">
+                        Em aberto
+                      </Badge>
+                      <span className="font-medium">R$ {row.amount.toFixed(2)}</span>
+                      {row.due_date && (
+                        <span className="text-xs text-muted-foreground">
+                          Vence {format(new Date(`${row.due_date}T00:00:00`), "dd/MM/yyyy")}
+                        </span>
+                      )}
+                    </div>
+                    {existing.status === "active" && (
+                      <Button
+                        size="sm"
+                        variant="default"
+                        disabled={registeringId === row.id}
+                        onClick={() => {
+                          setRegisterTarget(row)
+                          setRegisterDialogOpen(true)
+                        }}
+                      >
+                        Registrar pagamento
+                      </Button>
+                    )}
+                  </div>
+                ))}
               </div>
             </div>
           )}
@@ -991,6 +1355,8 @@ export function SalesPackageDialog({
         onOpenChange={setPaymentDialogOpen}
         initial={editingPayment}
         remaining={editingPayment ? editingPayment.amount : remaining}
+        saleTotal={total}
+        paidSum={paidSum}
         paymentMethods={paymentMethods}
         onSave={handleSavePayment}
       />
@@ -1000,6 +1366,18 @@ export function SalesPackageDialog({
         onOpenChange={setQuickPatientOpen}
         initialName={quickPatientName}
         onCreated={handlePatientCreated}
+      />
+
+      <RegisterPaymentDialog
+        open={registerDialogOpen}
+        onOpenChange={setRegisterDialogOpen}
+        receivable={registerTarget}
+        paymentMethods={paymentMethods}
+        onRegistered={() => {
+          // Refresh the parent list so the dialog shows the freshly registered
+          // payment (and removes the open-receivable row that was just settled).
+          onSuccess()
+        }}
       />
     </Dialog>
   )

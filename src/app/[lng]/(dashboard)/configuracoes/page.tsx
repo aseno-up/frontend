@@ -29,9 +29,10 @@ import {
 import { useAuthStore } from "@/stores/auth-store"
 import { api } from "@/lib/api/client"
 import { handleApiError, showToast } from "@/lib/toast"
-import { CalendarIntegration, BillingCustomer, Payment, Subscription, PaymentStatus, PixQRCode, PaymentMethod, PaymentMethodType, Subaccount, SplitConfig, ClinicSettings } from "@/types/api"
+import { CalendarIntegration, BillingCustomer, Payment, Subscription, PaymentStatus, PixQRCode, PaymentMethod, PaymentMethodType, SettlementMode, Subaccount, SplitConfig, ClinicSettings } from "@/types/api"
 import { GoogleCalendarLogo } from "@/components/icons/google-logos"
 import { PlanRestriction } from "@/components/plan-restriction"
+import { PaymentMethodDialog } from "@/components/dashboard/payment-method-dialog"
 
 // Schema de validacao para dados de cobranca
 const customerSchema = z.object({
@@ -244,17 +245,13 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
   const [selectedPlan, setSelectedPlan] = useState<'basic' | 'professional' | 'advanced'>('professional')
   const [isSubscribing, setIsSubscribing] = useState(false)
 
-  // Payment methods state
+  // Payment methods state — both create and edit go through PaymentMethodDialog,
+  // so we no longer keep separate "new method" form state alongside `editingMethod`.
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([])
   const [isLoadingPaymentMethods, setIsLoadingPaymentMethods] = useState(false)
   const [editingMethod, setEditingMethod] = useState<PaymentMethod | null>(null)
-  const [newMethodName, setNewMethodName] = useState("")
-  const [newMethodType, setNewMethodType] = useState<PaymentMethodType>("pix")
-  const [newMethodSettlementDays, setNewMethodSettlementDays] = useState(0)
-  const [newMethodInstallmentsAllowed, setNewMethodInstallmentsAllowed] = useState(false)
-  const [newMethodMaxInstallments, setNewMethodMaxInstallments] = useState(1)
+  const [methodDialogOpen, setMethodDialogOpen] = useState(false)
   const [isSavingMethod, setIsSavingMethod] = useState(false)
-  const [showNewMethodForm, setShowNewMethodForm] = useState(false)
 
   // Marketplace state
   const [subaccount, setSubaccount] = useState<Subaccount | null>(null)
@@ -287,27 +284,25 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
     }
   }, [])
 
-  const handleCreateMethod = async () => {
-    if (!newMethodName.trim()) return
+  // handleCreateMethodWithPayload is the single entry point used by both the
+  // "Novo método" button and the dialog itself.
+  const handleCreateMethodWithPayload = async (payload: {
+    name: string
+    type: PaymentMethodType
+    settlement_days: number
+    installments_allowed: boolean
+    max_installments: number
+    settlement_mode: SettlementMode
+  }) => {
     try {
       setIsSavingMethod(true)
-      await api.createPaymentMethod({
-        name: newMethodName.trim(),
-        type: newMethodType,
-        settlement_days: newMethodSettlementDays,
-        installments_allowed: newMethodInstallmentsAllowed,
-        max_installments: newMethodInstallmentsAllowed ? newMethodMaxInstallments : 1,
-      })
-      showToast.success("Metodo de pagamento criado!")
-      setNewMethodName("")
-      setNewMethodType("pix")
-      setNewMethodSettlementDays(0)
-      setNewMethodInstallmentsAllowed(false)
-      setNewMethodMaxInstallments(1)
-      setShowNewMethodForm(false)
+      await api.createPaymentMethod(payload)
+      showToast.success("Método de pagamento criado!")
+      setEditingMethod(null)
       loadPaymentMethods()
     } catch (err) {
-      handleApiError(err, "Erro ao criar metodo de pagamento")
+      handleApiError(err, "Erro ao criar método de pagamento")
+      throw err
     } finally {
       setIsSavingMethod(false)
     }
@@ -323,12 +318,14 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
         settlement_days: method.settlement_days,
         installments_allowed: method.installments_allowed,
         max_installments: method.installments_allowed ? method.max_installments : 1,
+        settlement_mode: method.settlement_mode,
       })
-      showToast.success("Metodo atualizado!")
+      showToast.success("Método atualizado!")
       setEditingMethod(null)
       loadPaymentMethods()
     } catch (err) {
-      handleApiError(err, "Erro ao atualizar metodo")
+      handleApiError(err, "Erro ao atualizar método")
+      throw err
     } finally {
       setIsSavingMethod(false)
     }
@@ -2181,162 +2178,67 @@ export default function ConfiguracoesPage({ params }: ConfiguracoesPageProps) {
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <div>
-                      <CardTitle>Metodos de Pagamento</CardTitle>
-                      <CardDescription>Configure como sua clinica recebe pagamentos. Esses metodos aparecem ao registrar pagamento de uma sessao.</CardDescription>
+                      <CardTitle>Métodos de Pagamento</CardTitle>
+                      <CardDescription>Configure como sua clínica recebe pagamentos. Esses métodos aparecem ao registrar pagamento de uma sessão ou venda.</CardDescription>
                     </div>
-                    <Button size="sm" onClick={() => { setShowNewMethodForm(true); setNewMethodName(""); setNewMethodType("pix") }}>
+                    <Button size="sm" onClick={() => { setEditingMethod(null); setMethodDialogOpen(true) }}>
                       <Plus className="h-4 w-4 mr-2" />
-                      Novo metodo
+                      Novo método
                     </Button>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  {showNewMethodForm && (
-                    <div className="space-y-3 p-4 border rounded-lg bg-muted/30">
-                      <div className="flex items-end gap-3">
-                        <div className="flex-1 space-y-1.5">
-                          <Label className="text-xs">Nome</Label>
-                          <Input
-                            placeholder="Ex: Maquininha Stone"
-                            value={newMethodName}
-                            onChange={(e) => setNewMethodName(e.target.value)}
-                            autoFocus
-                          />
-                        </div>
-                        <div className="w-40 space-y-1.5">
-                          <Label className="text-xs">Tipo</Label>
-                          <Select value={newMethodType} onValueChange={(v) => setNewMethodType(v as PaymentMethodType)}>
-                            <SelectTrigger><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              {Object.entries(paymentTypeLabels).map(([key, label]) => (
-                                <SelectItem key={key} value={key}>{label}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                      <div className="flex items-end gap-3">
-                        <div className="w-40 space-y-1.5">
-                          <Label className="text-xs">Recebe em (dias)</Label>
-                          <Input
-                            type="number"
-                            min={0}
-                            value={newMethodSettlementDays}
-                            onChange={(e) => setNewMethodSettlementDays(Math.max(0, parseInt(e.target.value || "0", 10)))}
-                          />
-                        </div>
-                        <div className="flex flex-col gap-1.5">
-                          <Label className="text-xs">Aceita parcelar</Label>
-                          <Switch
-                            checked={newMethodInstallmentsAllowed}
-                            onCheckedChange={setNewMethodInstallmentsAllowed}
-                          />
-                        </div>
-                        <div className="w-40 space-y-1.5">
-                          <Label className="text-xs">Máx. parcelas</Label>
-                          <Input
-                            type="number"
-                            min={1}
-                            value={newMethodMaxInstallments}
-                            onChange={(e) => setNewMethodMaxInstallments(Math.max(1, parseInt(e.target.value || "1", 10)))}
-                            disabled={!newMethodInstallmentsAllowed}
-                          />
-                        </div>
-                        <div className="flex-1" />
-                        <Button size="sm" onClick={handleCreateMethod} disabled={isSavingMethod || !newMethodName.trim()}>
-                          {isSavingMethod ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={() => setShowNewMethodForm(false)}>Cancelar</Button>
-                      </div>
-                    </div>
-                  )}
-
                   {isLoadingPaymentMethods ? (
                     <div className="flex items-center justify-center py-8">
                       <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                     </div>
                   ) : paymentMethods.length === 0 ? (
-                    <p className="text-sm text-muted-foreground py-4 text-center">Nenhum metodo de pagamento cadastrado. Clique em &quot;Novo metodo&quot; para comecar.</p>
+                    <p className="text-sm text-muted-foreground py-4 text-center">Nenhum método de pagamento cadastrado. Clique em &quot;Novo método&quot; para começar.</p>
                   ) : (
                     <div className="space-y-2">
                       {paymentMethods.map((method) => (
                         <div key={method.id} className={`flex items-center justify-between p-3 border rounded-lg ${method.active ? '' : 'opacity-50'}`}>
-                          {editingMethod?.id === method.id ? (
-                            <div className="flex flex-wrap items-center gap-3 flex-1">
-                              <Input
-                                value={editingMethod.name}
-                                onChange={(e) => setEditingMethod({ ...editingMethod, name: e.target.value })}
-                                className="max-w-[200px]"
-                              />
-                              <Select value={editingMethod.type} onValueChange={(v) => setEditingMethod({ ...editingMethod, type: v as PaymentMethodType })}>
-                                <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                  {Object.entries(paymentTypeLabels).map(([key, label]) => (
-                                    <SelectItem key={key} value={key}>{label}</SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              <div className="flex items-center gap-1.5">
-                                <Label className="text-xs whitespace-nowrap">Dias</Label>
-                                <Input
-                                  type="number"
-                                  min={0}
-                                  className="w-20"
-                                  value={editingMethod.settlement_days}
-                                  onChange={(e) => setEditingMethod({ ...editingMethod, settlement_days: Math.max(0, parseInt(e.target.value || "0", 10)) })}
-                                />
-                              </div>
-                              <div className="flex items-center gap-1.5">
-                                <Label className="text-xs whitespace-nowrap">Parcela</Label>
-                                <Switch
-                                  checked={editingMethod.installments_allowed}
-                                  onCheckedChange={(v) => setEditingMethod({ ...editingMethod, installments_allowed: v })}
-                                />
-                              </div>
-                              <div className="flex items-center gap-1.5">
-                                <Label className="text-xs whitespace-nowrap">Máx</Label>
-                                <Input
-                                  type="number"
-                                  min={1}
-                                  className="w-20"
-                                  value={editingMethod.max_installments}
-                                  onChange={(e) => setEditingMethod({ ...editingMethod, max_installments: Math.max(1, parseInt(e.target.value || "1", 10)) })}
-                                  disabled={!editingMethod.installments_allowed}
-                                />
-                              </div>
-                              <Button size="sm" onClick={() => handleUpdateMethod(editingMethod)} disabled={isSavingMethod}>
-                                {isSavingMethod ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
-                              </Button>
-                              <Button size="sm" variant="outline" onClick={() => setEditingMethod(null)}>Cancelar</Button>
-                            </div>
-                          ) : (
-                            <>
-                              <div className="flex items-center gap-3">
-                                <span className="font-medium text-sm">{method.name}</span>
-                                <Badge variant="secondary" className="text-xs">{paymentTypeLabels[method.type] || method.type}</Badge>
-                                <span className="text-xs text-muted-foreground">
-                                  {method.settlement_days === 0 ? "À vista" : `${method.settlement_days} dias`}
-                                  {method.installments_allowed && ` • até ${method.max_installments}x`}
-                                </span>
-                                {!method.active && <Badge variant="outline" className="text-xs text-muted-foreground">Inativo</Badge>}
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <Switch checked={method.active} onCheckedChange={() => handleToggleMethod(method)} />
-                                <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setEditingMethod({ ...method })}>
-                                  <Pencil className="h-3.5 w-3.5" />
-                                </Button>
-                                <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleDeleteMethod(method.id)}>
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </Button>
-                              </div>
-                            </>
-                          )}
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-medium text-sm">{method.name}</span>
+                            <Badge variant="secondary" className="text-xs">{paymentTypeLabels[method.type] || method.type}</Badge>
+                            <span className="text-xs text-muted-foreground">
+                              {method.settlement_days === 0 ? "Recebe no mesmo dia" : `Recebe em ${method.settlement_days} dia${method.settlement_days === 1 ? "" : "s"}`}
+                            </span>
+                            {method.installments_allowed && method.max_installments > 1 && (
+                              <Badge variant="outline" className="text-xs">
+                                Até {method.max_installments}x ({method.settlement_mode === "upfront" ? "tudo de uma vez" : "mês a mês"})
+                              </Badge>
+                            )}
+                            {!method.active && <Badge variant="outline" className="text-xs text-muted-foreground">Inativo</Badge>}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Switch checked={method.active} onCheckedChange={() => handleToggleMethod(method)} />
+                            <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => { setEditingMethod({ ...method }); setMethodDialogOpen(true) }}>
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleDeleteMethod(method.id)}>
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
                         </div>
                       ))}
                     </div>
                   )}
                 </CardContent>
               </Card>
+
+              <PaymentMethodDialog
+                open={methodDialogOpen}
+                onOpenChange={setMethodDialogOpen}
+                initial={editingMethod}
+                onSave={async (payload) => {
+                  if (editingMethod) {
+                    await handleUpdateMethod({ ...editingMethod, ...payload })
+                  } else {
+                    await handleCreateMethodWithPayload(payload)
+                  }
+                }}
+              />
             </TabsContent>
 
             {/* Tab: Financeiro (Marketplace) */}

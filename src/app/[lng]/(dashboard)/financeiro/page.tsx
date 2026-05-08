@@ -761,7 +761,7 @@ interface FinanceTransaction {
   category_color?: string
   amount: number
   description: string
-  source: 'manual' | 'appointment' | 'session_plan' | 'commission'
+  source: 'manual' | 'appointment' | 'session_plan' | 'commission' | 'sales_package'
   appointment_id?: string | null
   professional_id?: string | null
   competence_date: string
@@ -847,6 +847,10 @@ function SourceBadge({ source }: { source: FinanceTransaction['source'] }) {
     session_plan: {
       label: 'Plano',
       className: 'border-indigo-300 bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-200 dark:border-indigo-800',
+    },
+    sales_package: {
+      label: 'Venda de pacote',
+      className: 'border-emerald-300 bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-200 dark:border-emerald-800',
     },
   }
   const c = config[source] || config.manual
@@ -1696,11 +1700,16 @@ function LancamentosTab() {
 
   const filteredCategories = categories.filter(c => c.type === form.type)
 
+  const todayForTotals = toISODate(new Date())
   const rowTotal = transactions.reduce<{ income: number; expense: number; pending: number }>(
     (acc, tx) => {
       if (tx.type === 'income') acc.income += tx.amount
       else acc.expense += tx.amount
-      if (!tx.paid_at) acc.pending += tx.amount
+      // paid_at no futuro (ex: cartão com prazo) ainda é pendente — só
+      // conta como recebido/pago quando a data efetivamente chega.
+      const paidISO = tx.paid_at ? tx.paid_at.slice(0, 10) : null
+      const isSettled = !!paidISO && paidISO <= todayForTotals
+      if (!isSettled) acc.pending += tx.amount
       return acc
     },
     { income: 0, expense: 0, pending: 0 },
@@ -1784,6 +1793,13 @@ function LancamentosTab() {
           <TableBody>
             {transactions.map((tx) => {
               const isAuto = tx.source !== 'manual'
+              // paid_at preenchido pode ser data futura (ex: cartão com prazo).
+              // Só conta como Recebido/Pago se paid_at <= hoje. Se for futuro,
+              // exibimos "Agendado" e mostramos a data esperada.
+              const todayISO = toISODate(new Date())
+              const paidISO = tx.paid_at ? tx.paid_at.slice(0, 10) : null
+              const isSettled = !!paidISO && paidISO <= todayISO
+              const isScheduled = !!paidISO && paidISO > todayISO
               return (
                 <TableRow key={tx.id} className={isAuto ? 'opacity-90' : ''}>
                   <TableCell className="font-medium">{formatDateShared(tx.competence_date.slice(0, 10))}</TableCell>
@@ -1792,6 +1808,9 @@ function LancamentosTab() {
                       <span>{tx.description}</span>
                       {tx.due_date && !tx.paid_at && (
                         <span className="text-xs text-orange-600">Vence em {formatDateShared(tx.due_date.slice(0, 10))}</span>
+                      )}
+                      {isScheduled && paidISO && (
+                        <span className="text-xs text-blue-600">Cai em {formatDateShared(paidISO)}</span>
                       )}
                     </div>
                   </TableCell>
@@ -1809,8 +1828,10 @@ function LancamentosTab() {
                     <SourceBadge source={tx.source} />
                   </TableCell>
                   <TableCell>
-                    {tx.paid_at ? (
+                    {isSettled ? (
                       <Badge variant="success">{tx.type === 'income' ? 'Recebido' : 'Pago'}</Badge>
+                    ) : isScheduled ? (
+                      <Badge variant="outline">Agendado</Badge>
                     ) : (
                       <Badge variant="warning">Em aberto</Badge>
                     )}

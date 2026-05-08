@@ -1,5 +1,5 @@
 import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios'
-import type { ApiError, UnlinkedPatient, PatientSearchResult, BulkMergeResponse, PublicReceiptResponse } from '@/types/api'
+import type { ApiError, UnlinkedPatient, PatientSearchResult, BulkMergeResponse, PublicReceiptResponse, SettlementMode } from '@/types/api'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1'
 
@@ -1647,6 +1647,7 @@ class ApiClient {
     settlement_days?: number
     installments_allowed?: boolean
     max_installments?: number
+    settlement_mode?: SettlementMode
   }) {
     const response = await this.client.post('/payment-methods', data)
     return response.data
@@ -1659,6 +1660,7 @@ class ApiClient {
     settlement_days?: number
     installments_allowed?: boolean
     max_installments?: number
+    settlement_mode?: SettlementMode
   }) {
     const response = await this.client.put(`/payment-methods/${id}`, data)
     return response.data
@@ -1701,6 +1703,7 @@ class ApiClient {
     q?: string
     from?: string
     to?: string
+    patient_id?: string
   }) {
     const response = await this.client.get('/sales-packages', { params })
     return response.data
@@ -1754,8 +1757,55 @@ class ApiClient {
     paid_at: string
     payment_method_id?: string
     amount?: number
+    discount?: number
+    installments?: number
   }) {
     const response = await this.client.post(`/sales-packages/payments/${paymentId}/register`, data)
+    return response.data
+  }
+
+  // addSalesPackagePayment records a new payment line on an existing active
+  // sale. The amount is consumed from the sale's open receivables on the
+  // backend; the response is the refreshed package.
+  async addSalesPackagePayment(salesPackageId: string, data: {
+    payment_method_id: string
+    amount: number
+    discount?: number
+    installments?: number
+    due_date?: string
+    paid_at?: string
+  }) {
+    const response = await this.client.post(`/sales-packages/${salesPackageId}/payments`, data)
+    return response.data
+  }
+
+  // updateSalesPackagePayment edits a single payment row on an active sale.
+  // Method/amount changes rebalance against open receivables on the backend
+  // so sum(payments) == sale.total stays true.
+  async updateSalesPackagePayment(paymentId: string, data: {
+    payment_method_id?: string
+    amount?: number
+    paid?: boolean
+  }) {
+    const response = await this.client.put(`/sales-packages/payments/${paymentId}`, data)
+    return response.data
+  }
+
+  // deleteSalesPackagePayment removes a payment row and restores its amount
+  // as an open receivable. Finance ledger drops the deleted transaction.
+  async deleteSalesPackagePayment(paymentId: string) {
+    const response = await this.client.delete(`/sales-packages/payments/${paymentId}`)
+    return response.data
+  }
+
+  async ensureSalesPackageReceiptToken(packageId: string): Promise<{ token: string; public_url: string }> {
+    const response = await this.client.post(`/sales-packages/${packageId}/share-receipt`)
+    return response.data
+  }
+
+  async getPublicSalesReceipt(token: string): Promise<import('@/types/api').PublicSalesReceiptResponse> {
+    // Public endpoint — uses the same axios client; no auth header required.
+    const response = await this.client.get(`/public/sales-packages/recibo/${token}`)
     return response.data
   }
 

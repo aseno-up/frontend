@@ -1,7 +1,8 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { Plus, Search, FileText, X, ChevronLeft, ChevronRight, ArrowRightCircle } from "lucide-react"
+import { useSearchParams, useRouter, usePathname } from "next/navigation"
+import { Plus, Search, FileText, X, ChevronLeft, ChevronRight, ArrowRightCircle, Loader2 } from "lucide-react"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
 
@@ -45,6 +46,11 @@ const STATUS_LABELS: Record<SalesPackageStatus, { label: string; variant: "defau
 }
 
 export default function VendasPage({ params }: VendasPageProps) {
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const pathname = usePathname()
+  const patientFilterId = searchParams.get("patient_id") || ""
+
   const [lng, setLng] = useState("pt-BR")
   const [packages, setPackages] = useState<SalesPackage[]>([])
   const [total, setTotal] = useState(0)
@@ -53,6 +59,7 @@ export default function VendasPage({ params }: VendasPageProps) {
   const [query, setQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState<SalesPackageStatus | "">("")
   const [loading, setLoading] = useState(false)
+  const [openingReceipt, setOpeningReceipt] = useState<string | null>(null)
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [dialogMode, setDialogMode] = useState<"sale" | "quote">("sale")
@@ -72,6 +79,7 @@ export default function VendasPage({ params }: VendasPageProps) {
         per_page: perPage,
         q: query.trim() || undefined,
         status: statusFilter || undefined,
+        patient_id: patientFilterId || undefined,
       })
       setPackages(resp.data || [])
       setTotal(resp.total || 0)
@@ -80,7 +88,7 @@ export default function VendasPage({ params }: VendasPageProps) {
     } finally {
       setLoading(false)
     }
-  }, [page, perPage, query, statusFilter])
+  }, [page, perPage, query, statusFilter, patientFilterId])
 
   useEffect(() => {
     const handler = setTimeout(fetchPackages, 250)
@@ -111,6 +119,25 @@ export default function VendasPage({ params }: VendasPageProps) {
     setDialogOpen(true)
   }
 
+  const handleOpenReceipt = async (pkg: SalesPackage) => {
+    setOpeningReceipt(pkg.id)
+    try {
+      const resp = await api.ensureSalesPackageReceiptToken(pkg.id)
+      window.open(resp.public_url, "_blank", "noopener")
+    } catch (err) {
+      handleApiError(err)
+    } finally {
+      setOpeningReceipt(null)
+    }
+  }
+
+  const clearPatientFilter = () => {
+    const params = new URLSearchParams(searchParams.toString())
+    params.delete("patient_id")
+    const qs = params.toString()
+    router.replace(qs ? `${pathname}?${qs}` : pathname)
+  }
+
   const handleConfirmCancel = async () => {
     if (!cancelTarget) return
     try {
@@ -133,6 +160,42 @@ export default function VendasPage({ params }: VendasPageProps) {
         <div className="mb-4">
           <AgendaVendasTabs active="vendas" />
         </div>
+
+        {patientFilterId && (
+          <div className="mb-3 flex items-center gap-2 text-sm">
+            <span className="text-muted-foreground">Filtrando por paciente:</span>
+            <Badge variant="secondary" className="gap-1">
+              {packages.find((p) => p.patient_id === patientFilterId)?.patient_name ||
+                patientFilterId.slice(0, 8)}
+              <button
+                type="button"
+                onClick={clearPatientFilter}
+                className="ml-1 hover:text-destructive"
+                aria-label="Limpar filtro"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          </div>
+        )}
+
+        {patientFilterId && (
+          <div className="mb-3 flex items-center gap-2 text-sm">
+            <span className="text-muted-foreground">Filtrando por paciente:</span>
+            <Badge variant="secondary" className="gap-1">
+              {packages.find((p) => p.patient_id === patientFilterId)?.patient_name ||
+                patientFilterId.slice(0, 8)}
+              <button
+                type="button"
+                onClick={clearPatientFilter}
+                className="ml-1 hover:text-destructive"
+                aria-label="Limpar filtro"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          </div>
+        )}
 
         {/* Toolbar */}
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -192,19 +255,20 @@ export default function VendasPage({ params }: VendasPageProps) {
                 <TableHead>Procedimentos</TableHead>
                 <TableHead className="text-right">Total</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Pagamento</TableHead>
                 <TableHead className="w-[140px]" />
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading && packages.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="py-12 text-center text-muted-foreground">
+                  <TableCell colSpan={8} className="py-12 text-center text-muted-foreground">
                     Carregando...
                   </TableCell>
                 </TableRow>
               ) : packages.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="py-12 text-center text-muted-foreground">
+                  <TableCell colSpan={8} className="py-12 text-center text-muted-foreground">
                     Nenhuma venda encontrada.
                   </TableCell>
                 </TableRow>
@@ -248,6 +312,28 @@ export default function VendasPage({ params }: VendasPageProps) {
                         <Badge variant={meta.variant}>{meta.label}</Badge>
                       </TableCell>
                       <TableCell>
+                        {pkg.status === "active" ? (() => {
+                          // Quanto já liquidou: linhas com método e paid_at <= hoje.
+                          // Linhas com paid_at futuro contam como "previsto",
+                          // não realizado — mantém o status do pagamento honesto.
+                          const todayISO = format(new Date(), "yyyy-MM-dd")
+                          const settled = (pkg.payments || []).reduce((acc, p) => {
+                            if (!p.payment_method_id || !p.paid_at) return acc
+                            if (p.paid_at.slice(0, 10) > todayISO) return acc
+                            return acc + (p.amount - (p.discount || 0))
+                          }, 0)
+                          if (settled <= 0.01) {
+                            return <Badge variant="outline" className="text-xs">Em aberto</Badge>
+                          }
+                          if (settled + 0.01 < pkg.total) {
+                            return <Badge variant="warning" className="text-xs">Parcial</Badge>
+                          }
+                          return <Badge variant="success" className="text-xs">Pago</Badge>
+                        })() : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
                         <div
                           className="flex items-center justify-end gap-1"
                           onClick={(e) => e.stopPropagation()}
@@ -258,6 +344,19 @@ export default function VendasPage({ params }: VendasPageProps) {
                             variant="ghost"
                             title={pkg.status === "quote" ? "Enviar orçamento pelo WhatsApp" : "Enviar recibo pelo WhatsApp"}
                           />
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            title="Abrir recibo em nova aba"
+                            onClick={() => handleOpenReceipt(pkg)}
+                            disabled={openingReceipt === pkg.id}
+                          >
+                            {openingReceipt === pkg.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <FileText className="h-4 w-4" />
+                            )}
+                          </Button>
                           {pkg.status === "quote" && (
                             <Button
                               size="icon"

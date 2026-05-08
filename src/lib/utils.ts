@@ -5,6 +5,22 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+// dateInputToISO converts a `<input type="date">` value (e.g. "2026-05-06")
+// to a full RFC3339 timestamp the Go backend can unmarshal natively. Returns
+// undefined for empty input so callers can omit the field entirely.
+//
+// Without this helper, sending bare "yyyy-MM-dd" to a `*time.Time` field
+// trips the JSON unmarshaler ("parsing time ... as RFC3339") and the request
+// fails with a 400. UTC midnight is intentional: the backend stores dates
+// (no time-of-day) and we don't want timezone drift to bump the day.
+export function dateInputToISO(value?: string | null): string | undefined {
+  if (!value) return undefined
+  const trimmed = String(value).trim()
+  if (!trimmed) return undefined
+  if (trimmed.includes("T")) return trimmed
+  return `${trimmed}T00:00:00Z`
+}
+
 // formatPhone returns a human-readable phone string from any digits-only or
 // pre-formatted input. Mirrors the visual mask the user expects on UI lists:
 //   13 digits → "XX (XX) X XXXX-XXXX"  (DDI + DDD + mobile)

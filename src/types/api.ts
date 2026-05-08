@@ -279,6 +279,44 @@ export interface CreateSalesPackagePaymentInput {
   paid_at?: string
 }
 
+export interface PublicSalesReceiptItem {
+  name: string
+  quantity: number
+  unit_price: number
+  line_total: number
+}
+
+export interface PublicSalesReceiptPayment {
+  method: string
+  amount: number
+  discount: number
+  paid_at?: string | null
+  due_date: string
+}
+
+export interface PublicSalesReceiptResponse {
+  receipt_number: string
+  code: string
+  status: SalesPackageStatus
+  clinic: {
+    name: string
+    document?: string
+    address?: string
+    phone?: string
+  }
+  patient_name: string
+  sale_date: string
+  valid_until?: string | null
+  items: PublicSalesReceiptItem[]
+  subtotal: number
+  discount: number
+  total: number
+  payments: PublicSalesReceiptPayment[]
+  total_paid: number
+  balance_due: number
+  generated_at: string
+}
+
 export interface CreateSalesPackageRequest {
   patient_id: string
   status: 'quote' | 'active'
@@ -587,6 +625,12 @@ export interface SendConfirmationRequest {
 export type PaymentMethodType = 'pix' | 'credit' | 'debit' | 'cash' | 'transfer' | 'other'
 export type AppointmentPaymentStatus = 'pending' | 'partial' | 'paid'
 
+// 'upfront' = bank pays full sale as a single payout on saleDate + settlement_days.
+// 'monthly' = parcel 1 on saleDate + settlement_days, then +1 calendar month per parcel.
+// 'fixed_days' is a legacy value still parseable from the database; the API only
+// accepts the two above on create/update.
+export type SettlementMode = 'upfront' | 'monthly' | 'fixed_days'
+
 export interface PaymentMethod {
   id: string
   clinic_id: string
@@ -596,6 +640,7 @@ export interface PaymentMethod {
   settlement_days: number
   installments_allowed: boolean
   max_installments: number
+  settlement_mode: SettlementMode
   created_at: string
 }
 
