@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import { gtagEvent } from '@/lib/gtag'
+import { gtagEvent, gtagReportLeadConversion } from '@/lib/gtag'
 
 function formatWhatsApp(value: string): string {
   const digits = value.replace(/\D/g, '')
@@ -70,6 +70,7 @@ export function KitPlanilhasForm() {
         })
       }
       gtagEvent('generate_lead', { source: 'kit_planilhas' })
+      gtagReportLeadConversion({ source: 'kit_planilhas' })
 
       setSubmitted(true)
     } catch (err) {

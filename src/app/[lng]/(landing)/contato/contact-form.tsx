@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { gtagEvent } from '@/lib/gtag'
+import { gtagEvent, gtagReportLeadConversion } from '@/lib/gtag'
 
 export function ContactForm() {
   const [formData, setFormData] = useState({ name: '', email: '', message: '' })
@@ -28,6 +28,7 @@ export function ContactForm() {
       }
 
       gtagEvent('generate_lead', { source: 'contact_form' })
+      gtagReportLeadConversion({ source: 'contact_form' })
 
       setSubmitted(true)
       setFormData({ name: '', email: '', message: '' })

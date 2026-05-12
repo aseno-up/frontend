@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/stores/auth-store'
-import { gtagEvent } from '@/lib/gtag'
+import { gtagEvent, gtagReportLeadConversion } from '@/lib/gtag'
 import {
   FALLBACK_CONFIG,
   trackPlanLead,
@@ -45,6 +45,7 @@ export function HeroCTA({ lng, publicConfig: initialConfig = null }: LandingClie
   const handlePlanSelect = (plan: string) => {
     trackPlanLead({ plan: plan as PlanKey, billingCycle: 'monthly', publicConfig })
     gtagEvent('generate_lead', { plan })
+    gtagReportLeadConversion({ plan })
     const target = isAuthenticated ? 'billing-setup' : 'register'
     const url = new URL(`/${lng}/${target}`, window.location.origin)
     url.searchParams.set('plan', plan)
@@ -78,6 +79,7 @@ export function NavCTA({ lng, publicConfig = null }: LandingClientProps) {
   const handlePlanSelect = (plan: string) => {
     trackPlanLead({ plan: plan as PlanKey, billingCycle: 'monthly', publicConfig })
     gtagEvent('generate_lead', { plan })
+    gtagReportLeadConversion({ plan })
     const target = isAuthenticated ? 'billing-setup' : 'register'
     const url = new URL(`/${lng}/${target}`, window.location.origin)
     url.searchParams.set('plan', plan)
@@ -199,6 +201,7 @@ export function PricingSection({ lng, publicConfig: initialConfig = null }: Land
       publicConfig,
     })
     gtagEvent('generate_lead', { plan })
+    gtagReportLeadConversion({ plan })
     const target = isAuthenticated ? 'billing-setup' : 'register'
     const url = new URL(`/${lng}/${target}`, window.location.origin)
     url.searchParams.set('plan', plan)
@@ -415,6 +418,7 @@ export function CtaSection({ lng, publicConfig: initialConfig = null }: LandingC
   const handlePlanSelect = (plan: string) => {
     trackPlanLead({ plan: plan as PlanKey, billingCycle: 'monthly', publicConfig })
     gtagEvent('generate_lead', { plan })
+    gtagReportLeadConversion({ plan })
     const target = isAuthenticated ? 'billing-setup' : 'register'
     const url = new URL(`/${lng}/${target}`, window.location.origin)
     url.searchParams.set('plan', plan)
