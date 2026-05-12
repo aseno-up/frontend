@@ -44,3 +44,28 @@ export function gtagReportLeadConversion(
   })
   return false
 }
+
+// Google Ads DEMO_TO_REGISTER conversion. Fires when a lead clicks through from
+// the interactive demo page to start the sign-up flow. Matches the Google Ads
+// conversion action `conversion_event_demo_to_register`. Pass `navigateTo` when
+// the click navigates to a different origin so gtag has time to send the hit.
+export function gtagReportDemoToRegister(
+  params: Record<string, unknown> = {},
+  navigateTo?: string,
+): boolean {
+  const gtag = getGtag()
+  if (!gtag) {
+    if (navigateTo) window.location.href = navigateTo
+    return false
+  }
+  const callback = navigateTo
+    ? () => {
+        if (typeof navigateTo === 'string') window.location.href = navigateTo
+      }
+    : undefined
+  gtag('event', 'conversion_event_demo_to_register', {
+    ...params,
+    ...(callback ? { event_callback: callback, event_timeout: 2000 } : {}),
+  })
+  return false
+}

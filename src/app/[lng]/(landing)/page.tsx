@@ -41,6 +41,7 @@ export default async function LandingPage(props: PageProps) {
         <ul className="nav-links">
           <li><a href="#produto">Produto</a></li>
           <li><a href="#como-funciona">Como Funciona</a></li>
+          <li><a href={`/${params.lng}/demo`}>Demo</a></li>
           <li><a href="#precos">Planos</a></li>
         </ul>
         <NavCTA lng={params.lng} />

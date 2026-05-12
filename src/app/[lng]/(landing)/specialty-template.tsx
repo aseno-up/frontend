@@ -70,6 +70,7 @@ export function SpecialtyTemplate({ lng, data }: SpecialtyTemplateProps) {
         <ul className="nav-links">
           <li><a href="#solucao">Solução</a></li>
           <li><a href="#beneficios">Benefícios</a></li>
+          <li><a href={`/${lng}/demo`}>Demo</a></li>
           <li><a href="#precos">Planos</a></li>
         </ul>
         <NavCTA lng={lng} />
