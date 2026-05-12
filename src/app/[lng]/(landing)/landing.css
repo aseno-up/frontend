@@ -1000,3 +1000,158 @@ html{scroll-behavior:smooth}
   .wa-float svg{width:26px;height:26px}
   .wa-bubble{font-size:.8rem;padding:.5rem .75rem}
 }
+
+/* ─── LAUNCH COUNTDOWN BAR ─── */
+/* --launch-bar-h is declared on the layout wrapper only when the bar is rendered.
+   All offset rules below use it via fallback to 0px, so they no-op when absent. */
+:where(.dark):has(.launch-bar){--launch-bar-h:56px}
+
+.launch-bar{
+  /* Self-contained tokens: .launch-bar is a sibling of .landing-body (not a descendant),
+     so it cannot inherit the palette declared on .landing-body. Redeclare what we use. */
+  --blue:#006BFF;
+  --blue-hover:#0055d4;
+  --blue-deep:#003d99;
+  --ink:#0B1D2E;
+  --teal:#00a870;
+  --font-head:'Poppins',system-ui,sans-serif;
+  --font-body:'Inter',system-ui,sans-serif;
+  --max-w:1200px;
+  --px:clamp(1.5rem,5vw,calc(50% - var(--max-w)/2));
+
+  position:fixed;top:0;left:0;right:0;z-index:101;
+  height:var(--launch-bar-h, 56px);
+  background:linear-gradient(90deg, var(--ink) 0%, var(--blue-deep) 55%, var(--ink) 100%);
+  color:#fff;
+  border-bottom:1px solid rgba(0,107,255,.28);
+  box-shadow:0 1px 0 rgba(0,0,0,.35), 0 6px 20px rgba(11,29,46,.25);
+  font-family:var(--font-body);
+  -webkit-font-smoothing:antialiased;
+}
+.launch-bar-inner{
+  height:100%;
+  max-width:var(--max-w);
+  margin:0 auto;
+  padding:0 var(--px);
+  display:flex;align-items:center;
+  gap:1.25rem;
+  justify-content:space-between;
+}
+.launch-bar-label{
+  display:inline-flex;align-items:center;gap:.55rem;
+  font-size:.875rem;font-weight:600;
+  color:rgba(255,255,255,.92);
+  letter-spacing:-.005em;
+  white-space:nowrap;
+}
+.launch-bar-icon{color:var(--teal);flex-shrink:0}
+.launch-bar-timer{
+  display:inline-flex;align-items:center;gap:.35rem;
+}
+.launch-bar-unit{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  background:rgba(255,255,255,.08);
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:7px;
+  min-width:50px;
+  padding:4px 8px 3px;
+  font-variant-numeric:tabular-nums;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.06), 0 1px 2px rgba(0,0,0,.25);
+}
+.launch-bar-num{
+  font-family:var(--font-head);
+  font-weight:700;
+  font-size:1.05rem;
+  line-height:1.05;
+  color:#fff;
+  letter-spacing:-.01em;
+}
+.launch-bar-tag{
+  font-size:.55rem;
+  font-weight:600;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:rgba(255,255,255,.55);
+  margin-top:2px;
+}
+.launch-bar-sep{
+  color:rgba(255,255,255,.3);
+  font-weight:700;
+  font-size:1rem;
+  position:relative;top:-7px;
+  user-select:none;
+}
+.launch-bar-cta{
+  background:#fff;
+  color:var(--ink);
+  font-family:var(--font-body);
+  font-size:.875rem;font-weight:600;
+  border:none;
+  padding:.6rem 1.05rem;
+  border-radius:8px;
+  cursor:pointer;
+  text-decoration:none;
+  display:inline-flex;align-items:center;gap:.4rem;
+  transition:transform .15s ease, box-shadow .2s ease, color .2s ease;
+  white-space:nowrap;
+}
+.launch-bar-cta:hover{
+  transform:translateY(-1px);
+  box-shadow:0 8px 20px rgba(0,55,153,.3);
+  color:var(--blue);
+}
+.launch-bar-cta:focus-visible{
+  outline:2px solid #fff;
+  outline-offset:2px;
+}
+
+.launch-bar-close{
+  position:absolute;
+  top:8px;
+  right:12px;
+  width:26px;
+  height:26px;
+  display:inline-flex;align-items:center;justify-content:center;
+  background:transparent;
+  border:none;
+  border-radius:6px;
+  color:rgba(255,255,255,.55);
+  cursor:pointer;
+  padding:0;
+  transition:color .15s ease, background .15s ease;
+}
+.launch-bar-close:hover{
+  color:#fff;
+  background:rgba(255,255,255,.1);
+}
+.launch-bar-close:focus-visible{
+  outline:2px solid #fff;
+  outline-offset:2px;
+}
+/* Keep the inner content from running under the close button. */
+.launch-bar-inner{padding-right:calc(var(--px) + 28px)}
+
+/* Push every landing chrome down by --launch-bar-h when bar is present.
+   These overrides win over the originals via specificity (`.dark:has() ...` adds a class). */
+:where(.dark):has(.launch-bar) .landing-nav{top:var(--launch-bar-h, 0px)}
+:where(.dark):has(.launch-bar) .kp-nav{top:var(--launch-bar-h, 0px)}
+:where(.dark):has(.launch-bar) .hero{padding-top:calc(64px + 80px + var(--launch-bar-h, 0px))}
+:where(.dark):has(.launch-bar) .legal-page,
+:where(.dark):has(.launch-bar) .contact-page{padding-top:calc(64px + 60px + var(--launch-bar-h, 0px))}
+
+@media(max-width:880px){
+  :where(.dark):has(.launch-bar){--launch-bar-h:104px}
+  .launch-bar{padding:8px 0;height:auto;min-height:var(--launch-bar-h)}
+  .launch-bar-inner{flex-wrap:wrap;justify-content:center;gap:.6rem .8rem;text-align:center}
+  .launch-bar-label{font-size:.78rem;width:100%;justify-content:center}
+  .launch-bar-label-text{white-space:normal}
+  .launch-bar-unit{min-width:42px;padding:3px 7px 2px}
+  .launch-bar-num{font-size:.95rem}
+  .launch-bar-tag{font-size:.5rem}
+  .launch-bar-cta{padding:.5rem .9rem;font-size:.82rem}
+  /* Mobile hero already collapses to `64px + 56px` (see line above), keep it additive. */
+  :where(.dark):has(.launch-bar) .hero{padding-top:calc(64px + 56px + var(--launch-bar-h, 0px))}
+}
+@media(max-width:520px){
+  :where(.dark):has(.launch-bar){--launch-bar-h:128px}
+}
