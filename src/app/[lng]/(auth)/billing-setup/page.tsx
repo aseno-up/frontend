@@ -9,7 +9,7 @@ import { FacebookPixel } from "@/components/facebook-pixel"
 import { GoogleAnalytics } from "@/components/google-analytics"
 import { GoogleAdsTag } from "@/components/google-ads-tag"
 import { gtagEvent } from "@/lib/gtag"
-import { trackSubscribe, type PlanKey } from "@/lib/meta-pixel"
+import { trackSubscribe, FALLBACK_CONFIG, type PlanKey } from "@/lib/meta-pixel"
 
 type Step = "billing" | "payment" | "process"
 
@@ -370,23 +370,33 @@ function BillingSetupContent() {
       if (selectedBilling === 'YEARLY' && planData.solo_price_yearly > 0) {
         return planData.solo_price_yearly
       }
-      if (planData.solo_price_monthly > 0) {
+      if (selectedBilling !== 'YEARLY' && planData.solo_price_monthly > 0) {
         return planData.solo_price_monthly
       }
+      // Solo cycle not configured for the chosen billing: derive from the
+      // other cycle so we never return 0 (Meta CAPI rejects value === 0).
+      if (planData.solo_price_yearly > 0) return Math.round(planData.solo_price_yearly / 12)
+      if (planData.solo_price_monthly > 0) return planData.solo_price_monthly
     }
     if (couponApplied && discountedPrice !== null) {
       base = discountedPrice
     } else if (!planData) {
-      return 0
+      // publicConfig still loading or plan missing: fall back to FALLBACK_CONFIG
+      // so the displayed price and the analytics events stay non-zero.
+      const fb = FALLBACK_CONFIG.plans[selectedPlan]
+      if (!fb) return 1
+      base = selectedBilling === 'YEARLY'
+        ? (fb.price_yearly > 0 ? fb.price_yearly : fb.price_monthly * 10)
+        : fb.price_monthly
     } else if (selectedBilling === 'YEARLY') {
-      base = planData.price_yearly
+      base = planData.price_yearly > 0 ? planData.price_yearly : planData.price_monthly * 10
     } else {
       base = planData.price_monthly
     }
     if (selectedPlan === 'advanced') {
-      return base * Math.max(2, units)
+      return Math.max(1, base * Math.max(2, units))
     }
-    return base
+    return Math.max(1, base)
   }
 
   const priceBRL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(getPlanPrice())

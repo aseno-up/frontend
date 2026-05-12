@@ -78,7 +78,22 @@ export interface LeadValueInput {
 // Returns the monthly subscription value (in BRL) the visitor showed intent for.
 // Different combinations of plan + variant (solo vs clinic) + cycle + units must
 // yield distinct values so Meta can attribute conversion value correctly.
-export function computeMonthlyPlanValue({
+// The result is guaranteed to be a finite positive integer — Meta's CAPI rejects
+// StartTrial events whose `predicted_ltv` (value * 12) is 0 or non-numeric.
+export function computeMonthlyPlanValue(input: LeadValueInput): number {
+  const raw = computeMonthlyPlanValueRaw(input)
+  if (Number.isFinite(raw) && raw > 0) return Math.round(raw)
+  // Defensive floor: unknown plan keys, mis-configured pricing, or fetch races
+  // can yield 0/NaN. Fall back to the professional monthly price so we still
+  // ship a meaningful positive value to Meta (any value > 0 is valid).
+  const apiPro = input.publicConfig?.plans?.['professional']
+  const proMonthly = apiPro && apiPro.price_monthly > 0
+    ? apiPro.price_monthly
+    : FALLBACK_CONFIG.plans.professional.price_monthly
+  return Math.max(1, Math.round(proMonthly))
+}
+
+function computeMonthlyPlanValueRaw({
   plan,
   billingCycle = 'monthly',
   variant = 'clinic',
@@ -101,9 +116,16 @@ export function computeMonthlyPlanValue({
     const p = pickPlan(plan)
     const useSolo = variant === 'solo' && (p.solo_price_monthly > 0 || p.solo_price_yearly > 0)
     if (useSolo) {
-      if (billingCycle === 'monthly') return p.solo_price_monthly
+      if (billingCycle === 'monthly') {
+        // When the DB only configures the yearly solo price, derive a monthly
+        // value from it instead of returning 0 (which made predicted_ltv invalid).
+        if (p.solo_price_monthly > 0) return p.solo_price_monthly
+        if (p.solo_price_yearly > 0) return Math.round(p.solo_price_yearly / 12)
+        return p.price_monthly
+      }
       if (p.solo_price_yearly > 0) return Math.round(p.solo_price_yearly / 12)
-      return Math.round((p.solo_price_monthly * 10) / 12)
+      if (p.solo_price_monthly > 0) return Math.round((p.solo_price_monthly * 10) / 12)
+      return p.price_monthly
     }
     if (billingCycle === 'monthly') return p.price_monthly
     if (p.price_yearly > 0) return Math.round(p.price_yearly / 12)
@@ -112,7 +134,7 @@ export function computeMonthlyPlanValue({
 
   if (plan === 'advanced') {
     const p = pickPlan('advanced')
-    const safeUnits = Math.max(2, units)
+    const safeUnits = Number.isFinite(units) && units >= 2 ? Math.floor(units) : 2
     const monthlyUnit =
       billingCycle === 'monthly'
         ? p.price_monthly
@@ -130,6 +152,13 @@ function categoryFor(input: LeadValueInput): string {
   return `${input.variant ?? 'clinic'}_${input.billingCycle ?? 'monthly'}`
 }
 
+// Meta CAPI rejects events whose monetary fields are not positive finite numbers.
+// `computeMonthlyPlanValue` already guarantees a positive value, but we re-clamp
+// here so the contract for the outgoing event payload is explicit at the call site.
+function positiveNumber(n: number, fallback: number): number {
+  return Number.isFinite(n) && n > 0 ? n : fallback
+}
+
 // Lead + StartTrial fire together on plan-select intent: every signup, paid or
 // free, begins with a 14-day trial in the backend, so StartTrial here matches
 // reality and gives Meta enough distinct values (>5) to clear the dataset
@@ -137,7 +166,11 @@ function categoryFor(input: LeadValueInput): string {
 export function trackPlanLead(input: LeadValueInput): void {
   const fbq = getFbq()
   if (!fbq) return
-  const value = computeMonthlyPlanValue(input)
+  const value = positiveNumber(
+    computeMonthlyPlanValue(input),
+    FALLBACK_CONFIG.plans.professional.price_monthly,
+  )
+  const predictedLtv = positiveNumber(value * 12, value * 12 || 1)
   const payload: Record<string, unknown> = {
     content_name: input.plan,
     content_category: categoryFor(input),
@@ -145,7 +178,7 @@ export function trackPlanLead(input: LeadValueInput): void {
     currency: PIXEL_CURRENCY,
   }
   fbq('track', 'Lead', payload)
-  fbq('track', 'StartTrial', { ...payload, predicted_ltv: value * 12 })
+  fbq('track', 'StartTrial', { ...payload, predicted_ltv: predictedLtv })
 }
 
 // Fired on successful account creation. Matches Meta's "CompleteRegistration"
@@ -155,7 +188,10 @@ export function trackCompleteRegistration(
 ): void {
   const fbq = getFbq()
   if (!fbq) return
-  const value = computeMonthlyPlanValue(input)
+  const value = positiveNumber(
+    computeMonthlyPlanValue(input),
+    FALLBACK_CONFIG.plans.professional.price_monthly,
+  )
   fbq('track', 'CompleteRegistration', {
     content_name: input.plan,
     content_category: categoryFor(input),
@@ -184,14 +220,18 @@ interface SubscribeInput {
 export function trackSubscribe(input: SubscribeInput): void {
   const fbq = getFbq()
   if (!fbq) return
-  const monthlyValue = computeMonthlyPlanValue({
-    plan: input.plan,
-    billingCycle: input.billingCycle,
-    variant: input.variant,
-    units: input.units,
-    publicConfig: input.publicConfig,
-  })
-  const predictedLtv = monthlyValue * 12
+  const monthlyValue = positiveNumber(
+    computeMonthlyPlanValue({
+      plan: input.plan,
+      billingCycle: input.billingCycle,
+      variant: input.variant,
+      units: input.units,
+      publicConfig: input.publicConfig,
+    }),
+    FALLBACK_CONFIG.plans.professional.price_monthly,
+  )
+  const cycleValue = positiveNumber(input.cycleValue, monthlyValue)
+  const predictedLtv = positiveNumber(monthlyValue * 12, monthlyValue * 12 || 1)
   const basePayload: Record<string, unknown> = {
     content_name: input.plan,
     content_category: categoryFor({
@@ -199,7 +239,7 @@ export function trackSubscribe(input: SubscribeInput): void {
       billingCycle: input.billingCycle,
       variant: input.variant,
     }),
-    value: input.cycleValue,
+    value: cycleValue,
     currency: PIXEL_CURRENCY,
   }
   fbq('track', 'Subscribe', { ...basePayload, predicted_ltv: predictedLtv })
