@@ -41,9 +41,14 @@ export function CookieConsentBanner() {
             Sua privacidade
           </p>
           <p id="cookie-banner-desc" className="cookie-banner-desc">
-            Usamos cookies essenciais para o login e funcionamento do site, e
-            cookies de análise e marketing (Google, Meta) para entender como
-            você usa a plataforma. Você decide.{' '}
+            <span className="cookie-banner-desc-long">
+              Usamos cookies essenciais para o login e funcionamento do site, e
+              cookies de análise e marketing (Google, Meta) para entender como
+              você usa a plataforma. Você decide.{' '}
+            </span>
+            <span className="cookie-banner-desc-short">
+              Cookies essenciais e de análise/marketing.{' '}
+            </span>
             <Link href="/privacidade" className="cookie-banner-link">
               Saiba mais
             </Link>
