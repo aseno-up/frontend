@@ -1,6 +1,7 @@
 import Image from 'next/image'
 import { HeroCTA, NavCTA, PricingSection, CtaSection } from './landing-client'
 import { LandingFooter } from './landing-footer'
+import { getActivePromotion } from '@/lib/server/promotion'
 import './landing.css'
 
 export interface SpecialtyProblem {
@@ -61,7 +62,8 @@ interface SpecialtyTemplateProps {
   data: SpecialtyData
 }
 
-export function SpecialtyTemplate({ lng, data }: SpecialtyTemplateProps) {
+export async function SpecialtyTemplate({ lng, data }: SpecialtyTemplateProps) {
+  const promotion = await getActivePromotion()
   return (
     <div className="landing-body">
       {/* NAV */}
@@ -256,7 +258,7 @@ export function SpecialtyTemplate({ lng, data }: SpecialtyTemplateProps) {
       </section>
 
       {/* PRICING */}
-      <PricingSection lng={lng} />
+      <PricingSection lng={lng} promotion={promotion} />
 
       {/* FAQ */}
       <section className="sec-faq">

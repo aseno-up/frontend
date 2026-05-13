@@ -26,6 +26,7 @@ import {
   Flag,
   Activity,
   Target,
+  Tag,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -66,6 +67,7 @@ const adminNavItems: NavItem[] = [
   { href: "/admin/settings", label: "Settings", icon: Shield },
   { href: "/admin/audit-logs", label: "Audit Logs", icon: FileText },
   { href: "/admin/feature-flags", label: "Feature Flags", icon: Flag },
+  { href: "/admin/promocoes", label: "Promoções", icon: Tag },
 ]
 
 interface SidebarProps {

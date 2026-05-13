@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import Image from 'next/image'
 import { HeroCTA, NavCTA, PricingSection, CtaSection, type PublicConfig } from './landing-client'
 import { LandingFooter } from './landing-footer'
+import { getActivePromotion } from '@/lib/server/promotion'
 import './landing.css'
 
 export const metadata: Metadata = {
@@ -31,7 +32,10 @@ async function getPublicConfig(): Promise<PublicConfig | null> {
 
 export default async function LandingPage(props: PageProps) {
   const params = await props.params
-  const publicConfig = await getPublicConfig()
+  const [publicConfig, promotion] = await Promise.all([
+    getPublicConfig(),
+    getActivePromotion(),
+  ])
 
   return (
     <div className="landing-body">
@@ -73,27 +77,6 @@ export default async function LandingPage(props: PageProps) {
           />
         </div>
       </section>
-
-      {/* ─── PROVA SOCIAL ─── */}
-      <div className="proof-bar">
-        <div className="proof-inner">
-          <div className="proof-item">
-            <div className="proof-num">R$ 25.846</div>
-            <div className="proof-lbl">Faturamento recuperado por clínica nos últimos 3 meses*</div>
-          </div>
-          <div className="proof-sep"></div>
-          <div className="proof-item">
-            <div className="proof-num">95,9%</div>
-            <div className="proof-lbl">Taxa de comparecimento com confirmação automática</div>
-          </div>
-          <div className="proof-sep"></div>
-          <div className="proof-item">
-            <div className="proof-num">3.258</div>
-            <div className="proof-lbl">Sessões realizadas sem uma ligação de confirmação</div>
-          </div>
-        </div>
-        <p className="proof-note">*Dados reais de clínicas ativas na plataforma</p>
-      </div>
 
       {/* ─── PRODUTO: BENTO GRID ─── */}
       <section className="sec-product" id="produto">
@@ -279,65 +262,8 @@ export default async function LandingPage(props: PageProps) {
         </div>
       </section>
 
-      {/* ─── DEPOIMENTOS ─── */}
-      <section className="sec-testimonials">
-        <div className="sec-hd">
-          <h2 className="display-title">Quem usa, recomenda.</h2>
-        </div>
-        <div className="testimonials-grid">
-          <div className="testimonial-card">
-            <p className="testimonial-text">&ldquo;Desde que implementamos, nossas faltas caíram drasticamente. A confirmação automática pelo WhatsApp é incrível — a recepção não precisa mais ligar pra ninguém.&rdquo;</p>
-            <div className="testimonial-author">
-              <Image
-                src="https://i.pravatar.cc/96?img=32"
-                alt="Marina Costa"
-                width={48}
-                height={48}
-                className="testimonial-photo"
-              />
-              <div className="testimonial-info">
-                <div className="testimonial-name">Marina Costa</div>
-                <div className="testimonial-role">Coordenadora Clínica · Clínica Vitalitá</div>
-              </div>
-            </div>
-          </div>
-          <div className="testimonial-card">
-            <p className="testimonial-text">&ldquo;Nossa recepcionista economiza horas por dia. O Aseno faz o trabalho pesado de confirmar e reagendar sozinho. A gente só acompanha.&rdquo;</p>
-            <div className="testimonial-author">
-              <Image
-                src="https://i.pravatar.cc/96?img=47"
-                alt="Beatriz Mendes"
-                width={48}
-                height={48}
-                className="testimonial-photo"
-              />
-              <div className="testimonial-info">
-                <div className="testimonial-name">Beatriz Mendes</div>
-                <div className="testimonial-role">Diretora · Clínica Bem Estar</div>
-              </div>
-            </div>
-          </div>
-          <div className="testimonial-card">
-            <p className="testimonial-text">&ldquo;A lista de espera automática é fantástica. Quando uma paciente cancela, o sistema notifica quem está aguardando e preenche a vaga em minutos.&rdquo;</p>
-            <div className="testimonial-author">
-              <Image
-                src="https://i.pravatar.cc/96?img=12"
-                alt="Rafael Almeida"
-                width={48}
-                height={48}
-                className="testimonial-photo"
-              />
-              <div className="testimonial-info">
-                <div className="testimonial-name">Rafael Almeida</div>
-                <div className="testimonial-role">Psicólogo Clínico · Instituto Mente Sã</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* ─── PRICING ─── */}
-      <PricingSection lng={params.lng} publicConfig={publicConfig} />
+      <PricingSection lng={params.lng} publicConfig={publicConfig} promotion={promotion} />
 
       {/* ─── FAQ ─── */}
       <section className="sec-faq">

@@ -152,13 +152,31 @@ export default function PrivacidadePage() {
           <section className="legal-section">
             <h2>9. Cookies</h2>
             <p>
-              Utilizamos cookies essenciais para o funcionamento da plataforma, incluindo:
+              Utilizamos cookies divididos em duas categorias. Você decide quais aceitar no banner exibido na sua primeira visita e pode revisar sua escolha a qualquer momento pelo link <strong>&ldquo;Configurações de cookies&rdquo;</strong> no rodapé.
+            </p>
+            <h3>Cookies essenciais (sempre ativos)</h3>
+            <p>
+              Indispensáveis para o funcionamento do site e da plataforma. Não exigem consentimento conforme o Guia de Cookies da ANPD:
             </p>
             <ul>
-              <li><strong>Cookies de autenticação:</strong> para manter sua sessão ativa</li>
-              <li><strong>Cookies de preferência:</strong> para salvar suas configurações (idioma, tema)</li>
-              <li><strong>Cookies de análise:</strong> para entender como a plataforma é utilizada e melhorá-la</li>
+              <li><strong>Autenticação:</strong> mantêm sua sessão ativa após o login</li>
+              <li><strong>Preferências:</strong> idioma e configurações da interface</li>
+              <li><strong>Segurança:</strong> proteção contra ataques (CSRF, fixação de sessão)</li>
+              <li><strong>Registro de consentimento:</strong> guardam sua escolha sobre os cookies não-essenciais</li>
             </ul>
+            <h3>Cookies de análise e marketing (opt-in)</h3>
+            <p>
+              Só são definidos se você clicar em <strong>&ldquo;Aceitar todos&rdquo;</strong> no banner. Se preferir <strong>&ldquo;Apenas essenciais&rdquo;</strong>, estes cookies não são gravados:
+            </p>
+            <ul>
+              <li><strong>Google Analytics:</strong> entender como você navega no site (páginas vistas, tempo, fluxo)</li>
+              <li><strong>Google Tag Manager:</strong> gerenciamento centralizado das tags de marketing</li>
+              <li><strong>Google Ads:</strong> medir conversões de campanhas de anúncios</li>
+              <li><strong>Meta Pixel (Facebook):</strong> mensurar conversões e formar audiências para campanhas no Facebook e Instagram</li>
+            </ul>
+            <p>
+              Você pode revogar o consentimento a qualquer momento pelo link <strong>&ldquo;Configurações de cookies&rdquo;</strong>. Ao revogar, novos cookies não-essenciais deixam de ser definidos; cookies já existentes podem ser apagados pelas configurações do seu navegador.
+            </p>
           </section>
 
           <section className="legal-section">

@@ -75,6 +75,20 @@ function BillingSetupContent() {
   const [couponError, setCouponError] = useState("")
   const [discountedPrice, setDiscountedPrice] = useState<number | null>(null)
 
+  // Promoção ativa para o plano selecionado. Buscada sempre que o componente
+  // monta — sem depender de query string. Display only; backend re-aplica
+  // a mesma lógica no switch-plan e é a fonte da verdade.
+  interface PromotionInfo {
+    id: string
+    discount_percent: number
+    is_active: boolean
+    plans_affected: string[]
+    starts_at: string
+    expires_at: string
+    banner_label: string
+  }
+  const [promotion, setPromotion] = useState<PromotionInfo | null>(null)
+
   // Billing form state
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
@@ -131,6 +145,35 @@ function BillingSetupContent() {
     }
     fetchConfig()
   }, [])
+
+  // Sempre busca a promoção ativa no servidor e aplica no display se cobrir o
+  // plano selecionado. O backend faz a mesma verificação ao criar a assinatura,
+  // então o que mostramos aqui é exatamente o que vai ser cobrado.
+  useEffect(() => {
+    const baseUrl = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:4901").replace(
+      /\/api\/v1\/?$/,
+      "",
+    )
+    fetch(`${baseUrl}/api/v1/public/promotions/active`, { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((payload: { data: PromotionInfo | null } | null) => {
+        const promo = payload?.data
+        if (!promo) {
+          setPromotion(null)
+          return
+        }
+        if (!promo.is_active) return
+        const now = Date.now()
+        if (now < new Date(promo.starts_at).getTime()) return
+        if (now >= new Date(promo.expires_at).getTime()) return
+        const appliesToPlan =
+          promo.plans_affected.includes(selectedPlan) ||
+          promo.plans_affected.includes("all")
+        if (!appliesToPlan) return
+        setPromotion(promo)
+      })
+      .catch(() => {})
+  }, [selectedPlan])
 
   // Auto-apply coupon if offer token is present in URL
   useEffect(() => {
@@ -362,7 +405,10 @@ function BillingSetupContent() {
 
   const inputClass = "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary dark:border-slate-600 dark:bg-slate-800 dark:text-white"
 
-  const getPlanPrice = (): number => {
+  // Computes the base (pre-promotion) price for the current plan/variant/cycle.
+  // Promotion discount is applied separately in getPlanPrice so the strikethrough
+  // can show the original next to the discounted amount.
+  const getBasePrice = (): number => {
     let base: number
     const planData = publicConfig?.plans?.[selectedPlan]
     // Solo variant bypasses coupons and uses the cycle's solo price when available.
@@ -399,6 +445,16 @@ function BillingSetupContent() {
     return Math.max(1, base)
   }
 
+  // Applies the active promotion (when present) on top of the base price.
+  // Mirrors the backend computation in payment_service.SwitchPlan so the
+  // amount shown here matches what's actually charged.
+  const getPlanPrice = (): number => {
+    const base = getBasePrice()
+    if (!promotion) return base
+    const discounted = Math.max(1, Math.round((base * (100 - promotion.discount_percent)) / 100))
+    return discounted
+  }
+
   const priceBRL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(getPlanPrice())
 
   const handleApplyCoupon = async () => {
@@ -427,6 +483,8 @@ function BillingSetupContent() {
     }
   }
 
+  const basePriceBRL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(getBasePrice())
+
   const priceSummaryBox = (
     <div className="rounded-lg bg-blue-50 p-4 dark:bg-blue-900/20 mb-6 border border-blue-100 dark:border-blue-800">
       <div className="flex justify-between items-center">
@@ -437,9 +495,21 @@ function BillingSetupContent() {
             {selectedVariant === 'solo' && ` · Autônomo`}
             {selectedPlan === 'advanced' && ` · ${units} unidades`}
           </p>
+          {promotion && (
+            <p className="text-sm text-emerald-700 dark:text-emerald-300 mt-1 font-medium">
+              Promoção aplicada: −{promotion.discount_percent}%
+            </p>
+          )}
         </div>
-        <div className="text-2xl font-bold text-blue-900 dark:text-blue-100">
-          {publicConfig ? priceBRL : 'Calculando...'}
+        <div className="text-right">
+          {promotion && (
+            <div className="text-sm text-blue-700/60 dark:text-blue-300/60 line-through">
+              {basePriceBRL}
+            </div>
+          )}
+          <div className="text-2xl font-bold text-blue-900 dark:text-blue-100">
+            {publicConfig ? priceBRL : 'Calculando...'}
+          </div>
         </div>
       </div>
       {selectedPlan === 'advanced' && step !== 'process' && (

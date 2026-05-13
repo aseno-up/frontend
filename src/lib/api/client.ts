@@ -1560,6 +1560,54 @@ class ApiClient {
     return response.data
   }
 
+  async listPromotions() {
+    const response = await this.client.get('/admin/promotions')
+    return response.data
+  }
+
+  async createPromotion(data: {
+    name: string
+    description?: string
+    discount_percent: number
+    starts_at: string
+    expires_at: string
+    is_active: boolean
+    plans_affected: string[]
+    banner_label: string
+    banner_show_timer: boolean
+  }) {
+    const response = await this.client.post('/admin/promotions', data)
+    return response.data
+  }
+
+  async updatePromotion(
+    id: string,
+    data: Partial<{
+      name: string
+      description: string
+      discount_percent: number
+      starts_at: string
+      expires_at: string
+      is_active: boolean
+      plans_affected: string[]
+      banner_label: string
+      banner_show_timer: boolean
+    }>,
+  ) {
+    const response = await this.client.put(`/admin/promotions/${id}`, data)
+    return response.data
+  }
+
+  async deletePromotion(id: string) {
+    const response = await this.client.delete(`/admin/promotions/${id}`)
+    return response.data
+  }
+
+  async getActivePromotion() {
+    const response = await this.client.get('/public/promotions/active')
+    return response.data
+  }
+
   async getUsageMetrics(params?: {
     page?: number
     limit?: number

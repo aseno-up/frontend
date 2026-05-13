@@ -1,8 +1,7 @@
-import { FacebookPixel } from "@/components/facebook-pixel"
-import { GoogleAnalytics } from "@/components/google-analytics"
-import { GoogleAdsTag } from "@/components/google-ads-tag"
-import { GoogleTagManager } from "@/components/google-tag-manager"
-import { LaunchCountdownBar } from "@/components/landing/launch-countdown-bar"
+import { CookieConsentBanner } from "@/components/landing/cookie-consent-banner"
+import { PromotionBanner } from "@/components/landing/promotion-banner"
+import { TrackingScripts } from "@/components/landing/tracking-scripts"
+import { getActivePromotion } from "@/lib/server/promotion"
 import { WhatsAppFloat } from "./whatsapp-float"
 import "./landing.css"
 
@@ -10,16 +9,20 @@ interface LandingLayoutProps {
   children: React.ReactNode
 }
 
-export default function LandingLayout({ children }: LandingLayoutProps) {
+export default async function LandingLayout({ children }: LandingLayoutProps) {
+  const promotion = await getActivePromotion()
+
   return (
     <div className="dark">
-      <GoogleTagManager containerId="GTM-W9773P7N" />
-      <FacebookPixel />
-      <GoogleAnalytics measurementId="G-PQNQJQ3BVH" />
-      <GoogleAdsTag conversionId="AW-758071096" />
-      <LaunchCountdownBar />
+      <TrackingScripts
+        gtmContainerId="GTM-W9773P7N"
+        gaMeasurementId="G-PQNQJQ3BVH"
+        googleAdsConversionId="AW-758071096"
+      />
+      {promotion && <PromotionBanner promotion={promotion} />}
       {children}
       <WhatsAppFloat />
+      <CookieConsentBanner />
     </div>
   )
 }

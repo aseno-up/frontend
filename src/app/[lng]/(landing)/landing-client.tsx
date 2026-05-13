@@ -11,12 +11,14 @@ import {
   type PricingVariant,
   type PublicConfig,
 } from '@/lib/meta-pixel'
+import type { ActivePromotion } from '@/lib/server/promotion'
 
 export type { PublicConfig }
 
 interface LandingClientProps {
   lng: string
   publicConfig?: PublicConfig | null
+  promotion?: ActivePromotion | null
 }
 
 // Client component for interactive hero CTA buttons
@@ -101,7 +103,7 @@ export function NavCTA({ lng, publicConfig = null }: LandingClientProps) {
 }
 
 // Client component for the pricing section (interactive toggle + plan selection)
-export function PricingSection({ lng, publicConfig: initialConfig = null }: LandingClientProps) {
+export function PricingSection({ lng, publicConfig: initialConfig = null, promotion = null }: LandingClientProps) {
   const router = useRouter()
   const { isAuthenticated } = useAuthStore()
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'annually'>('monthly')
@@ -166,6 +168,24 @@ export function PricingSection({ lng, publicConfig: initialConfig = null }: Land
     return Math.round((planData.price_monthly * 10) / 12).toString()
   }
 
+  // Returns the original price (pre-discount) when the active promotion applies
+  // to this plan, otherwise null. Used to render the strikethrough next to the
+  // discounted amount. The discounted value continues to come from
+  // calculateMonthlyPrice and is computed here too — we recompute instead of
+  // passing both, so the existing solo/clinic + monthly/annual branches stay
+  // the single source of truth for the original number.
+  const promotionForPlan = (plan: 'basic' | 'professional' | 'advanced') => {
+    if (!promotion) return null
+    if (!promotion.plans_affected.includes(plan) && !promotion.plans_affected.includes('all')) {
+      return null
+    }
+    const original = calculateMonthlyPrice(plan)
+    const parsed = parseInt(original, 10)
+    if (Number.isNaN(parsed) || parsed <= 0) return null
+    const discounted = Math.max(1, Math.round((parsed * (100 - promotion.discount_percent)) / 100))
+    return { original, discounted: String(discounted), pct: promotion.discount_percent }
+  }
+
   const annualDiscountPct = (): number | null => {
     const plans: Array<'basic' | 'professional' | 'advanced'> = ['basic', 'professional', 'advanced']
     let min: number | null = null
@@ -186,6 +206,33 @@ export function PricingSection({ lng, publicConfig: initialConfig = null }: Land
     const parsed = parseInt(unit, 10)
     if (Number.isNaN(parsed)) return '—'
     return (parsed * advancedUnits).toString()
+  }
+
+  const advancedDiscountedTotal = (): string | null => {
+    const promo = promotionForPlan('advanced')
+    if (!promo) return null
+    const unit = parseInt(promo.discounted, 10)
+    if (Number.isNaN(unit)) return null
+    return (unit * advancedUnits).toString()
+  }
+
+  const renderPriceAmount = (plan: 'basic' | 'professional' | 'advanced') => {
+    const promo = promotionForPlan(plan)
+    const current = calculateMonthlyPrice(plan)
+    if (!promo) {
+      return (
+        <>
+          <sup>R$</sup> {current}
+        </>
+      )
+    }
+    return (
+      <>
+        <sup>R$</sup> {promo.discounted}
+        <span className="price-amt-original">R$ {promo.original}</span>
+        <span className="price-amt-tag">−{promo.pct}%</span>
+      </>
+    )
   }
 
   const handlePlanSelect = (plan: string) => {
@@ -215,6 +262,10 @@ export function PricingSection({ lng, publicConfig: initialConfig = null }: Land
     if (isPaidWithSolo) {
       url.searchParams.set('variant', 'solo')
     }
+
+    // Não passa promotion_id na URL — o backend já consulta a promoção ativa
+    // no momento do checkout e aplica se cobrir o plano. Server-side é a
+    // fonte da verdade e a URL fica limpa.
 
     if (plan === 'advanced') {
       url.searchParams.set('units', String(Math.max(2, advancedUnits)))
@@ -299,7 +350,7 @@ export function PricingSection({ lng, publicConfig: initialConfig = null }: Land
         </div>
         <div className="price-card">
           <div className="price-nm">Básico</div>
-          <div className="price-amt"><sup>R$</sup> {calculateMonthlyPrice('basic')}</div>
+          <div className="price-amt">{renderPriceAmount('basic')}</div>
           <div className="price-per">por mês</div>
           <hr className="price-div" />
           {renderVariantToggle('basic')}
@@ -325,7 +376,7 @@ export function PricingSection({ lng, publicConfig: initialConfig = null }: Land
         <div className="price-card feat">
           <div className="feat-bdg">Recomendado</div>
           <div className="price-nm">Profissional</div>
-          <div className="price-amt"><sup>R$</sup> {calculateMonthlyPrice('professional')}</div>
+          <div className="price-amt">{renderPriceAmount('professional')}</div>
           <div className="price-per">por mês</div>
           <hr className="price-div" />
           {renderVariantToggle('professional')}
@@ -349,7 +400,10 @@ export function PricingSection({ lng, publicConfig: initialConfig = null }: Land
         </div>
         <div className="price-card">
           <div className="price-nm">Avançado</div>
-          <div className="price-amt"><sup>R$</sup> {calculateMonthlyPrice('advanced')}<span className="price-unit">/Unidade</span></div>
+          <div className="price-amt">
+            {renderPriceAmount('advanced')}
+            <span className="price-unit">/Unidade</span>
+          </div>
           <div className="price-per">por mês</div>
           <div className="units-stepper" role="group" aria-label="Quantidade de unidades">
             <span className="units-label">Unidades</span>
@@ -370,7 +424,18 @@ export function PricingSection({ lng, publicConfig: initialConfig = null }: Land
               >+</button>
             </div>
           </div>
-          <div className="units-total">Total: <strong>R$ {advancedTotal()}</strong>/mês</div>
+          <div className="units-total">
+            Total:{' '}
+            {advancedDiscountedTotal() ? (
+              <>
+                <strong>R$ {advancedDiscountedTotal()}</strong>
+                <span className="units-total-original">R$ {advancedTotal()}</span>
+              </>
+            ) : (
+              <strong>R$ {advancedTotal()}</strong>
+            )}
+            /mês
+          </div>
           <hr className="price-div" />
           <ul className="price-feats">
             <li>Até 14 profissionais por unidade</li>
