@@ -95,7 +95,7 @@ export function PromotionBanner({ promotion }: PromotionBannerProps) {
             </span>
           )}
 
-          <a className="launch-bar-cta" href="/#precos">
+          <a className="launch-bar-cta" href="#precos">
             Garantir agora <span aria-hidden="true">→</span>
           </a>
         </div>
