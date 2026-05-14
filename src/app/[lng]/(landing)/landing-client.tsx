@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/stores/auth-store'
-import { gtagEvent, gtagReportLeadConversion } from '@/lib/gtag'
+import { gtagEvent } from '@/lib/gtag'
 import {
   FALLBACK_CONFIG,
   trackPlanLead,
@@ -46,8 +46,11 @@ export function HeroCTA({ lng, publicConfig: initialConfig = null }: LandingClie
 
   const handlePlanSelect = (plan: string) => {
     trackPlanLead({ plan: plan as PlanKey, billingCycle: 'monthly', publicConfig })
-    gtagEvent('generate_lead', { plan })
-    gtagReportLeadConversion({ plan })
+    // Plan-click is product-selection intent, not a captured lead. Using
+    // `generate_lead` here was double-counting against the contact/kit forms
+    // and pointing Google Ads at the wrong conversion (algo optimized for
+    // CTA clicks instead of real leads).
+    gtagEvent('select_item', { item_list_id: 'pricing', item_id: plan })
     const target = isAuthenticated ? 'billing-setup' : 'register'
     const url = new URL(`/${lng}/${target}`, window.location.origin)
     url.searchParams.set('plan', plan)
@@ -80,8 +83,11 @@ export function NavCTA({ lng, publicConfig = null }: LandingClientProps) {
 
   const handlePlanSelect = (plan: string) => {
     trackPlanLead({ plan: plan as PlanKey, billingCycle: 'monthly', publicConfig })
-    gtagEvent('generate_lead', { plan })
-    gtagReportLeadConversion({ plan })
+    // Plan-click is product-selection intent, not a captured lead. Using
+    // `generate_lead` here was double-counting against the contact/kit forms
+    // and pointing Google Ads at the wrong conversion (algo optimized for
+    // CTA clicks instead of real leads).
+    gtagEvent('select_item', { item_list_id: 'pricing', item_id: plan })
     const target = isAuthenticated ? 'billing-setup' : 'register'
     const url = new URL(`/${lng}/${target}`, window.location.origin)
     url.searchParams.set('plan', plan)
@@ -247,8 +253,11 @@ export function PricingSection({ lng, publicConfig: initialConfig = null, promot
       units: plan === 'advanced' ? Math.max(2, advancedUnits) : undefined,
       publicConfig,
     })
-    gtagEvent('generate_lead', { plan })
-    gtagReportLeadConversion({ plan })
+    // Plan-click is product-selection intent, not a captured lead. Using
+    // `generate_lead` here was double-counting against the contact/kit forms
+    // and pointing Google Ads at the wrong conversion (algo optimized for
+    // CTA clicks instead of real leads).
+    gtagEvent('select_item', { item_list_id: 'pricing', item_id: plan })
     const target = isAuthenticated ? 'billing-setup' : 'register'
     const url = new URL(`/${lng}/${target}`, window.location.origin)
     url.searchParams.set('plan', plan)
@@ -482,8 +491,11 @@ export function CtaSection({ lng, publicConfig: initialConfig = null }: LandingC
 
   const handlePlanSelect = (plan: string) => {
     trackPlanLead({ plan: plan as PlanKey, billingCycle: 'monthly', publicConfig })
-    gtagEvent('generate_lead', { plan })
-    gtagReportLeadConversion({ plan })
+    // Plan-click is product-selection intent, not a captured lead. Using
+    // `generate_lead` here was double-counting against the contact/kit forms
+    // and pointing Google Ads at the wrong conversion (algo optimized for
+    // CTA clicks instead of real leads).
+    gtagEvent('select_item', { item_list_id: 'pricing', item_id: plan })
     const target = isAuthenticated ? 'billing-setup' : 'register'
     const url = new URL(`/${lng}/${target}`, window.location.origin)
     url.searchParams.set('plan', plan)

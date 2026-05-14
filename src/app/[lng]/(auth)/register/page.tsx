@@ -131,10 +131,27 @@ function formatBRL(value: number): string {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 0, maximumFractionDigits: 0 })
 }
 
+// Decode the JWT payload from Google's credential response. The id_token is
+// RFC 7515 base64url-encoded `header.payload.signature`; we only need the
+// payload's `email` field for CAPI match quality, never trust it for auth.
+function decodeGoogleEmail(credential: string): string | undefined {
+  try {
+    const parts = credential.split('.')
+    if (parts.length < 2) return undefined
+    const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
+    const padded = base64 + '==='.slice((base64.length + 3) % 4)
+    const payload = JSON.parse(atob(padded)) as { email?: string }
+    return payload.email
+  } catch {
+    return undefined
+  }
+}
+
 function RegisterContent({ params }: RegisterPageProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { register: registerUser, googleLogin } = useAuthStore()
+  const getCurrentUserId = () => useAuthStore.getState().user?.id
   const [isLoading, setIsLoading] = useState(false)
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
@@ -221,7 +238,7 @@ function RegisterContent({ params }: RegisterPageProps) {
         variant: selectedVariant,
         units: selectedUnits,
         method: 'email',
-        userData: { email: data.email },
+        userData: { email: data.email, externalId: getCurrentUserId() },
       })
 
       if (selectedPlan && selectedBilling) {
@@ -277,6 +294,10 @@ function RegisterContent({ params }: RegisterPageProps) {
         variant: selectedVariant,
         units: selectedUnits,
         method: 'google',
+        userData: {
+          email: decodeGoogleEmail(credentialResponse.credential),
+          externalId: getCurrentUserId(),
+        },
       })
 
       const { lng } = await params

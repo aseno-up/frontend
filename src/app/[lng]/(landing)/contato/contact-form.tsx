@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { gtagEvent, gtagReportLeadConversion } from '@/lib/gtag'
+import { trackEvent, FALLBACK_CONFIG, PIXEL_CURRENCY } from '@/lib/meta-pixel'
 
 export function ContactForm() {
   const [formData, setFormData] = useState({ name: '', email: '', message: '' })
@@ -27,8 +28,30 @@ export function ContactForm() {
         throw new Error(data?.error || 'Erro ao enviar mensagem')
       }
 
-      gtagEvent('generate_lead', { source: 'contact_form' })
-      gtagReportLeadConversion({ source: 'contact_form' })
+      // Predicted lead value = professional plan monthly. Meta + GA + Google
+      // Ads all expect `value`/`currency` on lead events to compute CPL and
+      // optimize bidding.
+      const leadValue = FALLBACK_CONFIG.plans.professional.price_monthly
+      trackEvent(
+        'Lead',
+        {
+          content_name: 'contact_form',
+          content_category: 'inbound_contact',
+          value: leadValue,
+          currency: PIXEL_CURRENCY,
+        },
+        { email: formData.email },
+      )
+      gtagEvent('generate_lead', {
+        source: 'contact_form',
+        value: leadValue,
+        currency: PIXEL_CURRENCY,
+      })
+      gtagReportLeadConversion({
+        source: 'contact_form',
+        value: leadValue,
+        currency: PIXEL_CURRENCY,
+      })
 
       setSubmitted(true)
       setFormData({ name: '', email: '', message: '' })

@@ -287,42 +287,12 @@ function BillingSetupContent() {
 
         // Credit card processed - reload user and redirect
         await loadUser()
-        gtagEvent("sign_up", {
-          method: "credit_card",
-          plan: selectedPlan,
-          billing: selectedBilling,
-          value: getPlanPrice(),
-          currency: "BRL",
-        })
-        // Only fire purchase when Asaas confirmed the first charge.
-        // If the payment is still PENDING/PROCESSING we skip the
-        // event so we don't report a conversion that may never settle.
-        try {
-          const paymentsResponse = await api.getSubscriptionPayments()
-          const payments = paymentsResponse?.data || []
-          const confirmedPayment = payments.find((p: any) =>
-            p.status === "CONFIRMED" || p.status === "RECEIVED"
-          )
-          if (confirmedPayment) {
-            gtagEvent("purchase", {
-              transaction_id: confirmedPayment.id,
-              value: getPlanPrice(),
-              currency: "BRL",
-            })
-            trackSubscribe({
-              plan: selectedPlan as PlanKey,
-              billingCycle: selectedBilling === "YEARLY" ? "annually" : "monthly",
-              variant: selectedVariant,
-              units: selectedPlan === "advanced" ? Math.max(2, units) : undefined,
-              cycleValue: getPlanPrice(),
-              transactionId: confirmedPayment.id,
-              paymentMethod: "credit_card",
-              publicConfig,
-              userData: email ? { email } : undefined,
-            })
-          }
-        } catch {
-          // Silently skip: failing to verify status should not block redirect.
+        // Asaas may settle the card in 1–5s, so the immediate fetch often
+        // sees PROCESSING and we'd skip the purchase event. Poll briefly
+        // before redirecting so the conversion isn't lost.
+        const confirmedPayment = await pollForConfirmedPayment(8, 1500)
+        if (confirmedPayment) {
+          firePurchaseEvents(confirmedPayment, "credit_card")
         }
         router.push("/agenda")
         return
@@ -333,6 +303,69 @@ function BillingSetupContent() {
     } finally {
       setLoading(false)
     }
+  }
+
+  // Returns the first CONFIRMED/RECEIVED payment of the subscription if it
+  // settles within `maxAttempts` tries spaced `delayMs` apart. Returns null on
+  // timeout. Used by credit_card flow to wait briefly for Asaas to settle.
+  const pollForConfirmedPayment = async (
+    maxAttempts: number,
+    delayMs: number,
+  ): Promise<{ id: string } | null> => {
+    for (let i = 0; i < maxAttempts; i++) {
+      if (i > 0) await new Promise((r) => setTimeout(r, delayMs))
+      try {
+        const paymentsResponse = await api.getSubscriptionPayments()
+        const payments = paymentsResponse?.data || []
+        const confirmed = payments.find(
+          (p: any) => p.status === "CONFIRMED" || p.status === "RECEIVED",
+        )
+        if (confirmed) return confirmed
+      } catch {
+        // retry
+      }
+    }
+    return null
+  }
+
+  // Single source of truth for purchase-confirmation events so PIX polling
+  // and credit_card flow stay in lockstep. Note: no `sign_up` here — that
+  // event belongs on /register (one per user); firing it again on payment
+  // double-counted every paying customer as a new signup.
+  const firePurchaseEvents = (
+    confirmedPayment: { id: string },
+    paymentMethod: "pix" | "credit_card",
+  ) => {
+    const planPrice = getPlanPrice()
+    const items = [
+      {
+        item_id: selectedPlan,
+        item_name: `${selectedPlan} (${selectedBilling.toLowerCase()})`,
+        item_variant: selectedVariant,
+        price: planPrice,
+        quantity: 1,
+      },
+    ]
+    gtagEvent("purchase", {
+      transaction_id: confirmedPayment.id,
+      value: planPrice,
+      currency: "BRL",
+      items,
+    })
+    trackSubscribe({
+      plan: selectedPlan as PlanKey,
+      billingCycle: selectedBilling === "YEARLY" ? "annually" : "monthly",
+      variant: selectedVariant,
+      units: selectedPlan === "advanced" ? Math.max(2, units) : undefined,
+      cycleValue: planPrice,
+      transactionId: confirmedPayment.id,
+      paymentMethod,
+      publicConfig,
+      userData: {
+        ...(email ? { email } : {}),
+        ...(user?.id ? { externalId: user.id } : {}),
+      },
+    })
   }
 
   // Polls subscription payments to check if PIX was paid
@@ -351,29 +384,7 @@ function BillingSetupContent() {
           setPaymentConfirmed(true)
           if (pollingRef.current) clearInterval(pollingRef.current)
 
-          gtagEvent("sign_up", {
-            method: "pix",
-            plan: selectedPlan,
-            billing: selectedBilling,
-            value: getPlanPrice(),
-            currency: "BRL",
-          })
-          gtagEvent("purchase", {
-            transaction_id: confirmedPayment.id,
-            value: getPlanPrice(),
-            currency: "BRL",
-          })
-          trackSubscribe({
-            plan: selectedPlan as PlanKey,
-            billingCycle: selectedBilling === "YEARLY" ? "annually" : "monthly",
-            variant: selectedVariant,
-            units: selectedPlan === "advanced" ? Math.max(2, units) : undefined,
-            cycleValue: getPlanPrice(),
-            transactionId: confirmedPayment.id,
-            paymentMethod: "pix",
-            publicConfig,
-            userData: email ? { email } : undefined,
-          })
+          firePurchaseEvents(confirmedPayment, "pix")
 
           // Reload user and redirect after short delay
           await loadUser()
