@@ -1,6 +1,7 @@
 // Meta Pixel helpers. Keep all fbq calls flowing through this module so every
-// event ships with `value` + `currency` and the dataset stays free of the
-// "missing parameters" / "same price for all StartTrial" warnings.
+// event ships with `value` + `currency`, fires an `event_id` for the
+// browser/server-side dedup contract, and mirrors the event to the
+// Conversions API (server-side) at /api/v1/meta/events.
 
 export type PlanKey = 'trial' | 'basic' | 'professional' | 'advanced'
 export type BillingCycle = 'monthly' | 'annually'
@@ -59,6 +60,7 @@ export const FALLBACK_CONFIG: PublicConfig = {
 }
 
 export const PIXEL_CURRENCY = process.env.NEXT_PUBLIC_PIXEL_CURRENCY || 'BRL'
+const CAPI_API_URL = process.env.NEXT_PUBLIC_API_URL || ''
 
 type FbqFn = (...args: unknown[]) => void
 
@@ -67,12 +69,105 @@ function getFbq(): FbqFn | undefined {
   return (window as unknown as { fbq?: FbqFn }).fbq
 }
 
+// UserDataInput is the optional PII bundle callers attach to a track event.
+// Sent raw to the backend, which hashes before forwarding to Meta. The
+// browser pixel doesn't need this — Meta's tag already collects fbp/fbc/IP/UA
+// from the page itself.
+export interface UserDataInput {
+  email?: string
+  phone?: string
+  externalId?: string
+}
+
+function readCookie(name: string): string {
+  if (typeof document === 'undefined') return ''
+  const match = document.cookie.match(new RegExp('(?:^|; )' + name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '=([^;]*)'))
+  return match ? decodeURIComponent(match[1]) : ''
+}
+
+// newEventID returns an opaque id shared with fbq's `eventID` option and the
+// CAPI mirror body. Same value on both sides → Meta dedupes the pair.
+export function newEventID(): string {
+  if (typeof crypto !== 'undefined' && typeof (crypto as Crypto).randomUUID === 'function') {
+    return (crypto as Crypto).randomUUID()
+  }
+  return `evt-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+}
+
+interface FireMirrorOpts {
+  eventID: string
+  eventName: string
+  eventSourceURL?: string
+  userData?: UserDataInput
+  customData?: Record<string, unknown>
+}
+
+// fireServerMirror posts the same event to the backend so it can forward via
+// CAPI. Best-effort — failures are swallowed; the browser pixel still counts.
+function fireServerMirror(opts: FireMirrorOpts): void {
+  if (typeof window === 'undefined') return
+  if (typeof fetch !== 'function') return
+  if (!CAPI_API_URL) return
+
+  const ud = opts.userData ?? {}
+  const fbp = readCookie('_fbp')
+  const fbc = readCookie('_fbc')
+
+  const body = {
+    event_id: opts.eventID,
+    event_name: opts.eventName,
+    event_source_url: opts.eventSourceURL ?? window.location.href,
+    user_data: {
+      ...(ud.email ? { email: ud.email } : {}),
+      ...(ud.phone ? { phone: ud.phone } : {}),
+      ...(ud.externalId ? { external_id: ud.externalId } : {}),
+      ...(fbp ? { fbp } : {}),
+      ...(fbc ? { fbc } : {}),
+    },
+    ...(opts.customData ? { custom_data: opts.customData } : {}),
+  }
+
+  try {
+    void fetch(`${CAPI_API_URL}/meta/events`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      keepalive: true,
+    }).catch(() => {})
+  } catch {
+    // ignore — analytics must not break the page
+  }
+}
+
+// trackEvent fires the browser pixel + CAPI mirror with a shared event_id.
+// Exported so callers (PageView, future custom events) can use the same
+// dedup contract without going through the value-aware helpers below.
+export function trackEvent(
+  eventName: string,
+  payload: Record<string, unknown> = {},
+  userData?: UserDataInput,
+): string {
+  const fbq = getFbq()
+  const eventID = newEventID()
+  if (fbq) {
+    fbq('track', eventName, payload, { eventID })
+  }
+  fireServerMirror({
+    eventID,
+    eventName,
+    userData,
+    customData: Object.keys(payload).length > 0 ? payload : undefined,
+  })
+  return eventID
+}
+
 export interface LeadValueInput {
   plan: PlanKey
   billingCycle?: BillingCycle
   variant?: PricingVariant
   units?: number
   publicConfig?: PublicConfig | null
+  userData?: UserDataInput
 }
 
 // Returns the monthly subscription value (in BRL) the visitor showed intent for.
@@ -159,46 +254,79 @@ function positiveNumber(n: number, fallback: number): number {
   return Number.isFinite(n) && n > 0 ? n : fallback
 }
 
-// Lead + StartTrial fire together on plan-select intent: every signup, paid or
-// free, begins with a 14-day trial in the backend, so StartTrial here matches
-// reality and gives Meta enough distinct values (>5) to clear the dataset
-// warning.
-export function trackPlanLead(input: LeadValueInput): void {
+// fireBoth dispatches the same event to fbq and the CAPI mirror with one
+// shared eventID. Keeps every track* helper consistent without repeating the
+// boilerplate.
+function fireBoth(
+  eventName: string,
+  payload: Record<string, unknown>,
+  userData: UserDataInput | undefined,
+): void {
   const fbq = getFbq()
-  if (!fbq) return
+  const eventID = newEventID()
+  if (fbq) {
+    fbq('track', eventName, payload, { eventID })
+  }
+  fireServerMirror({
+    eventID,
+    eventName,
+    userData,
+    customData: payload,
+  })
+}
+
+// trackPlanLead fires on plan-select intent (CTA click on the landing). This
+// is *intent*, not a started trial — Meta's funnel here is `Lead` only. The
+// account doesn't exist yet, no trial has started.
+export function trackPlanLead(input: LeadValueInput): void {
   const value = positiveNumber(
     computeMonthlyPlanValue(input),
     FALLBACK_CONFIG.plans.professional.price_monthly,
   )
-  const predictedLtv = positiveNumber(value * 12, value * 12 || 1)
   const payload: Record<string, unknown> = {
     content_name: input.plan,
     content_category: categoryFor(input),
     value,
     currency: PIXEL_CURRENCY,
   }
-  fbq('track', 'Lead', payload)
-  fbq('track', 'StartTrial', { ...payload, predicted_ltv: predictedLtv })
+  fireBoth('Lead', payload, input.userData)
 }
 
-// Fired on successful account creation. Matches Meta's "CompleteRegistration"
-// standard event so the funnel reads Lead → CompleteRegistration → Subscribe.
+// Fired on successful account creation. Every signup, paid or free, begins
+// with a 14-day trial in the backend, so we fire CompleteRegistration AND
+// StartTrial here — this is the moment the trial actually starts. Funnel:
+// Lead (landing CTA) → CompleteRegistration + StartTrial (account created)
+// → Subscribe + Purchase (paid conversion).
 export function trackCompleteRegistration(
   input: LeadValueInput & { method?: string }
 ): void {
-  const fbq = getFbq()
-  if (!fbq) return
   const value = positiveNumber(
     computeMonthlyPlanValue(input),
     FALLBACK_CONFIG.plans.professional.price_monthly,
   )
-  fbq('track', 'CompleteRegistration', {
-    content_name: input.plan,
-    content_category: categoryFor(input),
-    registration_method: input.method,
-    value,
-    currency: PIXEL_CURRENCY,
-  })
+  const predictedLtv = positiveNumber(value * 12, value * 12 || 1)
+  fireBoth(
+    'CompleteRegistration',
+    {
+      content_name: input.plan,
+      content_category: categoryFor(input),
+      registration_method: input.method,
+      value,
+      currency: PIXEL_CURRENCY,
+    },
+    input.userData,
+  )
+  fireBoth(
+    'StartTrial',
+    {
+      content_name: input.plan,
+      content_category: categoryFor(input),
+      value,
+      currency: PIXEL_CURRENCY,
+      predicted_ltv: predictedLtv,
+    },
+    input.userData,
+  )
 }
 
 interface SubscribeInput {
@@ -212,14 +340,13 @@ interface SubscribeInput {
   transactionId?: string
   paymentMethod?: 'pix' | 'credit_card'
   publicConfig?: PublicConfig | null
+  userData?: UserDataInput
 }
 
 // Subscribe is Meta's recommended event for recurring purchases. We also fire
 // Purchase so attribution works for ad accounts that target the standard
 // e-commerce funnel.
 export function trackSubscribe(input: SubscribeInput): void {
-  const fbq = getFbq()
-  if (!fbq) return
   const monthlyValue = positiveNumber(
     computeMonthlyPlanValue({
       plan: input.plan,
@@ -242,13 +369,21 @@ export function trackSubscribe(input: SubscribeInput): void {
     value: cycleValue,
     currency: PIXEL_CURRENCY,
   }
-  fbq('track', 'Subscribe', { ...basePayload, predicted_ltv: predictedLtv })
-  fbq('track', 'Purchase', {
-    ...basePayload,
-    content_type: 'product',
-    content_ids: [input.plan],
-    num_items: input.units ?? 1,
-    transaction_id: input.transactionId,
-    payment_method: input.paymentMethod,
-  })
+  fireBoth(
+    'Subscribe',
+    { ...basePayload, predicted_ltv: predictedLtv },
+    input.userData,
+  )
+  fireBoth(
+    'Purchase',
+    {
+      ...basePayload,
+      content_type: 'product',
+      content_ids: [input.plan],
+      num_items: input.units ?? 1,
+      transaction_id: input.transactionId,
+      payment_method: input.paymentMethod,
+    },
+    input.userData,
+  )
 }

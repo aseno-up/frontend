@@ -318,6 +318,7 @@ function BillingSetupContent() {
               transactionId: confirmedPayment.id,
               paymentMethod: "credit_card",
               publicConfig,
+              userData: email ? { email } : undefined,
             })
           }
         } catch {
@@ -371,6 +372,7 @@ function BillingSetupContent() {
             transactionId: confirmedPayment.id,
             paymentMethod: "pix",
             publicConfig,
+            userData: email ? { email } : undefined,
           })
 
           // Reload user and redirect after short delay

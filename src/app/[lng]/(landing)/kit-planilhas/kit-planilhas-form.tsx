@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from 'react'
 import { gtagEvent, gtagReportLeadConversion } from '@/lib/gtag'
+import { trackEvent, PIXEL_CURRENCY } from '@/lib/meta-pixel'
 
 function formatWhatsApp(value: string): string {
   const digits = value.replace(/\D/g, '')
@@ -56,19 +57,23 @@ export function KitPlanilhasForm() {
         throw new Error(data?.error || 'Erro ao enviar')
       }
 
-      // Dispara o evento de Lead do Facebook Pixel com value/currency.
       // Lead magnet: valor estimado configurável via env (default = 1 BRL apenas para
-      // satisfazer a exigência da Meta de value > 0).
-      if (typeof window !== 'undefined' && (window as any).fbq) {
-        const leadValue = Number(process.env.NEXT_PUBLIC_KIT_PLANILHAS_LEAD_VALUE) || 1
-        const currency = process.env.NEXT_PUBLIC_PIXEL_CURRENCY || 'BRL'
-        ;(window as any).fbq('track', 'Lead', {
+      // satisfazer a exigência da Meta de value > 0). trackEvent já dispara o
+      // pixel browser e o mirror CAPI com o mesmo event_id pra deduplicação.
+      const leadValue = Number(process.env.NEXT_PUBLIC_KIT_PLANILHAS_LEAD_VALUE) || 1
+      trackEvent(
+        'Lead',
+        {
           content_name: 'kit_planilhas',
           content_category: 'lead_magnet',
           value: leadValue,
-          currency,
-        })
-      }
+          currency: PIXEL_CURRENCY,
+        },
+        {
+          email: formData.email,
+          phone: formData.whatsapp,
+        },
+      )
       gtagEvent('generate_lead', { source: 'kit_planilhas' })
       gtagReportLeadConversion({ source: 'kit_planilhas' })
 

@@ -101,12 +101,16 @@ checkValue('unknown plan key (defensive)', {
 checkValue('fallback config trial', { plan: 'trial', publicConfig: FALLBACK_CONFIG })
 
 // ─── tracker entrypoints: every emitted fbq payload has positive value ─────
-type FbqCall = { event: string; payload: Record<string, unknown> }
+type FbqCall = { event: string; payload: Record<string, unknown>; opts: Record<string, unknown> }
 const captured: FbqCall[] = []
 ;(globalThis as unknown as { window: unknown }).window = {
   fbq(...args: unknown[]) {
     if (args[0] === 'track' && typeof args[1] === 'string') {
-      captured.push({ event: args[1], payload: (args[2] ?? {}) as Record<string, unknown> })
+      captured.push({
+        event: args[1],
+        payload: (args[2] ?? {}) as Record<string, unknown>,
+        opts: (args[3] ?? {}) as Record<string, unknown>,
+      })
     }
   },
 }
@@ -123,15 +127,20 @@ function assertPayloadHasPositiveValue(label: string, event: string) {
     const ltv = call.payload.predicted_ltv as number | undefined
     const valueOk = typeof v === 'number' && Number.isFinite(v) && v > 0
     const ltvOk = ltv === undefined || (typeof ltv === 'number' && Number.isFinite(ltv) && ltv > 0)
-    const ok = valueOk && ltvOk
+    // Every fbq event must carry an eventID so Meta CAPI can dedup it with
+    // the server-side mirror. Missing it would silently double-count.
+    const eventID = call.opts.eventID as string | undefined
+    const idOk = typeof eventID === 'string' && eventID.length > 0
+    const ok = valueOk && ltvOk && idOk
     console.log(
-      `${ok ? 'PASS' : 'FAIL'}  ${label.padEnd(60)} ${event} value=${v} predicted_ltv=${ltv}`,
+      `${ok ? 'PASS' : 'FAIL'}  ${label.padEnd(60)} ${event} value=${v} predicted_ltv=${ltv} eventID=${eventID ? 'set' : 'MISSING'}`,
     )
     if (!ok) failures++
   }
 }
 
-// trackPlanLead — solo monthly with yearly-only DB config (the prod bug)
+// trackPlanLead — solo monthly with yearly-only DB config (the prod bug).
+// Plan-click intent only fires Lead; trial hasn't actually started yet.
 captured.length = 0
 trackPlanLead({
   plan: 'basic',
@@ -140,18 +149,25 @@ trackPlanLead({
   publicConfig: cfgSoloYearlyOnly,
 })
 assertPayloadHasPositiveValue('trackPlanLead basic solo monthly', 'Lead')
-assertPayloadHasPositiveValue('trackPlanLead basic solo monthly', 'StartTrial')
+const planLeadHasStartTrial = captured.some((c) => c.event === 'StartTrial')
+if (planLeadHasStartTrial) {
+  console.log('FAIL  trackPlanLead must not fire StartTrial on plan click')
+  failures++
+} else {
+  console.log('PASS  trackPlanLead does not fire StartTrial on plan click')
+}
 
 // trackPlanLead — trial w/ no config (HeroCTA/NavCTA cold path)
 captured.length = 0
 trackPlanLead({ plan: 'trial' })
 assertPayloadHasPositiveValue('trackPlanLead trial cold', 'Lead')
-assertPayloadHasPositiveValue('trackPlanLead trial cold', 'StartTrial')
 
-// trackCompleteRegistration — should always have value > 0
+// trackCompleteRegistration — fires CompleteRegistration + StartTrial since
+// the backend starts a 14-day trial for every signup, paid or free.
 captured.length = 0
 trackCompleteRegistration({ plan: 'trial', method: 'email' })
 assertPayloadHasPositiveValue('trackCompleteRegistration trial', 'CompleteRegistration')
+assertPayloadHasPositiveValue('trackCompleteRegistration trial', 'StartTrial')
 
 // trackSubscribe — caller passes cycleValue=0 (race vs publicConfig load)
 captured.length = 0

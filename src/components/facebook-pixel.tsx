@@ -2,13 +2,49 @@
 
 import Script from 'next/script'
 import { useEffect, useState } from 'react'
+import { newEventID } from '@/lib/meta-pixel'
 
 const DEV_HOSTS = ['localhost', '127.0.0.1', '']
+const CAPI_API_URL = process.env.NEXT_PUBLIC_API_URL || ''
 
 type FbqFn = (...args: unknown[]) => void
 
 function getFbq(): FbqFn | undefined {
   return (window as unknown as { fbq?: FbqFn }).fbq
+}
+
+function readCookie(name: string): string {
+  if (typeof document === 'undefined') return ''
+  const m = document.cookie.match(new RegExp('(?:^|; )' + name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '=([^;]*)'))
+  return m ? decodeURIComponent(m[1]) : ''
+}
+
+// PageView is the heaviest contributor to the browser/server-side event gap
+// flagged by Meta: ad blockers + iOS privacy strip it on a real chunk of
+// visitors. Mirroring it via CAPI with a shared eventID is what closes that
+// gap without double-counting.
+function mirrorPageView(eventID: string): void {
+  if (typeof fetch !== 'function' || !CAPI_API_URL) return
+  const fbp = readCookie('_fbp')
+  const fbc = readCookie('_fbc')
+  try {
+    void fetch(`${CAPI_API_URL}/meta/events`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        event_id: eventID,
+        event_name: 'PageView',
+        event_source_url: window.location.href,
+        user_data: {
+          ...(fbp ? { fbp } : {}),
+          ...(fbc ? { fbc } : {}),
+        },
+      }),
+      keepalive: true,
+    }).catch(() => {})
+  } catch {
+    // analytics must not break the page
+  }
 }
 
 export function FacebookPixel() {
@@ -21,7 +57,9 @@ export function FacebookPixel() {
     const fbq = getFbq()
     if (fbq) {
       fbq('consent', 'grant')
-      fbq('track', 'PageView')
+      const eventID = newEventID()
+      fbq('track', 'PageView', {}, { eventID })
+      mirrorPageView(eventID)
     }
 
     return () => {
@@ -51,6 +89,10 @@ export function FacebookPixel() {
           // nem sempre eh respeitado pelo fbevents.js.
           fbq('set', 'autoConfig', 'false', '1268822281463738');
           fbq('init', '1268822281463738');
+          // The bootstrap PageView fires here without an eventID; the React
+          // effect above re-fires PageView with an eventID and a CAPI mirror
+          // for dedup. The first call is best-effort coverage for visitors
+          // whose React tree never mounts (instant bounces).
           fbq('track', 'PageView');
         `}
       </Script>

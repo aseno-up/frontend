@@ -221,6 +221,7 @@ function RegisterContent({ params }: RegisterPageProps) {
         variant: selectedVariant,
         units: selectedUnits,
         method: 'email',
+        userData: { email: data.email },
       })
 
       if (selectedPlan && selectedBilling) {
