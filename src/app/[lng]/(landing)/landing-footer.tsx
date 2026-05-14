@@ -1,5 +1,7 @@
 import Link from 'next/link'
-import { CookieSettingsLink } from '@/components/landing/cookie-settings-link'
+// Configurações de cookies oculta enquanto o banner não tem opção de rejeitar.
+// Para reativar: descomentar este import e o <li> abaixo.
+// import { CookieSettingsLink } from '@/components/landing/cookie-settings-link'
 
 export function LandingFooter() {
   return (
@@ -30,7 +32,7 @@ export function LandingFooter() {
           <ul>
             <li><Link href="/termos">Termos de uso</Link></li>
             <li><Link href="/privacidade">Privacidade</Link></li>
-            <li><CookieSettingsLink /></li>
+            {/* <li><CookieSettingsLink /></li> */}
           </ul>
         </div>
       </div>

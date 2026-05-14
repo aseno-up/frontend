@@ -6,7 +6,6 @@ import {
   getConsent,
   setConsent,
   onReopenRequest,
-  type CookieConsent,
 } from '@/lib/cookie-consent'
 
 export function CookieConsentBanner() {
@@ -22,8 +21,11 @@ export function CookieConsentBanner() {
 
   if (!visible) return null
 
-  const choose = (value: CookieConsent) => {
-    setConsent(value)
+  // Banner é apenas informativo no momento — o tracking carrega desde o load
+  // da página independente da escolha. "Entendi" persiste a decisão pra não
+  // reaparecer (cookie de 12 meses).
+  const acknowledge = () => {
+    setConsent('all')
     setVisible(false)
   }
 
@@ -38,16 +40,16 @@ export function CookieConsentBanner() {
       <div className="cookie-banner-inner">
         <div className="cookie-banner-text">
           <p id="cookie-banner-title" className="cookie-banner-title">
-            Sua privacidade
+            Aviso de cookies
           </p>
           <p id="cookie-banner-desc" className="cookie-banner-desc">
             <span className="cookie-banner-desc-long">
-              Usamos cookies essenciais para o login e funcionamento do site, e
-              cookies de análise e marketing (Google, Meta) para entender como
-              você usa a plataforma. Você decide.{' '}
+              Este site usa cookies essenciais para funcionar e cookies de
+              análise e marketing (Google, Meta) para medir desempenho e
+              entender como você usa a plataforma.{' '}
             </span>
             <span className="cookie-banner-desc-short">
-              Cookies essenciais e de análise/marketing.{' '}
+              Este site usa cookies.{' '}
             </span>
             <Link href="/privacidade" className="cookie-banner-link">
               Saiba mais
@@ -58,17 +60,10 @@ export function CookieConsentBanner() {
         <div className="cookie-banner-actions">
           <button
             type="button"
-            className="cookie-banner-btn cookie-banner-btn-secondary"
-            onClick={() => choose('essential')}
-          >
-            Apenas essenciais
-          </button>
-          <button
-            type="button"
             className="cookie-banner-btn cookie-banner-btn-primary"
-            onClick={() => choose('all')}
+            onClick={acknowledge}
           >
-            Aceitar todos
+            Entendi
           </button>
         </div>
       </div>

@@ -24,7 +24,7 @@ export default function PrivacidadePage() {
       <main className="legal-page">
         <div className="legal-container">
           <h1 className="legal-title">Política de Privacidade</h1>
-          <p className="legal-updated">Ultima atualização: 24 de março de 2026</p>
+          <p className="legal-updated">Ultima atualização: 14 de maio de 2026</p>
 
           <section className="legal-section">
             <h2>1. Introdução</h2>
@@ -152,21 +152,20 @@ export default function PrivacidadePage() {
           <section className="legal-section">
             <h2>9. Cookies</h2>
             <p>
-              Utilizamos cookies divididos em duas categorias. Você decide quais aceitar no banner exibido na sua primeira visita e pode revisar sua escolha a qualquer momento pelo link <strong>&ldquo;Configurações de cookies&rdquo;</strong> no rodapé.
+              Utilizamos cookies para o funcionamento do site, análise de uso e mensuração de campanhas. Ao continuar navegando, você reconhece o uso dessas tecnologias. O banner exibido na primeira visita é apenas informativo — clicar em <strong>&ldquo;Entendi&rdquo;</strong> registra que você foi avisado e oculta o aviso nas próximas visitas.
             </p>
-            <h3>Cookies essenciais (sempre ativos)</h3>
+            <h3>Cookies essenciais</h3>
             <p>
-              Indispensáveis para o funcionamento do site e da plataforma. Não exigem consentimento conforme o Guia de Cookies da ANPD:
+              Indispensáveis para o funcionamento do site e da plataforma:
             </p>
             <ul>
               <li><strong>Autenticação:</strong> mantêm sua sessão ativa após o login</li>
               <li><strong>Preferências:</strong> idioma e configurações da interface</li>
               <li><strong>Segurança:</strong> proteção contra ataques (CSRF, fixação de sessão)</li>
-              <li><strong>Registro de consentimento:</strong> guardam sua escolha sobre os cookies não-essenciais</li>
             </ul>
-            <h3>Cookies de análise e marketing (opt-in)</h3>
+            <h3>Cookies de análise e marketing</h3>
             <p>
-              Só são definidos se você clicar em <strong>&ldquo;Aceitar todos&rdquo;</strong> no banner. Se preferir <strong>&ldquo;Apenas essenciais&rdquo;</strong>, estes cookies não são gravados:
+              Utilizados em todas as visitas para entender como a plataforma é usada e mensurar a eficácia das nossas campanhas:
             </p>
             <ul>
               <li><strong>Google Analytics:</strong> entender como você navega no site (páginas vistas, tempo, fluxo)</li>
@@ -175,7 +174,7 @@ export default function PrivacidadePage() {
               <li><strong>Meta Pixel (Facebook):</strong> mensurar conversões e formar audiências para campanhas no Facebook e Instagram</li>
             </ul>
             <p>
-              Você pode revogar o consentimento a qualquer momento pelo link <strong>&ldquo;Configurações de cookies&rdquo;</strong>. Ao revogar, novos cookies não-essenciais deixam de ser definidos; cookies já existentes podem ser apagados pelas configurações do seu navegador.
+              Você pode bloquear ou apagar cookies a qualquer momento nas configurações do seu navegador. Lembre-se de que desabilitar cookies essenciais pode afetar o funcionamento da plataforma.
             </p>
           </section>
 
