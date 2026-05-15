@@ -89,11 +89,10 @@ export function FacebookPixel() {
           // nem sempre eh respeitado pelo fbevents.js.
           fbq('set', 'autoConfig', 'false', '1268822281463738');
           fbq('init', '1268822281463738');
-          // The bootstrap PageView fires here without an eventID; the React
-          // effect above re-fires PageView with an eventID and a CAPI mirror
-          // for dedup. The first call is best-effort coverage for visitors
-          // whose React tree never mounts (instant bounces).
-          fbq('track', 'PageView');
+          // PageView is fired from the React effect (with eventID + CAPI
+          // mirror) so server and browser dedup on the same id. Firing it
+          // here too would race-dedupe the eventID-tagged call ~10ms later
+          // and leave only the auto-IDed event, breaking the dedup contract.
         `}
       </Script>
       <noscript>
