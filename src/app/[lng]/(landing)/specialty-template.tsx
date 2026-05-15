@@ -1,6 +1,8 @@
 import Image from 'next/image'
 import { HeroCTA, NavCTA, PricingSection, CtaSection } from './landing-client'
 import { LandingFooter } from './landing-footer'
+import { InlineEmailCapture } from './inline-email-capture'
+import { IntegrationLogos } from './integration-logos'
 import { getActivePromotion } from '@/lib/server/promotion'
 import './landing.css'
 
@@ -102,6 +104,12 @@ export async function SpecialtyTemplate({ lng, data }: SpecialtyTemplateProps) {
           />
         </div>
       </section>
+
+      {/* INLINE LEAD CAPTURE (entre hero e integrações) */}
+      <InlineEmailCapture />
+
+      {/* INTEGRATIONS */}
+      <IntegrationLogos />
 
       {/* PROOF BAR */}
       <div className="proof-bar">

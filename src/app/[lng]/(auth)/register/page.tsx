@@ -147,6 +147,14 @@ function decodeGoogleEmail(credential: string): string | undefined {
   }
 }
 
+// Lightweight email check. Matches the server-side `binding:"email"` validator
+// well enough to drive progressive-disclosure UX — the form still re-runs the
+// full Zod check on submit.
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+function looksLikeEmail(v: string): boolean {
+  return EMAIL_RE.test(v.trim())
+}
+
 function RegisterContent({ params }: RegisterPageProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -156,6 +164,7 @@ function RegisterContent({ params }: RegisterPageProps) {
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [basicPrice, setBasicPrice] = useState<number | null>(null)
+  const [emailRevealed, setEmailRevealed] = useState(false)
 
   const selectedPlan = searchParams.get('plan') as 'trial' | 'basic' | 'professional' | 'advanced' | null
   const rawBilling = searchParams.get('billing')
@@ -205,10 +214,15 @@ function RegisterContent({ params }: RegisterPageProps) {
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors },
   } = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
   })
+
+  const emailValue = watch('email') || ''
+  const emailLooksValid = looksLikeEmail(emailValue)
+  const shouldShowMoreFields = emailRevealed || emailLooksValid
 
   const onSubmit = async (data: RegisterFormData) => {
     setIsLoading(true)
@@ -443,21 +457,6 @@ function RegisterContent({ params }: RegisterPageProps) {
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="clinic_name">Nome da clínica</Label>
-              <Input
-                id="clinic_name"
-                type="text"
-                placeholder="Clínica Bem-Estar"
-                autoComplete="organization"
-                {...register("clinic_name")}
-                disabled={isLoading}
-              />
-              {errors.clinic_name && (
-                <p className="text-sm text-destructive">{errors.clinic_name.message}</p>
-              )}
-            </div>
-
-            <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
@@ -465,41 +464,71 @@ function RegisterContent({ params }: RegisterPageProps) {
                 placeholder="voce@clinica.com"
                 autoComplete="email"
                 {...register("email")}
+                onBlur={() => { if (emailLooksValid) setEmailRevealed(true) }}
                 disabled={isLoading}
+                autoFocus
               />
               {errors.email && (
                 <p className="text-sm text-destructive">{errors.email.message}</p>
               )}
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="password">Senha</Label>
-              <div className="relative">
-                <Input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  placeholder="mínimo 8 caracteres"
-                  autoComplete="new-password"
-                  className="pr-10"
-                  {...register("password")}
-                  disabled={isLoading}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((v) => !v)}
-                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground hover:text-foreground"
-                  aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
-                  tabIndex={-1}
-                >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
+            <div
+              className={`grid transition-all duration-300 ease-out ${
+                shouldShowMoreFields
+                  ? 'grid-rows-[1fr] opacity-100'
+                  : 'grid-rows-[0fr] opacity-0 pointer-events-none'
+              }`}
+              aria-hidden={!shouldShowMoreFields}
+            >
+              <div className="overflow-hidden space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="clinic_name">Nome da clínica</Label>
+                  <Input
+                    id="clinic_name"
+                    type="text"
+                    placeholder="Clínica Bem-Estar"
+                    autoComplete="organization"
+                    {...register("clinic_name")}
+                    disabled={isLoading || !shouldShowMoreFields}
+                    tabIndex={shouldShowMoreFields ? 0 : -1}
+                  />
+                  {errors.clinic_name && (
+                    <p className="text-sm text-destructive">{errors.clinic_name.message}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="password">Senha</Label>
+                  <div className="relative">
+                    <Input
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      placeholder="mínimo 8 caracteres"
+                      autoComplete="new-password"
+                      className="pr-10"
+                      {...register("password")}
+                      disabled={isLoading || !shouldShowMoreFields}
+                      tabIndex={shouldShowMoreFields ? 0 : -1}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((v) => !v)}
+                      className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground hover:text-foreground"
+                      aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+                      tabIndex={-1}
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                  {errors.password && (
+                    <p className="text-sm text-destructive">{errors.password.message}</p>
+                  )}
+                </div>
               </div>
-              {errors.password && (
-                <p className="text-sm text-destructive">{errors.password.message}</p>
-              )}
             </div>
 
-            {isPaidPlan && (
+            {isPaidPlan && shouldShowMoreFields && (
               <div className="space-y-2">
                 <Label htmlFor="document">CPF ou CNPJ</Label>
                 <Input
@@ -521,7 +550,7 @@ function RegisterContent({ params }: RegisterPageProps) {
             <Button
               type="submit"
               className="w-full"
-              disabled={isLoading || isGoogleLoading}
+              disabled={isLoading || isGoogleLoading || !shouldShowMoreFields}
             >
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {isPaidPlan ? 'Criar conta e continuar' : 'Criar conta grátis'}

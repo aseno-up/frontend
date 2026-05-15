@@ -3,14 +3,18 @@ import { PromotionBanner } from "@/components/landing/promotion-banner"
 import { TrackingScripts } from "@/components/landing/tracking-scripts"
 import { getActivePromotion } from "@/lib/server/promotion"
 import { WhatsAppFloat } from "./whatsapp-float"
+import { StickyMobileCTA } from "./sticky-mobile-cta"
+import { EngagementModal } from "./engagement-modal"
 import "./landing.css"
 
 interface LandingLayoutProps {
   children: React.ReactNode
+  params: Promise<{ lng: string }>
 }
 
-export default async function LandingLayout({ children }: LandingLayoutProps) {
+export default async function LandingLayout({ children, params }: LandingLayoutProps) {
   const promotion = await getActivePromotion()
+  const { lng } = await params
 
   return (
     <div className="dark">
@@ -22,6 +26,8 @@ export default async function LandingLayout({ children }: LandingLayoutProps) {
       {promotion && <PromotionBanner promotion={promotion} />}
       {children}
       <WhatsAppFloat />
+      <StickyMobileCTA lng={lng} />
+      <EngagementModal lng={lng} />
       <CookieConsentBanner />
     </div>
   )

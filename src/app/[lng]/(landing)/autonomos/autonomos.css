@@ -122,23 +122,25 @@
 }
 
 /* STEPS */
-.au-steps{
+/* IMPORTANT: chain with .au-body to outrank the `.landing-body ol { margin:0 }`
+   reset in landing.css. Without that, margin:0 auto on .au-steps is silently
+   stripped down to margin:0 and the list hugs the left edge of the section. */
+.au-body .au-steps{
   list-style:none;
   padding:0;
   margin:0 auto;
-  max-width:620px;
-  display:flex;
-  flex-direction:column;
-  gap:2.5rem;
-  align-items:center;
+  max-width:520px;
+  display:block;
 }
-.au-steps li{
+.au-body .au-steps li{
   display:flex;
   gap:1.5rem;
   align-items:flex-start;
   text-align:left;
-  max-width:560px;
-  width:100%;
+  margin:0 auto 2.5rem;
+}
+.au-body .au-steps li:last-child{
+  margin-bottom:0;
 }
 .au-step-num{
   font-family:'Poppins',system-ui,sans-serif;

@@ -1,6 +1,8 @@
 import type { Metadata } from 'next'
 import { HeroCTA, NavCTA, PricingSection, CtaSection } from '../landing-client'
 import { LandingFooter } from '../landing-footer'
+import { InlineEmailCapture } from '../inline-email-capture'
+import { IntegrationLogos } from '../integration-logos'
 import { getActivePromotion } from '@/lib/server/promotion'
 import '../landing.css'
 import './autonomos.css'
@@ -83,6 +85,10 @@ export default async function AutonomosPage(props: PageProps) {
           </video>
         </div>
       </section>
+
+      <InlineEmailCapture />
+
+      <IntegrationLogos />
 
       <section className="au-section" id="como-funciona">
         <div className="au-section-hd">

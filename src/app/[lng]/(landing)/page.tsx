@@ -2,6 +2,8 @@ import type { Metadata } from 'next'
 import Image from 'next/image'
 import { HeroCTA, NavCTA, PricingSection, CtaSection, type PublicConfig } from './landing-client'
 import { LandingFooter } from './landing-footer'
+import { InlineEmailCapture } from './inline-email-capture'
+import { IntegrationLogos } from './integration-logos'
 import { getActivePromotion } from '@/lib/server/promotion'
 import './landing.css'
 
@@ -77,6 +79,12 @@ export default async function LandingPage(props: PageProps) {
           />
         </div>
       </section>
+
+      {/* ─── INLINE LEAD CAPTURE (entre hero e integrações) ─── */}
+      <InlineEmailCapture />
+
+      {/* ─── INTEGRATIONS ─── */}
+      <IntegrationLogos />
 
       {/* ─── PRODUTO: BENTO GRID ─── */}
       <section className="sec-product" id="produto">
