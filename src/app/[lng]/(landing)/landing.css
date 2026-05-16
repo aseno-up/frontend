@@ -1305,6 +1305,12 @@ html{scroll-behavior:smooth}
      então o banner cresce. Mais headroom aqui. */
   :where(.dark):has(.launch-bar){--launch-bar-h:200px}
 }
+@media(max-width:571px){
+  /* Em telas pequenas o banner ocupa muito espaço vertical e atrapalha
+     mais do que ajuda. Esconde e zera o offset pra nav/hero voltarem ao topo. */
+  :where(.dark):has(.launch-bar){--launch-bar-h:0px}
+  .launch-bar{display:none}
+}
 
 /* ═══════════════════════════════════════════
    DEMO INTERATIVA
