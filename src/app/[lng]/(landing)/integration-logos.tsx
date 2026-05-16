@@ -97,7 +97,15 @@ export function IntegrationLogos({
           {item.kind === 'si' && <SiLogo icon={item.icon} bg={item.bg} />}
           {item.kind === 'file' && (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={item.src} alt={item.name} className="ic-item-img" />
+            <img
+              src={item.src}
+              alt={item.name}
+              className="ic-item-img"
+              width={32}
+              height={32}
+              loading="lazy"
+              decoding="async"
+            />
           )}
           {item.kind === 'mark' && <LetterMark color={item.color} letter={item.letter} />}
           <span>{item.name}</span>

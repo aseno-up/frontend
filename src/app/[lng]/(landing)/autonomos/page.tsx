@@ -10,7 +10,7 @@ import './autonomos.css'
 export const metadata: Metadata = {
   title: 'Aseno para profissionais autônomos — agenda, WhatsApp e financeiro em um só lugar',
   description:
-    'Você atende, agenda, cobra e responde mensagens. O Aseno automatiza a parte que ninguém te paga pra fazer: confirmações no WhatsApp, lembretes, recebimentos e o histórico de cada paciente.',
+    'Confirmações automáticas no WhatsApp, agenda organizada, detector de risco de faltas e financeiro sem planilha. 14 dias 100% grátis — sem cartão de crédito.',
 }
 
 interface PageProps {
@@ -42,6 +42,13 @@ export default async function AutonomosPage(props: PageProps) {
 
   return (
     <div className="landing-body au-body">
+      <link
+        rel="preload"
+        as="image"
+        href="/videos/autonomos-hero-poster.jpg"
+        // @ts-expect-error: fetchPriority is supported but missing in React types here
+        fetchpriority="high"
+      />
       <nav className="landing-nav">
         <a href="#" className="nav-logo">
           aseno<div className="nav-logo-dot"></div>
@@ -56,17 +63,27 @@ export default async function AutonomosPage(props: PageProps) {
       <section className="au-hero">
         <div className="au-hero-text">
           <h1 className="au-hero-title">
-            Você atende. O Aseno cuida do resto.
+            Sua clínica perde dinheiro com falta e bagunça. Isso tem solução.
           </h1>
           <p className="au-hero-sub">
-            Agenda, WhatsApp, financeiro e ficha do paciente em um só lugar.
-            Feito pra quem trabalha sozinho — sem complicação de software de
-            clínica grande.
+            Confirmações automáticas no WhatsApp, agenda organizada e financeiro
+            sem planilha. Feito pra quem trabalha sozinho, sem complicação.
           </p>
+          <ul className="au-hero-bullets">
+            <li>Confirmações e lembretes automáticos no WhatsApp</li>
+            <li>Detector de risco de faltas</li>
+            <li>Financeiro sem planilha, com baixa automática</li>
+          </ul>
           <div className="au-hero-cta">
             <HeroCTA lng={params.lng} publicConfig={publicConfig} />
           </div>
-          <p className="au-hero-note">Sem cartão de crédito. Cancela quando quiser.</p>
+          <p className="au-hero-trial">
+            <span className="au-hero-trial-strong">14 dias 100% grátis</span>
+            <span className="au-hero-trial-sep" aria-hidden="true">·</span>
+            <span>Sem cartão</span>
+            <span className="au-hero-trial-sep" aria-hidden="true">·</span>
+            <span>Cancela quando quiser</span>
+          </p>
         </div>
 
         <div className="au-hero-video">
@@ -77,7 +94,7 @@ export default async function AutonomosPage(props: PageProps) {
             muted
             loop
             playsInline
-            preload="metadata"
+            preload="none"
             aria-hidden="true"
           >
             <source src="/videos/autonomos-hero.webm" type="video/webm" />

@@ -360,7 +360,12 @@ export function PricingSection({ lng, publicConfig: initialConfig = null, promot
         <div className="price-card">
           <div className="price-nm">Básico</div>
           <div className="price-amt">{renderPriceAmount('basic')}</div>
-          <div className="price-per">por mês</div>
+          <div className="price-per">
+            por mês
+            {billingCycle === 'annually' && (
+              <span className="price-per-context"> · no plano anual</span>
+            )}
+          </div>
           <hr className="price-div" />
           {renderVariantToggle('basic')}
           <ul className="price-feats">
@@ -386,7 +391,12 @@ export function PricingSection({ lng, publicConfig: initialConfig = null, promot
           <div className="feat-bdg">Recomendado</div>
           <div className="price-nm">Profissional</div>
           <div className="price-amt">{renderPriceAmount('professional')}</div>
-          <div className="price-per">por mês</div>
+          <div className="price-per">
+            por mês
+            {billingCycle === 'annually' && (
+              <span className="price-per-context"> · no plano anual</span>
+            )}
+          </div>
           <hr className="price-div" />
           {renderVariantToggle('professional')}
           <ul className="price-feats">
@@ -413,7 +423,12 @@ export function PricingSection({ lng, publicConfig: initialConfig = null, promot
             {renderPriceAmount('advanced')}
             <span className="price-unit">/Unidade</span>
           </div>
-          <div className="price-per">por mês</div>
+          <div className="price-per">
+            por mês
+            {billingCycle === 'annually' && (
+              <span className="price-per-context"> · no plano anual</span>
+            )}
+          </div>
           <div className="units-stepper" role="group" aria-label="Quantidade de unidades">
             <span className="units-label">Unidades</span>
             <div className="units-ctrl">

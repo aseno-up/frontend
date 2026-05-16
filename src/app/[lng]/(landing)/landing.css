@@ -669,6 +669,7 @@ html{scroll-behavior:smooth}
 .units-total{font-size:.82rem;color:var(--ink-hint);margin-bottom:1rem}
 .units-total strong{color:var(--blue);font-weight:700}
 .price-per{font-size:.78rem;color:var(--ink-hint);margin-top:.3rem;margin-bottom:1.25rem}
+.price-per-context{color:var(--ink-soft,#3d5a73);font-weight:600}
 .price-div{border:none;border-top:1px solid var(--border);margin:1.25rem 0}
 .price-feats{padding:0;list-style:none;display:flex;flex-direction:column;gap:.5rem;margin-bottom:1.5rem}
 .price-feats li{display:flex;align-items:flex-start;gap:.5rem;font-size:.8rem;color:var(--ink-mid)}
