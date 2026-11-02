@@ -1,15 +1,16 @@
 import { create } from 'zustand'
 import { api } from '@/lib/api/client'
-import type { User, Clinic, AuthResponse } from '@/types/api'
+import type { User, Clinic, AuthResponse, UserClinicInfo, CurrentUserResponse } from '@/types/api'
 
 interface AuthState {
   user: User | null
   clinic: Clinic | null
+  clinics: UserClinicInfo[]
   isLoading: boolean
   isAuthenticated: boolean
 
   login: (email: string, password: string) => Promise<void>
-  googleLogin: (idToken: string) => Promise<void>
+  googleLogin: (idToken: string, plan?: string, billing?: string) => Promise<void>
   register: (data: {
     clinic_name: string
     name: string
@@ -19,16 +20,19 @@ interface AuthState {
     document?: string
     plan?: string
     billing?: string
+    variant?: 'solo'
   }) => Promise<void>
   logout: () => Promise<void>
   loadUser: () => Promise<void>
   setUser: (user: User, clinic: Clinic) => void
   setClinic: (clinic: Clinic) => void
+  switchClinic: (clinicId: string) => Promise<void>
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   clinic: null,
+  clinics: [],
   isLoading: true,
   isAuthenticated: false,
 
@@ -41,10 +45,15 @@ export const useAuthStore = create<AuthState>((set) => ({
       isAuthenticated: true,
       isLoading: false,
     })
+    // Load clinics list after login
+    try {
+      const me: CurrentUserResponse = await api.getCurrentUser()
+      set({ clinics: me.clinics || [] })
+    } catch { /* ignore */ }
   },
 
-  googleLogin: async (idToken: string) => {
-    const response: AuthResponse = await api.googleLogin(idToken)
+  googleLogin: async (idToken: string, plan?: string, billing?: string) => {
+    const response: AuthResponse = await api.googleLogin(idToken, plan, billing)
     api.setTokens(response.access_token, response.refresh_token)
     set({
       user: response.user,
@@ -52,6 +61,10 @@ export const useAuthStore = create<AuthState>((set) => ({
       isAuthenticated: true,
       isLoading: false,
     })
+    try {
+      const me: CurrentUserResponse = await api.getCurrentUser()
+      set({ clinics: me.clinics || [] })
+    } catch { /* ignore */ }
   },
 
   register: async (data) => {
@@ -63,6 +76,10 @@ export const useAuthStore = create<AuthState>((set) => ({
       isAuthenticated: true,
       isLoading: false,
     })
+    try {
+      const me: CurrentUserResponse = await api.getCurrentUser()
+      set({ clinics: me.clinics || [] })
+    } catch { /* ignore */ }
   },
 
   logout: async () => {
@@ -70,6 +87,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({
       user: null,
       clinic: null,
+      clinics: [],
       isAuthenticated: false,
       isLoading: false,
     })
@@ -78,10 +96,11 @@ export const useAuthStore = create<AuthState>((set) => ({
   loadUser: async () => {
     try {
       api.loadTokenFromStorage()
-      const response = await api.getCurrentUser()
+      const response: CurrentUserResponse = await api.getCurrentUser()
       set({
         user: response.user,
         clinic: response.clinic,
+        clinics: response.clinics || [],
         isAuthenticated: true,
         isLoading: false,
       })
@@ -90,6 +109,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       set({
         user: null,
         clinic: null,
+        clinics: [],
         isAuthenticated: false,
         isLoading: false,
       })
@@ -102,5 +122,15 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   setClinic: (clinic: Clinic) => {
     set({ clinic })
+  },
+
+  switchClinic: async (clinicId: string) => {
+    const response: AuthResponse = await api.switchClinic(clinicId)
+    api.setTokens(response.access_token, response.refresh_token)
+    set({
+      user: response.user,
+      clinic: response.clinic,
+      isAuthenticated: true,
+    })
   },
 }))

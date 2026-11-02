@@ -1,5 +1,5 @@
 import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios'
-import type { ApiError } from '@/types/api'
+import type { ApiError, UnlinkedPatient, PatientSearchResult, BulkMergeResponse, PublicReceiptResponse, SettlementMode } from '@/types/api'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1'
 
@@ -42,6 +42,18 @@ class ApiClient {
 
         // Prevent infinite loop: if the failed request was already to the refresh endpoint, don't retry.
         if (originalRequest.url?.includes('/auth/refresh')) {
+          return Promise.reject(error)
+        }
+
+        // Handle subscription expired (HTTP 402)
+        if (error.response?.status === 402) {
+          const errorData = error.response?.data as ApiError
+          if (errorData?.error?.type === 'SUBSCRIPTION_EXPIRED') {
+            // Emit custom event for SubscriptionGuard to handle
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new CustomEvent('subscription-expired'))
+            }
+          }
           return Promise.reject(error)
         }
 
@@ -102,13 +114,26 @@ class ApiClient {
     return response.data
   }
 
-  async register(data: { clinic_name: string; name: string; email: string; password: string }) {
+  async register(data: {
+    clinic_name: string
+    name: string
+    email: string
+    password: string
+    phone?: string
+    document?: string
+    plan?: string
+    billing?: string
+    variant?: string
+  }) {
     const response = await this.client.post('/auth/register', data)
     return response.data
   }
 
-  async googleLogin(idToken: string) {
-    const response = await this.client.post('/auth/google', { id_token: idToken })
+  async googleLogin(idToken: string, plan?: string, billing?: string) {
+    const body: Record<string, string> = { id_token: idToken }
+    if (plan) body.plan = plan
+    if (billing) body.billing = billing
+    const response = await this.client.post('/auth/google', body)
     return response.data
   }
 
@@ -125,11 +150,14 @@ class ApiClient {
     return response.data
   }
 
+  async switchClinic(clinicId: string) {
+    const response = await this.client.post('/auth/switch-clinic', { clinic_id: clinicId })
+    return response.data
+  }
+
   // Professionals endpoints
-  async getProfessionals(page = 1, perPage = 20) {
-    const response = await this.client.get('/professionals', {
-      params: { page, per_page: perPage },
-    })
+  async getProfessionals(params?: { page?: number; limit?: number; search?: string; status?: string; sort_by?: string }) {
+    const response = await this.client.get('/professionals', { params })
     return response.data
   }
 
@@ -148,15 +176,67 @@ class ApiClient {
     return response.data
   }
 
+  async restoreProfessional(id: string) {
+    const response = await this.client.post(`/professionals/${id}/restore`)
+    return response.data
+  }
+
   async deleteProfessional(id: string) {
     const response = await this.client.delete(`/professionals/${id}`)
     return response.data
   }
 
+  async bulkDeleteProfessionals(ids: string[]) {
+    const response = await this.client.post('/professionals/bulk-delete', { ids })
+    return response.data
+  }
+
+  async getProfessionalProcedures(professionalId: string) {
+    const response = await this.client.get(`/professionals/${professionalId}/procedures`)
+    return response.data
+  }
+
+  async updateProfessionalProcedures(professionalId: string, data: { items: Array<{ procedure_id: string; commission_type: string; commission_value: number }> }) {
+    const response = await this.client.put(`/professionals/${professionalId}/procedures`, data)
+    return response.data
+  }
+
+  async deleteProfessionalProcedure(professionalId: string, ppId: string) {
+    const response = await this.client.delete(`/professionals/${professionalId}/procedures/${ppId}`)
+    return response.data
+  }
+
+  // Commission endpoints
+  async getCommissionSummary(params?: { month?: string; from?: string; to?: string }) {
+    const response = await this.client.get('/commissions/summary', { params })
+    return response.data
+  }
+
+  async getCommissionReport(professionalId: string, params?: { month?: string; from?: string; to?: string }) {
+    const response = await this.client.get('/commissions/report', { params: { professional_id: professionalId, ...params } })
+    return response.data
+  }
+
+  async bulkPayCommissions(ids: string[]) {
+    const response = await this.client.post('/commissions/bulk-pay', { ids })
+    return response.data
+  }
+
+  async markAllCommissionsPaid(professionalId: string, month: string) {
+    const response = await this.client.post('/commissions/pay-all', { professional_id: professionalId, month })
+    return response.data
+  }
+
   // Patients endpoints
-  async getPatients(page = 1, perPage = 20, query?: string) {
+  async getPatients(params?: { page?: number, limit?: number, search?: string, status?: string, sort_by?: string }) {
+    const page = params?.page || 1
+    const limit = params?.limit || 20
+    const search = params?.search
+    const status = params?.status
+    const sort_by = params?.sort_by
+
     const response = await this.client.get('/patients', {
-      params: { page, per_page: perPage, q: query },
+      params: { page, limit, search, status, sort_by },
     })
     return response.data
   }
@@ -176,8 +256,183 @@ class ApiClient {
     return response.data
   }
 
+  async getPatientWhatsAppConnection(patientId: string) {
+    const response = await this.client.get(`/patients/${patientId}/whatsapp-connection`)
+    return response.data
+  }
+
+  async updatePatientWhatsAppConnection(patientId: string, data: {
+    ai_scheduling_enabled?: boolean
+    reminders_enabled?: boolean
+  }) {
+    const response = await this.client.put(`/patients/${patientId}/whatsapp-connection`, data)
+    return response.data
+  }
+
   async deletePatient(id: string) {
     const response = await this.client.delete(`/patients/${id}`)
+    return response.data
+  }
+
+  async getPatientDeletePreview(id: string) {
+    const response = await this.client.get<{ appointments_count: number; session_plans_count: number; enrollments_count: number; payments_count: number }>(`/patients/${id}/delete-preview`)
+    return response.data
+  }
+
+  async getSelfRegisteredPatients(params?: { page?: number, limit?: number, search?: string }) {
+    const response = await this.client.get('/patients/self-registered', { params })
+    return response.data
+  }
+
+  async mergePatients(targetId: string, sourcePatientId: string) {
+    const response = await this.client.post(`/patients/${targetId}/merge`, { source_patient_id: sourcePatientId })
+    return response.data
+  }
+
+  async bulkDeletePatients(ids: string[]) {
+    const response = await this.client.post('/patients/bulk-delete', { ids })
+    return response.data
+  }
+
+  async getUnlinkedPatients(): Promise<UnlinkedPatient[]> {
+    const response = await this.client.get('/patients', { params: { unlinked: 'true' } })
+    return response.data
+  }
+
+  async searchPatientsForMerge(q: string): Promise<PatientSearchResult[]> {
+    const response = await this.client.get('/patients/search', { params: { q } })
+    return response.data
+  }
+
+  async mergePatientsBulk(provisionalIds: string[], targetPatientId: string): Promise<BulkMergeResponse> {
+    const response = await this.client.post('/patients/merge', {
+      provisional_ids: provisionalIds,
+      target_patient_id: targetPatientId,
+    })
+    return response.data
+  }
+
+  // Procedures endpoints
+  async getProcedures(params?: { page?: number; limit?: number; search?: string; status?: string; sort_by?: string }) {
+    const response = await this.client.get('/procedures', { params })
+    return response.data
+  }
+
+  async getProcedure(id: string) {
+    const response = await this.client.get(`/procedures/${id}`)
+    return response.data
+  }
+
+  async createProcedure(data: Record<string, unknown>) {
+    const response = await this.client.post('/procedures', data)
+    return response.data
+  }
+
+  async updateProcedure(id: string, data: Record<string, unknown>) {
+    const response = await this.client.put(`/procedures/${id}`, data)
+    return response.data
+  }
+
+  async deleteProcedure(id: string) {
+    const response = await this.client.delete(`/procedures/${id}`)
+    return response.data
+  }
+
+  async restoreProcedure(id: string) {
+    const response = await this.client.post(`/procedures/${id}/restore`)
+    return response.data
+  }
+
+  async bulkDeleteProcedures(ids: string[]) {
+    const response = await this.client.post('/procedures/bulk-delete', { ids })
+    return response.data
+  }
+
+  // Specialties endpoints
+  async getSpecialties(params?: { page?: number; limit?: number; search?: string; status?: string; sort_by?: string }) {
+    const response = await this.client.get('/specialties', { params })
+    return response.data
+  }
+
+  async getSpecialtiesActive() {
+    const response = await this.client.get('/specialties/active')
+    return response.data
+  }
+
+  async getSpecialty(id: string) {
+    const response = await this.client.get(`/specialties/${id}`)
+    return response.data
+  }
+
+  async createSpecialty(data: any) {
+    const response = await this.client.post('/specialties', data)
+    return response.data
+  }
+
+  async updateSpecialty(id: string, data: any) {
+    const response = await this.client.put(`/specialties/${id}`, data)
+    return response.data
+  }
+
+  async deleteSpecialty(id: string) {
+    const response = await this.client.delete(`/specialties/${id}`)
+    return response.data
+  }
+
+  // Partner Networks (Convênios) — Gympass, Total Pass, Namu Pass, Gogood, etc.
+  async getPartnerNetworks() {
+    const response = await this.client.get('/partner-networks')
+    return response.data
+  }
+
+  async getActivePartnerNetworks() {
+    const response = await this.client.get('/partner-networks/active')
+    return response.data
+  }
+
+  async getPartnerNetwork(id: string) {
+    const response = await this.client.get(`/partner-networks/${id}`)
+    return response.data
+  }
+
+  async createPartnerNetwork(data: { name: string }) {
+    const response = await this.client.post('/partner-networks', data)
+    return response.data
+  }
+
+  async updatePartnerNetwork(id: string, data: { name?: string; is_active?: boolean }) {
+    const response = await this.client.put(`/partner-networks/${id}`, data)
+    return response.data
+  }
+
+  async deletePartnerNetwork(id: string) {
+    const response = await this.client.delete(`/partner-networks/${id}`)
+    return response.data
+  }
+
+  // Partner Plans — plans within a network (Silver, Tp2, Básico III...)
+  async getPartnerPlansByNetwork(networkId: string) {
+    const response = await this.client.get(`/partner-plans/by-network/${networkId}`)
+    return response.data
+  }
+
+  async getPartnerPlan(id: string) {
+    const response = await this.client.get(`/partner-plans/${id}`)
+    return response.data
+  }
+
+  async createPartnerPlan(data: { partner_network_id: string; name: string; max_sessions_per_week?: number | null }) {
+    const response = await this.client.post('/partner-plans', data)
+    return response.data
+  }
+
+  async updatePartnerPlan(id: string, data: { name?: string; max_sessions_per_week?: number | null; is_active?: boolean }) {
+    const response = await this.client.put(`/partner-plans/${id}`, data)
+    return response.data
+  }
+
+  async deletePartnerPlan(id: string) {
+    const response = await this.client.delete(`/partner-plans/${id}`)
     return response.data
   }
 
@@ -224,8 +479,14 @@ class ApiClient {
     return response.data
   }
 
-  async deleteAppointment(id: string) {
-    const response = await this.client.delete(`/appointments/${id}`)
+  async deleteAppointment(id: string, options?: { deletePayments?: boolean }) {
+    const params = options?.deletePayments ? { delete_payments: "true" } : undefined
+    const response = await this.client.delete(`/appointments/${id}`, { params })
+    return response.data
+  }
+
+  async getAppointmentDeletePreview(id: string) {
+    const response = await this.client.get<{ payments_count: number; payments_total: number; procedures_count: number }>(`/appointments/${id}/delete-preview`)
     return response.data
   }
 
@@ -253,6 +514,34 @@ class ApiClient {
     return response.data
   }
 
+  async ensureAppointmentReceiptToken(id: string) {
+    const response = await this.client.post<{ token: string; public_url: string }>(
+      `/appointments/${id}/receipt-token`,
+    )
+    return response.data
+  }
+
+  // Public — no auth interceptor needed
+  async getPublicReceipt(token: string): Promise<PublicReceiptResponse> {
+    const response = await axios.get<PublicReceiptResponse>(`${API_URL}/public/receipts/${token}`)
+    return response.data
+  }
+
+  // Silent ownership probe for the /recibo page. Goes through raw axios so a
+  // 401 (patient viewer, no session) does NOT trigger the global
+  // interceptor that redirects to /login. Cookies still ride on withCredentials.
+  async isReceiptOwnedByMe(token: string): Promise<boolean> {
+    try {
+      const response = await axios.get<{ owned: boolean }>(
+        `${API_URL}/appointments/receipt-tokens/${token}/mine`,
+        { withCredentials: true },
+      )
+      return !!response.data?.owned
+    } catch {
+      return false
+    }
+  }
+
   // WhatsApp endpoints
   async getWhatsAppStatus() {
     const response = await this.client.get('/whatsapp/status')
@@ -261,6 +550,17 @@ class ApiClient {
 
   async connectWhatsApp() {
     const response = await this.client.post('/whatsapp/connect')
+    return response.data
+  }
+
+  async updateWhatsAppConfig(data: {
+    provider: string
+    waba_id?: string
+    phone_number_id?: string
+    token?: string
+    instance?: string
+  }) {
+    const response = await this.client.post('/whatsapp/config', data)
     return response.data
   }
 
@@ -371,6 +671,47 @@ class ApiClient {
     return response.data
   }
 
+  async switchPlan(data: {
+    plan: 'basic' | 'professional' | 'advanced'
+    billing_type: string
+    cycle: string
+    variant?: string
+    offer_token?: string
+    units?: number
+    credit_card?: {
+      holderName: string
+      number: string
+      expiryMonth: string
+      expiryYear: string
+      ccv: string
+    }
+    credit_card_holder_info?: {
+      name: string
+      email: string
+      cpfCnpj: string
+      postalCode: string
+      phone: string
+    }
+  }) {
+    const response = await this.client.post('/billing/switch-plan', data)
+    return response.data
+  }
+
+  async getSubscriptionPayments() {
+    const response = await this.client.get('/billing/subscription/payments')
+    return response.data
+  }
+
+  // Plans/Offers endpoints
+  async validateOffer(planSlug: string, token: string, cycle: string) {
+    const response = await this.client.post('/plans/validate-offer', {
+      plan_id: planSlug,
+      token: token,
+      cycle: cycle
+    })
+    return response.data
+  }
+
   // Google Calendar endpoints
   async getCalendarAuthURL() {
     const response = await this.client.get('/calendar/auth-url')
@@ -406,10 +747,8 @@ class ApiClient {
   }
 
   // Session Plan endpoints
-  async getSessionPlans(page = 1, perPage = 20, status?: string) {
-    const response = await this.client.get('/session-plans', {
-      params: { page, per_page: perPage, status },
-    })
+  async getSessionPlans(params?: { page?: number; limit?: number; status?: string; search?: string; sort_by?: string }) {
+    const response = await this.client.get('/session-plans', { params })
     return response.data
   }
 
@@ -431,6 +770,7 @@ class ApiClient {
     frequency: string
     week_days?: number[]
     preferred_time: string
+    day_times?: Record<string, string>
     duration_mins: number
     total_sessions: number
     start_date: string
@@ -466,10 +806,232 @@ class ApiClient {
     return response.data
   }
 
-  async generateSessionPlanAppointments(id: string, weeksAhead = 2) {
-    const response = await this.client.post(`/session-plans/${id}/generate`, {
-      weeks_ahead: weeksAhead,
+  async bulkCancelSessionPlans(ids: string[]) {
+    const response = await this.client.post('/session-plans/bulk-cancel', { ids })
+    return response.data
+  }
+
+  async getCalendarEvents(params: {
+    start_date: string
+    end_date: string
+    professional_id?: string
+  }) {
+    const response = await this.client.get('/calendar/events', { params })
+    return response.data
+  }
+
+  async materializeAppointment(sessionPlanId: string, date: string) {
+    const response = await this.client.post(
+      `/session-plans/${sessionPlanId}/materialize`,
+      { date }
+    )
+    return response.data
+  }
+
+  async cancelOccurrence(sessionPlanId: string, date: string) {
+    const response = await this.client.post(
+      `/session-plans/${sessionPlanId}/cancel-occurrence`,
+      { date }
+    )
+    return response.data
+  }
+
+  async rescheduleOccurrence(sessionPlanId: string, originalDate: string, newStartTime: string) {
+    const response = await this.client.post(
+      `/session-plans/${sessionPlanId}/reschedule-occurrence`,
+      { original_date: originalDate, new_start_time: newStartTime }
+    )
+    return response.data
+  }
+
+  // Attendance endpoints
+  async recordAttendance(appointmentId: string, data: {
+    patient_id: string
+    status: 'present' | 'absent' | 'substituted'
+    is_guest?: boolean
+    payment_method_id?: string
+    payment_amount?: number
+  }) {
+    const response = await this.client.post(`/appointments/${appointmentId}/attendance`, data)
+    return response.data
+  }
+
+  async getAttendance(appointmentId: string) {
+    const response = await this.client.get(`/appointments/${appointmentId}/attendance`)
+    return response.data
+  }
+
+  // Group attendance endpoints
+  async recordGroupAttendance(sessionPlanId: string, data: {
+    date: string
+    entries: Array<{
+      patient_id: string
+      status: 'present' | 'absent' | 'substituted'
+      is_guest: boolean
+      payment_method_id?: string
+      payment_amount?: number
+    }>
+  }) {
+    const response = await this.client.post(`/session-plans/${sessionPlanId}/attendance`, data)
+    return response.data
+  }
+
+  async getGroupAttendance(sessionPlanId: string, date: string) {
+    const response = await this.client.get(`/session-plans/${sessionPlanId}/attendance`, { params: { date } })
+    return response.data
+  }
+
+  // Group session professional endpoints
+  async getSessionProfessional(sessionPlanId: string, date: string): Promise<{ data: { session_plan_id: string; session_date: string; professional_id: string; professional_name?: string } | null }> {
+    const response = await this.client.get(`/session-plans/${sessionPlanId}/sessions/${date}/professional`)
+    return response.data
+  }
+
+  async setSessionProfessional(sessionPlanId: string, date: string, professionalId: string): Promise<{ data: { session_plan_id: string; session_date: string; professional_id: string; professional_name?: string } }> {
+    const response = await this.client.put(`/session-plans/${sessionPlanId}/sessions/${date}/professional`, {
+      professional_id: professionalId,
     })
+    return response.data
+  }
+
+  // Professionals by procedure (with commission configured)
+  async getProfessionalsByProcedure(procedureId: string): Promise<{ data: Array<{ professional_id: string; professional_name: string; commission_type: string; commission_value: number }> }> {
+    const response = await this.client.get(`/procedures/${procedureId}/professionals`)
+    return response.data
+  }
+
+  // Enrollment endpoints
+  async enrollPatient(sessionPlanId: string, data: {
+    patient_id: string
+    week_days?: number[]
+    slot_ids?: string[]
+    partner_plan_id?: string | null
+    total_sessions?: number
+    payment_mode?: string
+    monthly_amount?: number
+    billing_day?: number
+  }) {
+    const response = await this.client.post(`/session-plans/${sessionPlanId}/enrollments`, data)
+    return response.data
+  }
+
+  // SessionPlanSlot endpoints (group plans with multiple times per day)
+  async getSessionPlanSlots(sessionPlanId: string) {
+    const response = await this.client.get(`/session-plans/${sessionPlanId}/slots`)
+    return response.data
+  }
+
+  async createSessionPlanSlot(sessionPlanId: string, data: {
+    weekday: number
+    start_time: string
+    capacity: number
+    professional_id?: string | null
+  }) {
+    const response = await this.client.post(`/session-plans/${sessionPlanId}/slots`, data)
+    return response.data
+  }
+
+  async updateSessionPlanSlot(sessionPlanId: string, slotId: string, data: {
+    weekday?: number
+    start_time?: string
+    capacity?: number
+    professional_id?: string | null
+    is_active?: boolean
+  }) {
+    const response = await this.client.put(`/session-plans/${sessionPlanId}/slots/${slotId}`, data)
+    return response.data
+  }
+
+  async deleteSessionPlanSlot(sessionPlanId: string, slotId: string) {
+    const response = await this.client.delete(`/session-plans/${sessionPlanId}/slots/${slotId}`)
+    return response.data
+  }
+
+  async getEnrollments(sessionPlanId: string) {
+    const response = await this.client.get(`/session-plans/${sessionPlanId}/enrollments`)
+    return response.data
+  }
+
+  async updateEnrollment(sessionPlanId: string, enrollmentId: string, data: {
+    week_days?: number[]
+    slot_ids?: string[]
+    partner_plan_id?: string | null
+    clear_partner_plan?: boolean
+    total_sessions?: number
+    payment_mode?: string
+    monthly_amount?: number
+    billing_day?: number
+  }) {
+    const response = await this.client.put(`/session-plans/${sessionPlanId}/enrollments/${enrollmentId}`, data)
+    return response.data
+  }
+
+  async suspendEnrollment(sessionPlanId: string, enrollmentId: string) {
+    const response = await this.client.put(`/session-plans/${sessionPlanId}/enrollments/${enrollmentId}/suspend`)
+    return response.data
+  }
+
+  async reactivateEnrollment(sessionPlanId: string, enrollmentId: string) {
+    const response = await this.client.put(`/session-plans/${sessionPlanId}/enrollments/${enrollmentId}/reactivate`)
+    return response.data
+  }
+
+  async cancelEnrollment(sessionPlanId: string, enrollmentId: string) {
+    const response = await this.client.put(`/session-plans/${sessionPlanId}/enrollments/${enrollmentId}/cancel`)
+    return response.data
+  }
+
+  // Plan payment endpoints
+  async createPlanPayment(sessionPlanId: string, data: {
+    payment_method_id: string
+    amount: number
+    discount?: number
+    installments?: number
+    notes?: string
+    paid_at?: string
+    reference_month?: string
+    session_date?: string
+  }) {
+    const response = await this.client.post(`/session-plans/${sessionPlanId}/payments`, data)
+    return response.data
+  }
+
+  async getPlanPayments(sessionPlanId: string) {
+    const response = await this.client.get(`/session-plans/${sessionPlanId}/payments`)
+    return response.data
+  }
+
+  async getPlanPaymentStatus(sessionPlanId: string) {
+    const response = await this.client.get(`/session-plans/${sessionPlanId}/payment-status`)
+    return response.data
+  }
+
+  async deletePlanPayment(sessionPlanId: string, paymentId: string) {
+    const response = await this.client.delete(`/session-plans/${sessionPlanId}/payments/${paymentId}`)
+    return response.data
+  }
+
+  async createEnrollmentPayment(sessionPlanId: string, enrollmentId: string, data: {
+    payment_method_id: string
+    amount: number
+    discount?: number
+    installments?: number
+    reference_month?: string
+    session_date?: string
+    notes?: string
+    paid_at?: string
+  }) {
+    const response = await this.client.post(
+      `/session-plans/${sessionPlanId}/enrollments/${enrollmentId}/payments`,
+      data
+    )
+    return response.data
+  }
+
+  async getEnrollmentPayments(sessionPlanId: string, enrollmentId: string) {
+    const response = await this.client.get(
+      `/session-plans/${sessionPlanId}/enrollments/${enrollmentId}/payments`
+    )
     return response.data
   }
 
@@ -481,7 +1043,7 @@ class ApiClient {
     return response.data
   }
 
-  async createInvite(data: { email: string; role: string }) {
+  async createInvite(data: { email: string; role: string; professional_id?: string; new_professional_name?: string }) {
     const response = await this.client.post('/invites', data)
     return response.data
   }
@@ -530,10 +1092,8 @@ class ApiClient {
   }
 
   // User Management endpoints
-  async getUsers(page = 1, perPage = 20) {
-    const response = await this.client.get('/users', {
-      params: { page, per_page: perPage },
-    })
+  async getUsers(params: Record<string, any>) {
+    const response = await this.client.get('/users', { params })
     return response.data
   }
 
@@ -567,6 +1127,11 @@ class ApiClient {
     return response.data
   }
 
+  async bulkRemoveUsers(ids: string[]) {
+    const response = await this.client.post('/users/bulk-delete', { ids })
+    return response.data
+  }
+
   // Patient Record (Ficha) endpoints
   async getPatientRecord(patientId: string) {
     const response = await this.client.get(`/patients/${patientId}/record`)
@@ -574,23 +1139,71 @@ class ApiClient {
   }
 
   async updatePatientRecord(patientId: string, data: {
-    chief_complaint?: string
-    medical_history?: string
-    family_history?: string
-    allergies?: string
-    medications?: string
-    surgical_history?: string
-    social_history?: string
-    initial_diagnosis?: string
-    treatment_plan?: string
-    observations?: string
+    template_id?: string
+    custom_fields: Record<string, any>
   }) {
     const response = await this.client.put(`/patients/${patientId}/record`, data)
     return response.data
   }
 
+  async getPatientRecordHistory(patientId: string) {
+    const response = await this.client.get(`/patients/${patientId}/record/history`)
+    return response.data
+  }
+
   async getFullPatientRecord(patientId: string) {
     const response = await this.client.get(`/patients/${patientId}/record/full`)
+    return response.data
+  }
+
+  // Anamnese Template endpoints
+  async getAnamneseTemplates() {
+    const response = await this.client.get('/anamnese-templates')
+    return response.data
+  }
+
+  async getAnamneseTemplate(id: string) {
+    const response = await this.client.get(`/anamnese-templates/${id}`)
+    return response.data
+  }
+
+  async createAnamneseTemplate(data: { name: string; is_default?: boolean }) {
+    const response = await this.client.post('/anamnese-templates', data)
+    return response.data
+  }
+
+  async updateAnamneseTemplate(id: string, data: { name?: string; is_default?: boolean }) {
+    const response = await this.client.put(`/anamnese-templates/${id}`, data)
+    return response.data
+  }
+
+  async deleteAnamneseTemplate(id: string) {
+    const response = await this.client.delete(`/anamnese-templates/${id}`)
+    return response.data
+  }
+
+  async createAnamneseTemplateField(templateId: string, data: Record<string, any>) {
+    const response = await this.client.post(`/anamnese-templates/${templateId}/fields`, data)
+    return response.data
+  }
+
+  async updateAnamneseTemplateField(templateId: string, fieldId: string, data: Record<string, any>) {
+    const response = await this.client.put(`/anamnese-templates/${templateId}/fields/${fieldId}`, data)
+    return response.data
+  }
+
+  async deleteAnamneseTemplateField(templateId: string, fieldId: string) {
+    const response = await this.client.delete(`/anamnese-templates/${templateId}/fields/${fieldId}`)
+    return response.data
+  }
+
+  async reorderAnamneseTemplateFields(templateId: string, ids: string[]) {
+    const response = await this.client.patch(`/anamnese-templates/${templateId}/reorder`, { ids })
+    return response.data
+  }
+
+  async setAnamneseTemplateSpecialties(templateId: string, specialtyIds: string[]) {
+    const response = await this.client.post(`/anamnese-templates/${templateId}/specialties`, { specialty_ids: specialtyIds })
     return response.data
   }
 
@@ -655,10 +1268,105 @@ class ApiClient {
     return response.data
   }
 
+  async getFinancialReport(params?: { month?: string; professional_id?: string }) {
+    const response = await this.client.get('/analytics/financial', { params })
+    return response.data
+  }
+
+  // Finance module — manual income/expense + cash-flow summary.
+  async getFinanceTransactions(params?: {
+    month?: string
+    from?: string
+    to?: string
+    type?: 'income' | 'expense'
+    category_id?: string
+    source?: 'manual' | 'appointment' | 'session_plan'
+    only_paid?: boolean
+  }) {
+    const response = await this.client.get('/finance/transactions', {
+      params: { ...params, only_paid: params?.only_paid ? 'true' : undefined },
+    })
+    return response.data
+  }
+
+  async createFinanceTransaction(data: {
+    type: 'income' | 'expense'
+    category_id?: string
+    amount: number
+    description: string
+    competence_date: string
+    due_date?: string | null
+    paid_at?: string | null
+    payment_method_id?: string | null
+  }) {
+    const response = await this.client.post('/finance/transactions', data)
+    return response.data
+  }
+
+  async updateFinanceTransaction(id: string, data: Partial<{
+    type: 'income' | 'expense'
+    category_id: string | null
+    amount: number
+    description: string
+    competence_date: string
+    due_date: string | null
+    paid_at: string | null
+    payment_method_id: string | null
+  }>) {
+    const response = await this.client.patch(`/finance/transactions/${id}`, data)
+    return response.data
+  }
+
+  async deleteFinanceTransaction(id: string) {
+    const response = await this.client.delete(`/finance/transactions/${id}`)
+    return response.data
+  }
+
+  async getFinanceSummary(params?: { month?: string; from?: string; to?: string }) {
+    const response = await this.client.get('/finance/summary', { params })
+    return response.data
+  }
+
+  async getFinanceCategories() {
+    const response = await this.client.get('/finance/categories')
+    return response.data
+  }
+
+  async createFinanceCategory(data: { name: string; type: 'income' | 'expense'; color?: string }) {
+    const response = await this.client.post('/finance/categories', data)
+    return response.data
+  }
+
+  async updateFinanceCategory(id: string, data: { name?: string; color?: string }) {
+    const response = await this.client.patch(`/finance/categories/${id}`, data)
+    return response.data
+  }
+
+  async deleteFinanceCategory(id: string) {
+    const response = await this.client.delete(`/finance/categories/${id}`)
+    return response.data
+  }
+
   // Onboarding endpoints
   async getOnboardingStatus() {
     const response = await this.client.get('/onboarding/status')
     return response.data
+  }
+
+  // Per-user tutorial tracking (so the in-app tour is scoped to the logged-in
+  // user rather than the browser — multiple people share a machine in clinics).
+  async getCompletedTutorials(): Promise<{ pages: string[] }> {
+    const response = await this.client.get('/me/tutorials')
+    return response.data
+  }
+
+  async markTutorialCompleted(page: string): Promise<{ pages: string[] }> {
+    const response = await this.client.post(`/me/tutorials/${encodeURIComponent(page)}/complete`)
+    return response.data
+  }
+
+  async resetTutorials(): Promise<void> {
+    await this.client.delete('/me/tutorials')
   }
 
   // Notification endpoints
@@ -703,10 +1411,14 @@ class ApiClient {
   async updateClinic(data: {
     name?: string
     phone?: string
+    document?: string
     address?: string
     city?: string
     state?: string
     zip_code?: string
+    instagram?: string
+    business_info?: string
+    faq?: string
     logo_url?: string
     primary_color?: string
     settings?: {
@@ -717,7 +1429,24 @@ class ApiClient {
       require_confirmation?: boolean
       whatsapp_reminders_enabled?: boolean
       email_reminders_enabled?: boolean
+      require_payment_before_booking?: boolean
       ai_agent_enabled?: boolean
+      ai_min_delay_between_messages?: number | null
+      ai_min_delay_between_patients?: number | null
+      ai_business_hours?: any
+      ai_tool_schedule?: boolean | null
+      ai_tool_confirm?: boolean | null
+      ai_tool_cancel?: boolean | null
+      ai_tool_reschedule?: boolean | null
+      ai_tool_enroll_class?: boolean | null
+      ai_tool_confirm_class?: boolean | null
+      ai_blocked_intent_reply?: string
+      ai_human_takeover_pause_hours?: number | null
+      payment_reminder_whatsapp_enabled?: boolean | null
+      payment_reminder_email_enabled?: boolean | null
+      payment_reminder_days_before?: number | null
+      group_class_reminder_24h_enabled?: boolean | null
+      group_class_reminder_2h_enabled?: boolean | null
     }
   }) {
     const response = await this.client.put('/clinic', data)
@@ -745,8 +1474,388 @@ class ApiClient {
   }
 
   // ==========================================
+  // Plans & Offers Settings (admin only)
+  // ==========================================
+
+  async getPlans() {
+    const response = await this.client.get('/plans')
+    return response.data
+  }
+
+  async createPlan(data: any) {
+    const response = await this.client.post('/admin/plans', data)
+    return response.data
+  }
+
+  async updatePlan(id: string, data: any) {
+    const response = await this.client.put(`/admin/plans/${id}`, data)
+    return response.data
+  }
+
+  async getOffers() {
+    const response = await this.client.get('/admin/offers')
+    return response.data
+  }
+
+  async createOffer(data: any) {
+    const response = await this.client.post('/admin/offers', data)
+    return response.data
+  }
+
+  async updateOffer(id: string, data: any) {
+    const response = await this.client.put(`/admin/offers/${id}`, data)
+    return response.data
+  }
+
+  // ==========================================
+  // Sprint 6: Admin Observability & Control
+  // ==========================================
+
+  async getAuditLogs(params?: {
+    page?: number
+    limit?: number
+    action?: string
+    entity_type?: string
+    user_id?: string
+    entity_id?: string
+    clinic_id?: string
+    start_date?: string
+    end_date?: string
+  }) {
+    const response = await this.client.get('/admin/audit-logs', { params })
+    return response.data
+  }
+
+  async getSystemLogs(params?: {
+    page?: number
+    limit?: number
+    service?: string
+    event?: string
+    status?: string
+    clinic_id?: string
+    start_date?: string
+    end_date?: string
+  }) {
+    const response = await this.client.get('/admin/system-logs', { params })
+    return response.data
+  }
+
+  async getFeatureFlags() {
+    const response = await this.client.get('/admin/feature-flags')
+    return response.data
+  }
+
+  async createFeatureFlag(data: { key: string; description?: string; enabled: boolean; clinic_id?: string }) {
+    const response = await this.client.post('/admin/feature-flags', data)
+    return response.data
+  }
+
+  async updateFeatureFlag(id: string, data: { description?: string; enabled?: boolean }) {
+    const response = await this.client.put(`/admin/feature-flags/${id}`, data)
+    return response.data
+  }
+
+  async deleteFeatureFlag(id: string) {
+    const response = await this.client.delete(`/admin/feature-flags/${id}`)
+    return response.data
+  }
+
+  async listPromotions() {
+    const response = await this.client.get('/admin/promotions')
+    return response.data
+  }
+
+  async createPromotion(data: {
+    name: string
+    description?: string
+    discount_percent: number
+    starts_at: string
+    expires_at: string
+    is_active: boolean
+    plans_affected: string[]
+    banner_label: string
+    banner_show_timer: boolean
+  }) {
+    const response = await this.client.post('/admin/promotions', data)
+    return response.data
+  }
+
+  async updatePromotion(
+    id: string,
+    data: Partial<{
+      name: string
+      description: string
+      discount_percent: number
+      starts_at: string
+      expires_at: string
+      is_active: boolean
+      plans_affected: string[]
+      banner_label: string
+      banner_show_timer: boolean
+    }>,
+  ) {
+    const response = await this.client.put(`/admin/promotions/${id}`, data)
+    return response.data
+  }
+
+  async deletePromotion(id: string) {
+    const response = await this.client.delete(`/admin/promotions/${id}`)
+    return response.data
+  }
+
+  async getActivePromotion() {
+    const response = await this.client.get('/public/promotions/active')
+    return response.data
+  }
+
+  async getUsageMetrics(params?: {
+    page?: number
+    limit?: number
+    clinic_id?: string
+    metric?: string
+    start_date?: string
+    end_date?: string
+  }) {
+    const response = await this.client.get('/admin/usage-metrics', { params })
+    return response.data
+  }
+
+  async getUsageMetricsSummary(params?: { start_date?: string; end_date?: string }) {
+    const response = await this.client.get('/admin/usage-metrics/summary', { params })
+    return response.data
+  }
+
+  async getAITokenUsageByModel(params?: { start_date?: string; end_date?: string }) {
+    const response = await this.client.get('/admin/ai-token-usage/by-model', { params })
+    return response.data
+  }
+
+  async getAdminClinicsLookup() {
+    const response = await this.client.get('/admin/clinics')
+    return response.data
+  }
+
+  // ==========================================
+  // CRM Leads (admin - dev clinics only)
+  // ==========================================
+
+  async getLeads(params?: Record<string, string | number>) {
+    const response = await this.client.get('/admin/leads', { params })
+    return response.data
+  }
+
+  async getLeadById(id: string) {
+    const response = await this.client.get(`/admin/leads/${id}`)
+    return response.data
+  }
+
+  async createLead(data: Record<string, unknown>) {
+    const response = await this.client.post('/admin/leads', data)
+    return response.data
+  }
+
+  async updateLead(id: string, data: Record<string, unknown>) {
+    const response = await this.client.put(`/admin/leads/${id}`, data)
+    return response.data
+  }
+
+  async deleteLead(id: string) {
+    const response = await this.client.delete(`/admin/leads/${id}`)
+    return response.data
+  }
+
+  async getAdminAccounts() {
+    const response = await this.client.get('/admin/accounts')
+    return response.data
+  }
+
+  async getCRMDashboard() {
+    const response = await this.client.get('/admin/crm-dashboard')
+    return response.data
+  }
+
+  // ==========================================
   // Public Config (no auth required)
   // ==========================================
+
+  // Payment Methods (settings)
+  async getPaymentMethods() {
+    const response = await this.client.get('/payment-methods')
+    return response.data
+  }
+
+  async getActivePaymentMethods() {
+    const response = await this.client.get('/payment-methods/active')
+    return response.data
+  }
+
+  async createPaymentMethod(data: {
+    name: string
+    type: string
+    settlement_days?: number
+    installments_allowed?: boolean
+    max_installments?: number
+    settlement_mode?: SettlementMode
+  }) {
+    const response = await this.client.post('/payment-methods', data)
+    return response.data
+  }
+
+  async updatePaymentMethod(id: string, data: {
+    name?: string
+    type?: string
+    active?: boolean
+    settlement_days?: number
+    installments_allowed?: boolean
+    max_installments?: number
+    settlement_mode?: SettlementMode
+  }) {
+    const response = await this.client.put(`/payment-methods/${id}`, data)
+    return response.data
+  }
+
+  async deletePaymentMethod(id: string) {
+    const response = await this.client.delete(`/payment-methods/${id}`)
+    return response.data
+  }
+
+  // Appointment Payments
+  async getAppointmentPayments(appointmentId: string) {
+    const response = await this.client.get(`/appointments/${appointmentId}/payments`)
+    return response.data
+  }
+
+  async createAppointmentPayment(appointmentId: string, data: { payment_method_id: string; amount: number; discount?: number; installments?: number; notes?: string }) {
+    const response = await this.client.post(`/appointments/${appointmentId}/payments`, data)
+    return response.data
+  }
+
+  async updateAppointmentPayment(appointmentId: string, paymentId: string, data: { payment_method_id: string; amount: number; discount?: number; installments?: number; notes?: string }) {
+    const response = await this.client.put(`/appointments/${appointmentId}/payments/${paymentId}`, data)
+    return response.data
+  }
+
+  async deleteAppointmentPayment(appointmentId: string, paymentId: string) {
+    const response = await this.client.delete(`/appointments/${appointmentId}/payments/${paymentId}`)
+    return response.data
+  }
+
+  // ==========================================
+  // Sales Packages (vendas avulsas com saldo flutuante)
+  // ==========================================
+
+  async getSalesPackages(params?: {
+    page?: number
+    per_page?: number
+    status?: string
+    q?: string
+    from?: string
+    to?: string
+    patient_id?: string
+  }) {
+    const response = await this.client.get('/sales-packages', { params })
+    return response.data
+  }
+
+  async getSalesPackage(id: string) {
+    const response = await this.client.get(`/sales-packages/${id}`)
+    return response.data
+  }
+
+  async createSalesPackage(data: import('@/types/api').CreateSalesPackageRequest) {
+    const response = await this.client.post('/sales-packages', data)
+    return response.data
+  }
+
+  async updateSalesPackage(id: string, data: {
+    sale_date?: string
+    valid_until?: string
+    discount?: number
+    notes?: string
+  }) {
+    const response = await this.client.patch(`/sales-packages/${id}`, data)
+    return response.data
+  }
+
+  async convertSalesPackageQuote(id: string, payments: import('@/types/api').CreateSalesPackagePaymentInput[]) {
+    const response = await this.client.post(`/sales-packages/${id}/convert`, { payments })
+    return response.data
+  }
+
+  async cancelSalesPackage(id: string) {
+    const response = await this.client.post(`/sales-packages/${id}/cancel`)
+    return response.data
+  }
+
+  async getPatientPackageBalances(patientId: string): Promise<{ data: import('@/types/api').ProcedureBalance[] }> {
+    const response = await this.client.get('/sales-packages/balances', {
+      params: { patient_id: patientId },
+    })
+    return response.data
+  }
+
+  async pickPackageFIFOItem(patientId: string, procedureId: string): Promise<{ item_id: string | null }> {
+    const response = await this.client.get('/sales-packages/balances', {
+      params: { patient_id: patientId, procedure_id: procedureId },
+    })
+    return response.data
+  }
+
+  async registerSalesPackagePayment(paymentId: string, data: {
+    paid_at: string
+    payment_method_id?: string
+    amount?: number
+    discount?: number
+    installments?: number
+  }) {
+    const response = await this.client.post(`/sales-packages/payments/${paymentId}/register`, data)
+    return response.data
+  }
+
+  // addSalesPackagePayment records a new payment line on an existing active
+  // sale. The amount is consumed from the sale's open receivables on the
+  // backend; the response is the refreshed package.
+  async addSalesPackagePayment(salesPackageId: string, data: {
+    payment_method_id: string
+    amount: number
+    discount?: number
+    installments?: number
+    due_date?: string
+    paid_at?: string
+  }) {
+    const response = await this.client.post(`/sales-packages/${salesPackageId}/payments`, data)
+    return response.data
+  }
+
+  // updateSalesPackagePayment edits a single payment row on an active sale.
+  // Method/amount changes rebalance against open receivables on the backend
+  // so sum(payments) == sale.total stays true.
+  async updateSalesPackagePayment(paymentId: string, data: {
+    payment_method_id?: string
+    amount?: number
+    paid?: boolean
+  }) {
+    const response = await this.client.put(`/sales-packages/payments/${paymentId}`, data)
+    return response.data
+  }
+
+  // deleteSalesPackagePayment removes a payment row and restores its amount
+  // as an open receivable. Finance ledger drops the deleted transaction.
+  async deleteSalesPackagePayment(paymentId: string) {
+    const response = await this.client.delete(`/sales-packages/payments/${paymentId}`)
+    return response.data
+  }
+
+  async ensureSalesPackageReceiptToken(packageId: string): Promise<{ token: string; public_url: string }> {
+    const response = await this.client.post(`/sales-packages/${packageId}/share-receipt`)
+    return response.data
+  }
+
+  async getPublicSalesReceipt(token: string): Promise<import('@/types/api').PublicSalesReceiptResponse> {
+    // Public endpoint — uses the same axios client; no auth header required.
+    const response = await this.client.get(`/public/sales-packages/recibo/${token}`)
+    return response.data
+  }
 
   async getPublicConfig(): Promise<{
     plans: Record<string, {
@@ -759,6 +1868,145 @@ class ApiClient {
   }> {
     // Use axios directly without auth interceptor
     const response = await axios.get(`${API_URL}/public/config`)
+    return response.data
+  }
+  // --- Portal (Patient) endpoints ---
+
+  async portalValidateToken(token: string) {
+    const response = await this.client.get(`/portal/validate-token?token=${token}`)
+    return response.data
+  }
+
+  async portalRegister(token: string, password: string) {
+    const response = await this.client.post('/portal/register', { token, password })
+    return response.data
+  }
+
+  async portalVerifyEmail(token: string) {
+    const response = await this.client.post('/portal/verify-email', { token })
+    return response.data
+  }
+
+  async portalLogin(email: string, password: string) {
+    const response = await this.client.post('/portal/login', { email, password })
+    return response.data
+  }
+
+  async portalRefresh() {
+    const response = await this.client.post('/portal/refresh')
+    return response.data
+  }
+
+  async portalGetMe() {
+    const response = await this.client.get('/portal/me')
+    return response.data
+  }
+
+  async portalGetAppointments() {
+    const response = await this.client.get('/portal/appointments')
+    return response.data
+  }
+
+  async portalGetStats() {
+    const response = await this.client.get('/portal/stats')
+    return response.data
+  }
+
+  async portalCreateAppointment(data: { professional_id: string; start_time: string; procedure_id?: string; notes?: string }) {
+    const response = await this.client.post('/portal/appointments', data)
+    return response.data
+  }
+
+  async portalCancelAppointment(id: string) {
+    const response = await this.client.put(`/portal/appointments/${id}/cancel`)
+    return response.data
+  }
+
+  async portalLogout() {
+    const response = await this.client.post('/portal/logout')
+    return response.data
+  }
+
+  // Marketplace - Public (no auth)
+  async checkMarketplaceSubaccount(clinicId: string) {
+    const response = await this.client.get(`/marketplace/check/${clinicId}`)
+    return response.data as { has_subaccount: boolean; require_payment: boolean; payment_timeout_minutes?: number; status?: string }
+  }
+
+  async createMarketplaceCharge(clinicId: string, appointmentId: string, data: { billing_type: string; customer_name: string; customer_cpf_cnpj: string; customer_email?: string; customer_phone?: string; credit_card?: { holderName: string; number: string; expiryMonth: string; expiryYear: string; ccv: string }; credit_card_holder_info?: { name: string; email: string; cpfCnpj: string; postalCode: string; phone: string } }) {
+    const response = await this.client.post(`/marketplace/charge/${clinicId}/${appointmentId}`, data)
+    return response.data
+  }
+
+  async getMarketplaceChargeStatus(paymentId: string) {
+    const response = await this.client.get(`/marketplace/charge/${paymentId}/status`)
+    return response.data as { id: string; status: string }
+  }
+
+  async getMarketplaceChargePixQRCode(paymentId: string, clinicId: string) {
+    const response = await this.client.get(`/marketplace/charge/${paymentId}/pix?clinic_id=${clinicId}`)
+    return response.data
+  }
+
+  // Marketplace - Payment page (token-based, public)
+  async getPaymentPageData(token: string) {
+    const response = await this.client.get(`/marketplace/pagar/${token}`)
+    return response.data as {
+      appointment_id: string
+      clinic_id: string
+      clinic_name?: string
+      professional?: string
+      start_time: string
+      end_time: string
+      price: number
+      payment_status: string
+      status: string
+      remaining_seconds: number
+      has_subaccount: boolean
+      existing_payment?: import('@/types/api').ClinicPayment
+    }
+  }
+
+  async createChargeByToken(token: string, data: { billing_type: string; customer_name: string; customer_cpf_cnpj: string; customer_email?: string; customer_phone?: string; credit_card?: { holderName: string; number: string; expiryMonth: string; expiryYear: string; ccv: string }; credit_card_holder_info?: { name: string; email: string; cpfCnpj: string; postalCode: string; phone: string } }) {
+    const response = await this.client.post(`/marketplace/pagar/${token}/charge`, data)
+    return response.data
+  }
+
+  // Marketplace - Subaccount (auth required)
+  async getMarketplaceSubaccount() {
+    const response = await this.client.get('/marketplace/subaccount')
+    return response.data
+  }
+
+  async createMarketplaceSubaccount(data: import('@/types/api').CreateSubaccountInput) {
+    const response = await this.client.post('/marketplace/subaccount', data)
+    return response.data
+  }
+
+  // Marketplace - Split Config
+  async getMarketplaceSplitConfig() {
+    const response = await this.client.get('/marketplace/split-config')
+    return response.data
+  }
+
+  async updateMarketplaceSplitConfig(data: import('@/types/api').UpdateSplitConfigInput) {
+    const response = await this.client.put('/marketplace/split-config', data)
+    return response.data
+  }
+
+  // Marketplace - Financial Dashboard
+  async getMarketplaceBalance() {
+    const response = await this.client.get('/marketplace/balance')
+    return response.data
+  }
+
+  async getMarketplacePayments(params?: { page?: number; per_page?: number; status?: string; billing_type?: string; date_from?: string; date_to?: string }) {
+    const response = await this.client.get('/marketplace/payments', { params })
+    return response.data
+  }
+
+  async getMarketplaceSummary(params?: { date_from?: string; date_to?: string }) {
+    const response = await this.client.get('/marketplace/summary', { params })
     return response.data
   }
 }

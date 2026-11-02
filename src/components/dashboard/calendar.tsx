@@ -6,13 +6,17 @@ import dayGridPlugin from "@fullcalendar/daygrid"
 import timeGridPlugin from "@fullcalendar/timegrid"
 import interactionPlugin, { EventResizeDoneArg } from "@fullcalendar/interaction"
 import listPlugin from "@fullcalendar/list"
-import { EventClickArg, DateSelectArg, EventDropArg, EventContentArg } from "@fullcalendar/core"
+import { EventClickArg, DateSelectArg, EventDropArg, EventContentArg, EventHoveringArg } from "@fullcalendar/core"
 import ptBrLocale from "@fullcalendar/core/locales/pt-br"
 import { format } from "date-fns"
 import { Check, Clock, X, UserX, CheckCircle, RefreshCw } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { api } from "@/lib/api/client"
+import { handleApiError, showToast } from "@/lib/toast"
+import { useAuthStore } from "@/stores/auth-store"
+import { buildAppointmentReminderLink } from "@/lib/whatsapp-web"
+import { WhatsAppIcon } from "@/components/whatsapp/whatsapp-icon"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -22,17 +26,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger
-} from "@/components/ui/tooltip"
-import type { Appointment, Professional } from "@/types/api"
+import type { Appointment, Professional, CalendarEvent as ApiCalendarEvent } from "@/types/api"
 
 // Status configuration with colors and icons
 const statusConfig: Record<string, { bg: string; border: string; text: string; label: string }> = {
+  awaiting_payment: { bg: "#FFF7ED", border: "#F97316", text: "#9A3412", label: "Aguardando Pagamento" },
   pending: { bg: "#FEF3C7", border: "#F59E0B", text: "#92400E", label: "Pendente" },
+  scheduled: { bg: "#E0F2FE", border: "#0EA5E9", text: "#075985", label: "Agendado" },
   confirmed: { bg: "#D1FAE5", border: "#10B981", text: "#065F46", label: "Confirmado" },
   canceled: { bg: "#FEE2E2", border: "#EF4444", text: "#991B1B", label: "Cancelado" },
   no_show: { bg: "#E5E7EB", border: "#6B7280", text: "#374151", label: "Faltou" },
@@ -61,7 +61,7 @@ const StatusIcon = ({ status }: { status: string }) => {
   }
 }
 
-interface CalendarEvent {
+interface CalendarEventInternal {
   id: string
   title: string
   start: string
@@ -69,33 +69,101 @@ interface CalendarEvent {
   backgroundColor: string
   borderColor: string
   textColor: string
+  classNames?: string[]
   extendedProps: {
-    appointment: Appointment
+    appointment?: Appointment
+    isVirtual: boolean
+    sessionPlanId?: string
+    virtualDate?: string
+    slotId?: string
     professionalColor?: string
+    professionalName?: string
+    patientId?: string
+    patientName?: string
+    planType?: string
+    enrolledCount?: number
+    capacity?: number
+    timeText?: string
   }
 }
 
 interface CalendarProps {
   onEventClick: (appointment: Appointment) => void
+  onGroupEventClick?: (sessionPlanId: string, date: string, slotId?: string) => void
   onDateSelect: (start: Date, end: Date, professionalId?: string) => void
   selectedProfessionalId?: string
   professionals: Professional[]
+  refreshKey?: number
+}
+
+// Tooltip state type
+interface TooltipState {
+  visible: boolean
+  x: number
+  y: number
+  appointment: Appointment | null
+  professionalColor?: string
+  professionalName?: string
+  timeText: string
+  config: { bg: string; border: string; text: string; label: string }
 }
 
 export function Calendar({
   onEventClick,
+  onGroupEventClick,
   onDateSelect,
   selectedProfessionalId,
   professionals,
+  refreshKey,
 }: CalendarProps) {
   const calendarRef = useRef<FullCalendar>(null)
-  const [events, setEvents] = useState<CalendarEvent[]>([])
+  const [events, setEvents] = useState<CalendarEventInternal[]>([])
   const [isLoading, setIsLoading] = useState(false)
+  const [isMaterializing, setIsMaterializing] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
+  const clinicName = useAuthStore((state) => state.clinic?.name)
+
+  const CALENDAR_VIEW_STORAGE_KEY = "aseno:calendar:view"
+  const VALID_VIEWS = ["dayGridMonth", "timeGridWeek", "timeGridDay", "listWeek"]
+  const getStoredView = () => {
+    if (typeof window === "undefined") return null
+    const v = window.localStorage.getItem(CALENDAR_VIEW_STORAGE_KEY)
+    return v && VALID_VIEWS.includes(v) ? v : null
+  }
   const [recurringDialog, setRecurringDialog] = useState<{
     open: boolean
     info: EventDropArg | EventResizeDoneArg | null
-  }>({ open: false, info: null })
+    newStart: Date | null
+    newEnd: Date | null
+    submitting: boolean
+  }>({ open: false, info: null, newStart: null, newEnd: null, submitting: false })
+
+  // Custom tooltip state - rendered outside FullCalendar DOM
+  const [tooltip, setTooltip] = useState<TooltipState>({
+    visible: false,
+    x: 0,
+    y: 0,
+    appointment: null,
+    timeText: "",
+    config: statusConfig.pending,
+  })
+  const hideTooltipTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // The hover tooltip and the recurring-reschedule dialog share the same
+  // screen region (both anchored near the dragged event), and the tooltip is
+  // rendered outside the Dialog portal with position:fixed. Without this
+  // effect the tooltip stays on top of the dialog when the user releases the
+  // drag, covering the 'Apenas este / Todos os futuros' buttons. Any time a
+  // modal opens over the calendar, drop the tooltip.
+  useEffect(() => {
+    if (recurringDialog.open) {
+      if (hideTooltipTimer.current) {
+        clearTimeout(hideTooltipTimer.current)
+        hideTooltipTimer.current = null
+      }
+      setTooltip((t) => ({ ...t, visible: false }))
+    }
+  }, [recurringDialog.open])
 
   // Detect mobile on mount
   useEffect(() => {
@@ -114,15 +182,79 @@ export function Calendar({
         const start = format(startDate, "yyyy-MM-dd")
         const end = format(endDate, "yyyy-MM-dd")
 
-        const response = await api.getAppointments({
+        const response = await api.getCalendarEvents({
           start_date: start,
           end_date: end,
           professional_id: selectedProfessionalId,
-          per_page: 500,
         })
 
-        const calendarEvents: CalendarEvent[] = response.data.map(
-          (apt: Appointment) => {
+        const calendarEvents: CalendarEventInternal[] = (response.data as ApiCalendarEvent[]).map(
+          (evt: ApiCalendarEvent) => {
+            if (evt.is_virtual) {
+              // Virtual event — RRULE-calculated, not yet in database.
+              // These are scheduled recurrences — not awaiting confirmation —
+              // so render with a neutral "scheduled" look, not the yellow "pending" one.
+              const colors = statusConfig.scheduled
+              const professional = professionals.find(
+                (p) => p.id === evt.professional_id
+              )
+              const title = evt.plan_type === "group"
+                ? `${evt.title} (${evt.enrolled_count ?? 0}/${evt.capacity ?? "?"})`
+                : evt.patient_name || evt.title || "Sessao"
+
+              const profColor = professional?.color || evt.professional_color
+              // For slot-based group events, multiple virtuals share the same
+              // (plan, date) — the slot id disambiguates them so FullCalendar
+              // doesn't dedupe by id.
+              const virtualId = evt.slot_id
+                ? `virtual_${evt.session_plan_id}_${evt.virtual_date}_${evt.slot_id}`
+                : `virtual_${evt.session_plan_id}_${evt.virtual_date}`
+              return {
+                id: virtualId,
+                title,
+                start: evt.start_time,
+                end: evt.end_time,
+                backgroundColor: colors.bg,
+                borderColor: profColor || colors.border,
+                textColor: colors.text,
+                extendedProps: {
+                  isVirtual: true,
+                  sessionPlanId: evt.session_plan_id,
+                  virtualDate: evt.virtual_date,
+                  slotId: evt.slot_id,
+                  professionalColor: professional?.color || evt.professional_color,
+                  professionalName: professional?.name || evt.professional_name,
+                  patientId: evt.patient_id,
+                  patientName: evt.patient_name,
+                  planType: evt.plan_type,
+                  enrolledCount: evt.enrolled_count,
+                  capacity: evt.capacity,
+                },
+              }
+            }
+
+            // Real appointment — same as before
+            const apt: Appointment = {
+              id: evt.id!,
+              clinic_id: "",
+              patient_id: evt.patient_id || "",
+              professional_id: evt.professional_id || "",
+              session_plan_id: evt.session_plan_id,
+              start_time: evt.start_time,
+              end_time: evt.end_time,
+              status: evt.status as Appointment["status"],
+              type: (evt.type || "regular") as Appointment["type"],
+              title: evt.title || "",
+              notes: evt.notes || "",
+              patient_notes: evt.patient_notes || "",
+              price: evt.price || 0,
+              payment_status: (evt.payment_status || "pending") as Appointment["payment_status"],
+              procedures: evt.procedure_name ? [{ appointment_id: "", procedure_id: "", price: evt.price || 0, procedure: { id: "", clinic_id: "", name: evt.procedure_name, description: "", price: evt.price || 0, duration_minutes: 0, created_at: "", updated_at: "" } }] : [],
+              created_at: "",
+              patient: evt.patient_name ? { id: evt.patient_id || "", name: evt.patient_name, phone: "", whatsapp: "" } : undefined,
+              professional: evt.professional_name ? { id: evt.professional_id || "", name: evt.professional_name, specialty: "", color: evt.professional_color || "" } : undefined,
+            }
+
             const colors = statusConfig[apt.status] || statusConfig.pending
             const professional = professionals.find(
               (p) => p.id === apt.professional_id
@@ -134,11 +266,15 @@ export function Calendar({
               start: apt.start_time,
               end: apt.end_time,
               backgroundColor: colors.bg,
-              borderColor: colors.border,
+              borderColor: professional?.color || colors.border,
               textColor: colors.text,
               extendedProps: {
                 appointment: apt,
+                isVirtual: false,
+                sessionPlanId: evt.session_plan_id,
+                planType: evt.plan_type,
                 professionalColor: professional?.color,
+                professionalName: professional?.name,
               },
             }
           }
@@ -160,15 +296,62 @@ export function Calendar({
       const view = calendarApi.view
       fetchAppointments(view.activeStart, view.activeEnd)
     }
-  }, [selectedProfessionalId, fetchAppointments])
+  }, [selectedProfessionalId, refreshKey, fetchAppointments])
 
-  const handleDatesSet = (dateInfo: { start: Date; end: Date }) => {
+  const handleDatesSet = (dateInfo: { start: Date; end: Date; view: { type: string } }) => {
     fetchAppointments(dateInfo.start, dateInfo.end)
+    if (typeof window !== "undefined" && VALID_VIEWS.includes(dateInfo.view.type)) {
+      window.localStorage.setItem(CALENDAR_VIEW_STORAGE_KEY, dateInfo.view.type)
+    }
   }
 
-  const handleEventClick = (info: EventClickArg) => {
-    const appointment = info.event.extendedProps.appointment as Appointment
-    onEventClick(appointment)
+  const handleEventClick = async (info: EventClickArg) => {
+    setTooltip((t) => ({ ...t, visible: false }))
+
+    const { isVirtual, sessionPlanId, virtualDate, slotId, appointment, planType } = info.event.extendedProps
+
+    // Group events: open group panel directly, no materialization needed
+    if (planType === "group" && sessionPlanId && onGroupEventClick) {
+      const date = virtualDate || info.event.startStr.slice(0, 10)
+      onGroupEventClick(sessionPlanId, date, slotId)
+      return
+    }
+
+    if (isVirtual && sessionPlanId && virtualDate) {
+      // Virtual individual event: materialize first, then open
+      try {
+        setIsMaterializing(true)
+        const result = await api.materializeAppointment(sessionPlanId, virtualDate)
+        onEventClick(result as Appointment)
+        // Refresh calendar to show the now-materialized event
+        const calendarApi = calendarRef.current?.getApi()
+        if (calendarApi) {
+          const view = calendarApi.view
+          fetchAppointments(view.activeStart, view.activeEnd)
+        }
+      } catch (error) {
+        handleApiError(error, "Não foi possível abrir este agendamento")
+      } finally {
+        setIsMaterializing(false)
+      }
+      return
+    }
+
+    if (appointment) {
+      // The CalendarEvent payload is lossy — it only carries the first
+      // procedure's name, not the full procedures array. Fetch the real
+      // appointment so the edit modal sees every linked procedure.
+      const apt = appointment as Appointment
+      try {
+        setIsMaterializing(true)
+        const full = await api.getAppointment(apt.id)
+        onEventClick(full as Appointment)
+      } catch (error) {
+        handleApiError(error, "Não foi possível abrir este agendamento")
+      } finally {
+        setIsMaterializing(false)
+      }
+    }
   }
 
   const handleDateSelect = (selectInfo: DateSelectArg) => {
@@ -204,11 +387,36 @@ export function Calendar({
   }
 
   const handleEventDrop = async (info: EventDropArg) => {
-    const appointment = info.event.extendedProps.appointment as Appointment
-    
+    const { isVirtual, sessionPlanId, virtualDate, appointment } = info.event.extendedProps
+
+    if (isVirtual && sessionPlanId && virtualDate) {
+      // Virtual event moved — use rescheduleOccurrence to create exception
+      try {
+        setIsLoading(true)
+        if (info.event.start) {
+          await api.rescheduleOccurrence(sessionPlanId, virtualDate, info.event.start.toISOString())
+        }
+        const calendarApi = calendarRef.current?.getApi()
+        if (calendarApi) {
+          const view = calendarApi.view
+          fetchAppointments(view.activeStart, view.activeEnd)
+        }
+      } catch (error) {
+        console.error("Error rescheduling virtual occurrence:", error)
+        info.revert()
+      } finally {
+        setIsLoading(false)
+      }
+      return
+    }
+
+    if (!appointment) { info.revert(); return }
+
     if (appointment.type === 'recurring') {
+      const newStart = info.event.start
+      const newEnd = info.event.end
       info.revert()
-      setRecurringDialog({ open: true, info })
+      setRecurringDialog({ open: true, info, newStart, newEnd, submitting: false })
       return
     }
 
@@ -216,11 +424,36 @@ export function Calendar({
   }
 
   const handleEventResize = async (info: EventResizeDoneArg) => {
-    const appointment = info.event.extendedProps.appointment as Appointment
+    const { isVirtual, sessionPlanId, virtualDate, appointment } = info.event.extendedProps
+
+    if (isVirtual && sessionPlanId && virtualDate) {
+      // Virtual event resized — use rescheduleOccurrence to create exception
+      try {
+        setIsLoading(true)
+        if (info.event.start) {
+          await api.rescheduleOccurrence(sessionPlanId, virtualDate, info.event.start.toISOString())
+        }
+        const calendarApi = calendarRef.current?.getApi()
+        if (calendarApi) {
+          const view = calendarApi.view
+          fetchAppointments(view.activeStart, view.activeEnd)
+        }
+      } catch (error) {
+        console.error("Error rescheduling virtual occurrence:", error)
+        info.revert()
+      } finally {
+        setIsLoading(false)
+      }
+      return
+    }
+
+    if (!appointment) { info.revert(); return }
 
     if (appointment.type === 'recurring') {
+      const newStart = info.event.start
+      const newEnd = info.event.end
       info.revert()
-      setRecurringDialog({ open: true, info })
+      setRecurringDialog({ open: true, info, newStart, newEnd, submitting: false })
       return
     }
 
@@ -228,115 +461,387 @@ export function Calendar({
   }
 
   const handleConfirmRecurring = async (mode: 'single' | 'all') => {
-    if (!recurringDialog.info) return
+    if (!recurringDialog.info || recurringDialog.submitting) return
 
+    const { newStart, newEnd } = recurringDialog
     const info = recurringDialog.info
     const appointment = info.event.extendedProps.appointment as Appointment
-    
-    // For dropped/resized events, the 'event' object in info contains the NEW values
-    // even though we reverted the UI. We can use info.event.start/end.
-    // Wait, if we called revert(), does info.event still hold new values?
-    // FullCalendar docs say revert() reverses the visual change.
-    // However, the 'info' object passed to the handler has the 'event' with new date, 
-    // and 'oldEvent' with old date.
-    // We should use info.event.start/end (the drop/resize destination).
-    
-    await performUpdate(appointment.id, info.event.start, info.event.end, mode)
-    setRecurringDialog({ open: false, info: null })
+    const sessionPlanId = info.event.extendedProps.sessionPlanId as string | undefined
+
+    setRecurringDialog((prev) => ({ ...prev, submitting: true }))
+    try {
+      if (mode === 'single' && sessionPlanId && newStart) {
+        setIsLoading(true)
+        const originalDate = format(new Date(appointment.start_time), "yyyy-MM-dd")
+        await api.rescheduleOccurrence(sessionPlanId, originalDate, newStart.toISOString())
+      } else if (mode === 'all' && sessionPlanId && newStart) {
+        // Update the plan's preferred time so future occurrences inherit it,
+        // and move the currently-dragged appointment to the new slot. Without
+        // the second call the dragged row stays at its old time and the UI
+        // looks like the drag silently reverted.
+        setIsLoading(true)
+        const newTime = format(newStart, "HH:mm")
+        const originalDate = format(new Date(appointment.start_time), "yyyy-MM-dd")
+        await api.updateSessionPlan(sessionPlanId, { preferred_time: newTime })
+        await api.rescheduleOccurrence(sessionPlanId, originalDate, newStart.toISOString())
+      } else {
+        await performUpdate(appointment.id, newStart, newEnd, mode)
+      }
+      const calendarApi = calendarRef.current?.getApi()
+      if (calendarApi) {
+        const view = calendarApi.view
+        fetchAppointments(view.activeStart, view.activeEnd)
+      }
+    } catch (error) {
+      console.error("Error applying recurring reschedule:", error)
+    } finally {
+      setIsLoading(false)
+      setRecurringDialog({ open: false, info: null, newStart: null, newEnd: null, submitting: false })
+    }
   }
 
-  // Custom event content renderer
+  // Show tooltip on mouse enter — rendered at page level with position:fixed
+  const handleEventMouseEnter = useCallback((info: EventHoveringArg) => {
+    if (hideTooltipTimer.current) {
+      clearTimeout(hideTooltipTimer.current)
+      hideTooltipTimer.current = null
+    }
+
+    const appointment = info.event.extendedProps?.appointment as Appointment | undefined
+    // Virtual (session_plan) events have no materialized appointment. Without
+    // this the tooltip keeps showing the previous materialized event's data
+    // when the user slides over a virtual occurrence right after.
+    if (!appointment) {
+      setTooltip((t) => ({ ...t, visible: false }))
+      return
+    }
+
+    const rect = (info.el as HTMLElement).getBoundingClientRect()
+    const status = appointment.status || "pending"
+    const config = statusConfig[status] || statusConfig.pending
+    const professionalColor = info.event.extendedProps?.professionalColor as string | undefined
+    const professionalName = info.event.extendedProps?.professionalName as string | undefined
+
+    // Format time
+    const start = info.event.start
+    const end = info.event.end
+    const timeText = start
+      ? `${format(start, "HH:mm")}${end ? ` – ${format(end, "HH:mm")}` : ""}`
+      : ""
+
+    // Position tooltip to the right of the event; adjust if near right edge.
+    // In list view the event row spans the full width so "rect.right + margin"
+    // falls off-screen — clamp to viewport and prefer anchoring below the row.
+    const TOOLTIP_WIDTH = 240
+    const TOOLTIP_HEIGHT_APPROX = 160
+    const MARGIN = 8
+    const viewType = (info.view?.type as string | undefined) || ""
+    const isListView = viewType.startsWith("list")
+
+    let x: number
+    let y: number
+    if (isListView) {
+      x = rect.left
+      y = rect.bottom + MARGIN
+      if (y + TOOLTIP_HEIGHT_APPROX > window.innerHeight) {
+        y = Math.max(MARGIN, rect.top - TOOLTIP_HEIGHT_APPROX - MARGIN)
+      }
+    } else {
+      x = rect.right + MARGIN
+      if (x + TOOLTIP_WIDTH > window.innerWidth) {
+        x = rect.left - TOOLTIP_WIDTH - MARGIN
+      }
+      y = rect.top
+    }
+    // Final clamp to viewport
+    x = Math.max(MARGIN, Math.min(x, window.innerWidth - TOOLTIP_WIDTH - MARGIN))
+    y = Math.max(MARGIN, Math.min(y, window.innerHeight - TOOLTIP_HEIGHT_APPROX - MARGIN))
+
+    setTooltip({
+      visible: true,
+      x,
+      y,
+      appointment,
+      professionalColor,
+      professionalName,
+      timeText,
+      config,
+    })
+  }, [])
+
+  // Hide tooltip on mouse leave (with small delay to avoid flicker)
+  const handleEventMouseLeave = useCallback(() => {
+    hideTooltipTimer.current = setTimeout(() => {
+      setTooltip((t) => ({ ...t, visible: false }))
+    }, 80)
+  }, [])
+
+  // Fetch the full appointment (for patient phone) before opening WhatsApp.
+  // The calendar events endpoint omits phone/whatsapp to keep the payload light.
+  const handleListWhatsAppClick = useCallback(
+    async (appointmentId: string) => {
+      try {
+        const full = (await api.getAppointment(appointmentId)) as Appointment
+        const result = buildAppointmentReminderLink(full, clinicName)
+        if (!result.hasPhone) {
+          showToast.error("Paciente sem telefone/WhatsApp cadastrado")
+          return
+        }
+        window.open(result.url, "_blank", "noopener")
+      } catch (err) {
+        handleApiError(err, "Erro ao abrir WhatsApp")
+      }
+    },
+    [clinicName],
+  )
+
+  // Virtual events (not-yet-materialized recurrences) have no appointment
+  // record, so fetch the patient by ID to pull phone/whatsapp.
+  const handleVirtualWhatsAppClick = useCallback(
+    async (params: {
+      patientId: string
+      startTime: string
+      professionalName?: string
+    }) => {
+      try {
+        const patient = (await api.getPatient(params.patientId)) as {
+          name: string
+          phone: string
+          whatsapp: string
+        }
+        const result = buildAppointmentReminderLink(
+          {
+            patient: { id: params.patientId, name: patient.name, phone: patient.phone, whatsapp: patient.whatsapp },
+            professional: params.professionalName
+              ? { id: "", name: params.professionalName, specialty: "", color: "" }
+              : undefined,
+            start_time: params.startTime,
+          },
+          clinicName,
+        )
+        if (!result.hasPhone) {
+          showToast.error("Paciente sem telefone/WhatsApp cadastrado")
+          return
+        }
+        window.open(result.url, "_blank", "noopener")
+      } catch (err) {
+        handleApiError(err, "Erro ao abrir WhatsApp")
+      }
+    },
+    [clinicName],
+  )
+
+  // Custom event content renderer — no Tooltip/portal here
   const renderEventContent = (eventInfo: EventContentArg) => {
     const appointment = eventInfo.event.extendedProps?.appointment as Appointment | undefined
+    const isVirtual = eventInfo.event.extendedProps?.isVirtual as boolean | undefined
     const professionalColor = eventInfo.event.extendedProps?.professionalColor as string | undefined
 
-    // If no appointment data, return simple event rendering
-    if (!appointment) {
+    // Virtual events are scheduled recurrences — not pending confirmation.
+    const defaultStatus = isVirtual ? "scheduled" : "pending"
+    const status = appointment?.status || defaultStatus
+    const config = statusConfig[status] || statusConfig[defaultStatus]
+
+    const isListView = eventInfo.view.type.startsWith("list")
+    const patientId = eventInfo.event.extendedProps?.patientId as string | undefined
+    const professionalName = eventInfo.event.extendedProps?.professionalName as string | undefined
+    const isGroupEvent = eventInfo.event.extendedProps?.planType === "group"
+    // Group virtual events have no single patient — skip the reminder button.
+    // For individual virtual events we fetch the patient on click.
+    const handleReminderClick = () => {
+      if (appointment) {
+        handleListWhatsAppClick(appointment.id)
+      } else if (patientId && eventInfo.event.startStr) {
+        handleVirtualWhatsAppClick({
+          patientId,
+          startTime: eventInfo.event.startStr,
+          professionalName,
+        })
+      }
+    }
+    const canRemind =
+      !isGroupEvent &&
+      ((appointment && appointment.status !== "completed") || (isVirtual && !!patientId))
+
+    if (isListView) {
       return (
-        <div className="p-1 text-xs truncate">
-          {eventInfo.event.title}
+        <div className="flex items-center justify-between gap-2 w-full">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <span
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase shrink-0"
+              style={{ backgroundColor: config.border, color: "#fff" }}
+            >
+              <StatusIcon status={status} />
+              <span>{config.label}</span>
+            </span>
+            <span className="text-sm font-medium truncate">{eventInfo.event.title}</span>
+          </div>
+          {canRemind && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                e.preventDefault()
+                handleReminderClick()
+              }}
+              title="Enviar lembrete via WhatsApp"
+              className="shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-full text-[#25D366] hover:bg-[#25D366]/10 transition-colors"
+            >
+              <WhatsAppIcon className="h-4 w-4" />
+            </button>
+          )}
         </div>
       )
     }
 
-    const status = appointment.status || "pending"
-    const config = statusConfig[status] || statusConfig.pending
+    // Calculate event duration in minutes to decide layout
+    const start = eventInfo.event.start
+    const end = eventInfo.event.end
+    const durationMin = start && end ? Math.round((end.getTime() - start.getTime()) / 60000) : 60
 
-    // Find professional name if multiple professionals are shown
-    const professionalName = appointment.professional_id
-      ? professionals.find(p => p.id === appointment.professional_id)?.name
-      : undefined 
+    // Compact: ≤30min — only patient name (inline with time)
+    // Normal: >30min — status + time + patient name
+    const isCompact = durationMin <= 50
+
+    const isDayView = eventInfo.view.type === "timeGridDay"
+    const dayViewWhatsAppButton = isDayView && canRemind ? (
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation()
+          e.preventDefault()
+          handleReminderClick()
+        }}
+        title="Enviar lembrete via WhatsApp"
+        className="absolute top-1/2 right-1.5 -translate-y-1/2 inline-flex items-center justify-center w-7 h-7 rounded-full bg-white/80 text-[#25D366] hover:bg-[#25D366] hover:text-white shadow-sm transition-colors z-10"
+      >
+        <WhatsAppIcon className="h-4 w-4" />
+      </button>
+    ) : null
+
+    if (isCompact) {
+      return (
+        <div className="relative flex items-center h-full w-full px-1.5 overflow-hidden rounded-md cursor-pointer">
+          <div className="flex items-center gap-1 min-w-0 pr-8">
+            <span className="text-[11px] font-bold text-foreground truncate">
+              {eventInfo.event.title}
+            </span>
+          </div>
+          {dayViewWhatsAppButton}
+        </div>
+      )
+    }
 
     return (
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <div className="flex flex-col h-full w-full p-1 relative overflow-hidden rounded-md cursor-pointer">
-            {/* Professional color indicator (left border) */}
-            {professionalColor && (
-              <div
-                className="absolute left-0 top-0 bottom-0 w-1 rounded-l"
-                style={{ backgroundColor: professionalColor }}
-              />
-            )}
+      <div className="relative flex flex-col h-full w-full p-1 overflow-hidden rounded-md cursor-pointer">
+        {/* Main content */}
+        <div className="flex flex-col h-full gap-0.5 pl-1 pr-8">
+          {/* Status badge with icon */}
+          <div className="flex items-center">
+            <span
+              className="inline-flex items-center gap-1 px-1 py-0.5 rounded text-[8px] font-bold uppercase"
+              style={{ backgroundColor: config.border, color: "#fff" }}
+            >
+              <StatusIcon status={status} />
+              <span className="hidden sm:inline-block">{config.label}</span>
+            </span>
+          </div>
 
-            {/* Main content */}
-            <div className={cn("flex flex-col h-full gap-0.5", professionalColor ? "pl-2" : "pl-1")}>
-              {/* Status badge with icon */}
-              <div className="flex items-center">
-                <span
-                  className="inline-flex items-center gap-1 px-1 py-0.5 rounded text-[8px] font-bold uppercase"
-                  style={{ backgroundColor: config.border, color: "#fff" }}
-                >
-                  <StatusIcon status={status} />
-                  <span className="hidden sm:inline-block">{config.label}</span>
-                </span>
-              </div>
+          {/* Time & Patient */}
+          <div className="flex flex-col flex-1 min-h-0">
+            <div className="text-[10px] font-bold text-foreground/70 truncate">
+              {eventInfo.timeText}
+            </div>
 
-              {/* Time & Patient */}
-              <div className="flex flex-col flex-1 min-h-0">
-                <div className="text-[10px] font-bold text-foreground/70 truncate">
-                  {eventInfo.timeText}
-                </div>
-
-                <div className="text-[11px] font-bold text-foreground leading-tight truncate">
-                  {eventInfo.event.title}
-                </div>
-              </div>
+            <div className="text-[11px] font-bold text-foreground leading-tight truncate">
+              {eventInfo.event.title}
             </div>
           </div>
-        </TooltipTrigger>
-        <TooltipContent side="right" className="p-3 min-w-[200px] bg-white text-foreground border shadow-lg z-[1000]">
+        </div>
+        {dayViewWhatsAppButton}
+      </div>
+    )
+  }
+
+  return (
+    <>
+      {/* Loading dialog while materializing a virtual appointment — prod backend can take seconds */}
+      <Dialog open={isMaterializing} onOpenChange={(o) => !o && setIsMaterializing(false)}>
+        <DialogContent className="sm:max-w-[320px]">
+          <DialogHeader>
+            <DialogTitle>Abrindo agendamento…</DialogTitle>
+            <DialogDescription>
+              Carregando os dados, isso pode levar alguns segundos.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center justify-center py-4">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Custom tooltip — rendered at page root with position:fixed, always above everything */}
+      {tooltip.visible && tooltip.appointment && (
+        <div
+          className="fixed pointer-events-none bg-card text-foreground border border-border/50 rounded-xl shadow-elevated p-3.5 min-w-[220px]"
+          style={{
+            left: tooltip.x,
+            top: tooltip.y,
+            zIndex: 99999,
+          }}
+        >
           <div className="space-y-2">
             <div className="flex items-center justify-between gap-4 border-b pb-1">
               <span className="text-xs font-bold uppercase text-muted-foreground">Detalhes da Consulta</span>
               <span
                 className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase"
-                style={{ backgroundColor: config.bg, color: config.text, border: `1px solid ${config.border}` }}
+                style={{
+                  backgroundColor: tooltip.config.bg,
+                  color: tooltip.config.text,
+                  border: `1px solid ${tooltip.config.border}`,
+                }}
               >
-                <StatusIcon status={status} />
-                {config.label}
+                <StatusIcon status={tooltip.appointment.status || "pending"} />
+                {tooltip.config.label}
               </span>
             </div>
-            
+
             <div className="space-y-1">
-              <p className="text-sm font-bold text-primary">{eventInfo.event.title}</p>
+              <p className="text-sm font-bold text-primary">{tooltip.appointment.patient?.name || tooltip.appointment.title || "Agendamento"}</p>
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <Clock className="w-3.5 h-3.5" />
-                <span>{eventInfo.timeText}</span>
+                <span>{tooltip.timeText}</span>
               </div>
-              <div className="flex items-center gap-2 text-xs text-muted-foreground border-t pt-1 mt-1">
-                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: professionalColor }} />
-                <span>Prof: {professionalName}</span>
-              </div>
+              {tooltip.professionalName && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground border-t pt-1 mt-1">
+                  <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: tooltip.professionalColor }} />
+                  <span>Prof: {tooltip.professionalName}</span>
+                </div>
+              )}
+              {(tooltip.appointment.price > 0 || tooltip.appointment.procedures?.length > 0) && (
+                <div className="flex items-center justify-between gap-2 text-xs border-t pt-1 mt-1">
+                  <span className="text-muted-foreground">
+                    {tooltip.appointment.procedures?.[0]?.procedure?.name || "Valor"}
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-medium">R$ {(tooltip.appointment.price || 0).toFixed(2)}</span>
+                    {tooltip.appointment.payment_status === "paid" && (
+                      <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase bg-green-100 text-green-700">Pago</span>
+                    )}
+                    {tooltip.appointment.payment_status === "partial" && (
+                      <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase bg-amber-100 text-amber-700">Parcial</span>
+                    )}
+                    {tooltip.appointment.payment_status === "pending" && tooltip.appointment.price > 0 && (
+                      <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase bg-red-100 text-red-700">Pendente</span>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
-        </TooltipContent>
-      </Tooltip>
-    )
-  }
+        </div>
+      )}
 
-  return (
-    <TooltipProvider delayDuration={100}>
       <div className="relative h-full">
         {isLoading && events.length === 0 && (
           <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/50">
@@ -346,7 +851,7 @@ export function Calendar({
         <FullCalendar
           ref={calendarRef}
           plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, listPlugin]}
-          initialView={isMobile ? "listWeek" : "timeGridWeek"}
+          initialView={getStoredView() || (isMobile ? "listWeek" : "timeGridWeek")}
           locale={ptBrLocale}
           headerToolbar={
             isMobile
@@ -390,6 +895,8 @@ export function Calendar({
           eventDrop={handleEventDrop}
           eventResize={handleEventResize}
           eventContent={renderEventContent}
+          eventMouseEnter={handleEventMouseEnter}
+          eventMouseLeave={handleEventMouseLeave}
           nowIndicator={true}
           businessHours={{
             daysOfWeek: [1, 2, 3, 4, 5],
@@ -400,7 +907,13 @@ export function Calendar({
         />
       </div>
 
-      <Dialog open={recurringDialog.open} onOpenChange={(open) => !open && setRecurringDialog(prev => ({ ...prev, open: false }))}>
+      <Dialog
+        open={recurringDialog.open}
+        onOpenChange={(open) => {
+          if (recurringDialog.submitting) return
+          if (!open) setRecurringDialog({ open: false, info: null, newStart: null, newEnd: null, submitting: false })
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Atualizar Agendamento Recorrente</DialogTitle>
@@ -409,18 +922,29 @@ export function Calendar({
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setRecurringDialog({ open: false, info: null })}>
+            <Button
+              variant="outline"
+              onClick={() => setRecurringDialog({ open: false, info: null, newStart: null, newEnd: null, submitting: false })}
+              disabled={recurringDialog.submitting}
+            >
               Cancelar
             </Button>
-            <Button variant="secondary" onClick={() => handleConfirmRecurring('single')}>
+            <Button
+              variant="secondary"
+              onClick={() => handleConfirmRecurring('single')}
+              disabled={recurringDialog.submitting}
+            >
               Apenas este
             </Button>
-            <Button onClick={() => handleConfirmRecurring('all')}>
+            <Button
+              onClick={() => handleConfirmRecurring('all')}
+              disabled={recurringDialog.submitting}
+            >
               Todos os futuros
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </TooltipProvider>
+    </>
   )
 }

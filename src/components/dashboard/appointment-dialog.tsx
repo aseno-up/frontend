@@ -5,7 +5,8 @@ import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { format } from "date-fns"
-import { Loader2, Trash2 } from "lucide-react"
+import { Loader2, Trash2, Wallet } from "lucide-react"
+import type { MultiValue } from "react-select"
 
 import {
   Dialog,
@@ -23,16 +24,29 @@ import { ReactSelect, SelectOption } from "@/components/ui/react-select"
 import { CurrencyInput } from "@/components/ui/currency-input"
 import { api } from "@/lib/api/client"
 import { showToast, handleApiError } from "@/lib/toast"
-import type { Appointment, Patient, Professional } from "@/types/api"
+import type { Appointment, Patient, Professional, AppointmentPaymentStatus } from "@/types/api"
+import { AppointmentPaymentModal } from "./appointment-payment-modal"
+import { DeleteAppointmentDialog } from "./delete-appointment-dialog"
+import { ShareReceiptDialog } from "./share-receipt-dialog"
+import { WhatsAppReminderButton } from "@/components/whatsapp/whatsapp-reminder-button"
+import { PatientPackagesDialog } from "@/components/dashboard/patient-packages-dialog"
+import { pickWhatsAppPhone } from "@/lib/whatsapp-web"
+import { Share2 } from "lucide-react"
 
 const appointmentSchema = z.object({
   patient_id: z.string().min(1, "Paciente e obrigatorio"),
   professional_id: z.string().min(1, "Profissional e obrigatorio"),
+  specialty_ids: z.array(z.string()).optional(),
   start_time: z.string().min(1, "Data e hora sao obrigatorios"),
   duration_minutes: z.number().min(5, "Minimo 5 minutos").max(480, "Maximo 480 minutos"),
   title: z.string().optional(),
   notes: z.string().optional(),
   price: z.number().min(0).optional(),
+  status: z.string().optional(),
+  procedures: z.array(z.object({
+    procedure_id: z.string(),
+    price: z.number()
+  })).optional(),
 })
 
 type AppointmentFormData = z.infer<typeof appointmentSchema>
@@ -49,21 +63,36 @@ interface AppointmentDialogProps {
 }
 
 const statusLabels: Record<string, string> = {
+  awaiting_payment: "Aguardando Pagamento",
   pending: "Pendente",
   confirmed: "Confirmado",
   canceled: "Cancelado",
   no_show: "Faltou",
-  completed: "Concluido",
+  completed: "Concluído",
   rescheduled: "Reagendado",
 }
 
 const statusVariants: Record<string, "default" | "secondary" | "destructive" | "outline" | "success" | "warning" | "info"> = {
+  awaiting_payment: "warning",
   pending: "warning",
   confirmed: "success",
   canceled: "destructive",
   no_show: "secondary",
   completed: "info",
   rescheduled: "outline",
+}
+
+// Status values directly changeable from the dialog. Pending is included so the
+// pre-fill shows the current state for pending appointments, but selecting
+// Pendente again is effectively a no-op (no backend endpoint reverts to it).
+const selectableStatuses = ["pending", "confirmed", "completed", "no_show", "canceled"] as const
+
+const statusOptionMeta: Record<string, { label: string; color: string }> = {
+  pending: { label: "Pendente", color: "#F59E0B" },
+  confirmed: { label: "Confirmado", color: "#10B981" },
+  completed: { label: "Concluído", color: "#3B82F6" },
+  no_show: { label: "Faltou", color: "#6B7280" },
+  canceled: { label: "Cancelado", color: "#EF4444" },
 }
 
 export function AppointmentDialog({
@@ -79,7 +108,22 @@ export function AppointmentDialog({
   const [isLoading, setIsLoading] = useState(false)
   const [patients, setPatients] = useState<Patient[]>([])
   const [patientsLoading, setPatientsLoading] = useState(false)
+  
+  // Specialties
+  const [specialties, setSpecialties] = useState<any[]>([])
+  const [specialtiesLoading, setSpecialtiesLoading] = useState(false)
 
+  // Procedures
+  const [procedures, setProcedures] = useState<any[]>([])
+  const [proceduresLoading, setProceduresLoading] = useState(false)
+
+  // Package balances per procedure for the currently-selected patient.
+  // Used to render "(X/Y)" hints on the procedure picker so the user can see at
+  // a glance which procedures are billed against an existing sales package.
+  const [packageBalances, setPackageBalances] = useState<Record<string, { used: number; quantity: number }>>({})
+  const [showPaymentModal, setShowPaymentModal] = useState(false)
+  const [showShareReceipt, setShowShareReceipt] = useState(false)
+  const [packagesDialogOpen, setPackagesDialogOpen] = useState(false)
   const isEditing = !!appointment
 
   const defaultDuration =
@@ -100,11 +144,14 @@ export function AppointmentDialog({
     defaultValues: {
       patient_id: "",
       professional_id: defaultProfessionalId || "",
+      specialty_ids: [],
       start_time: defaultStart ? format(defaultStart, "yyyy-MM-dd'T'HH:mm") : "",
       duration_minutes: defaultDuration,
       title: "",
       notes: "",
       price: 0,
+      status: "pending",
+      procedures: [],
     },
   })
 
@@ -112,7 +159,7 @@ export function AppointmentDialog({
   const fetchPatients = useCallback(async () => {
     setPatientsLoading(true)
     try {
-      const response = await api.getPatients(1, 200)
+      const response = await api.getPatients({ limit: 200 })
       setPatients(response.data || [])
     } catch (error) {
       console.error("Error fetching patients:", error)
@@ -121,11 +168,38 @@ export function AppointmentDialog({
     }
   }, [])
 
+  // Fetch specialties
+  const fetchSpecialties = useCallback(async () => {
+    setSpecialtiesLoading(true)
+    try {
+      const response = await api.getSpecialtiesActive()
+      setSpecialties(response.data || [])
+    } catch (error) {
+      console.error("Error fetching specialties:", error)
+    } finally {
+      setSpecialtiesLoading(false)
+    }
+  }, [])
+
+  const fetchProcedures = useCallback(async () => {
+    setProceduresLoading(true)
+    try {
+      const response = await api.getProcedures({ page: 1, limit: 100 })
+      setProcedures(response.data || [])
+    } catch (error) {
+      console.error("Error fetching procedures:", error)
+    } finally {
+      setProceduresLoading(false)
+    }
+  }, [])
+
   useEffect(() => {
     if (open) {
       fetchPatients()
+      fetchSpecialties()
+      fetchProcedures()
     }
-  }, [open, fetchPatients])
+  }, [open, fetchPatients, fetchSpecialties, fetchProcedures])
 
   // Convert patients to select options
   const patientOptions: SelectOption[] = useMemo(() => {
@@ -139,12 +213,84 @@ export function AppointmentDialog({
   const professionalOptions: SelectOption[] = useMemo(() => {
     return professionals.map((prof) => ({
       value: prof.id,
-      label: `${prof.name} - ${prof.specialty}`,
+      label: prof.name,
       color: prof.color,
     }))
   }, [professionals])
 
+  const specialtyOptions: SelectOption[] = useMemo(() => {
+    if (!Array.isArray(specialties)) return []
+    return specialties.map((spec) => ({
+      value: spec.id,
+      label: spec.name,
+    }))
+  }, [specialties])
+
+  const procedureOptions: SelectOption[] = useMemo(() => {
+    return procedures.map((proc) => {
+      const balance = packageBalances[proc.id]
+      const hasAvailableBalance =
+        balance != null && balance.quantity - balance.used > 0
+      // When the patient has a remaining package balance for this procedure,
+      // the label hides the catalog price (it's already paid through the
+      // package) and surfaces only the consumption hint. The chip in
+      // "Valores na Sessão" picks this up too — package items don't
+      // contribute to the appointment's billable total.
+      const label = hasAvailableBalance
+        ? `${proc.name} — Pacote (${balance!.used}/${balance!.quantity})`
+        : `${proc.name} (R$ ${proc.price.toFixed(2)})`
+      return {
+        value: proc.id,
+        label,
+        basePrice: hasAvailableBalance ? 0 : proc.price,
+        viaPackage: hasAvailableBalance,
+      } as SelectOption & { viaPackage?: boolean }
+    })
+  }, [procedures, packageBalances])
+
+  // Convenience set: which selected procedures consume a package slot.
+  const proceduresViaPackage = useMemo(() => {
+    const set = new Set<string>()
+    procedures.forEach((proc) => {
+      const balance = packageBalances[proc.id]
+      if (balance && balance.quantity - balance.used > 0) {
+        set.add(proc.id)
+      }
+    })
+    return set
+  }, [procedures, packageBalances])
+
   const watchedPatientId = watch("patient_id")
+  // Load package balances whenever the patient changes OR the dialog reopens.
+  // Reopening matters because the user might have just booked an appointment
+  // that consumed a package slot — without `open` in the deps, the X/Y hint
+  // would lag behind reality the next time they open the dialog for the same
+  // patient. The effect also carries `appointment?.id` so editing a different
+  // appointment for the same patient triggers a refresh too.
+  useEffect(() => {
+    if (!open || !watchedPatientId) {
+      if (!watchedPatientId) setPackageBalances({})
+      return
+    }
+    let cancelled = false
+    api
+      .getPatientPackageBalances(watchedPatientId)
+      .then((resp) => {
+        if (cancelled) return
+        const map: Record<string, { used: number; quantity: number }> = {}
+        for (const b of resp.data || []) {
+          map[b.procedure_id] = { used: b.used_total, quantity: b.quantity_total }
+        }
+        setPackageBalances(map)
+      })
+      .catch(() => {
+        if (!cancelled) setPackageBalances({})
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [watchedPatientId, open, appointment?.id])
+
   const selectedPatientOption = useMemo(() => {
     if (!watchedPatientId) return null
     return patientOptions.find((opt) => opt.value === watchedPatientId) || null
@@ -156,11 +302,53 @@ export function AppointmentDialog({
     return professionalOptions.find((opt) => opt.value === watchedProfessionalId) || null
   }, [watchedProfessionalId, professionalOptions])
 
+  const selectedPatient = useMemo(() => {
+    return patients.find((p) => p.id === watchedPatientId) || null
+  }, [watchedPatientId, patients])
+  const reminderPhone = pickWhatsAppPhone(selectedPatient ?? appointment?.patient)
+  const reminderStartTime = watch("start_time")
+  const reminderProfessional = professionals.find((p) => p.id === watchedProfessionalId)
+
+  // Reload procedures when professional changes
+
+  const watchedSpecialtyIds = watch("specialty_ids") || []
+  const selectedSpecialtyOptions = useMemo(() => {
+    return watchedSpecialtyIds
+      .map((id) => specialtyOptions.find((opt) => opt.value === id))
+      .filter(Boolean) as SelectOption[]
+  }, [watchedSpecialtyIds, specialtyOptions])
+
+  const watchedProcedures = watch("procedures") || []
+  const selectedProcedureOptions = useMemo(() => {
+    // For each selected procedure, prefer the option from the active catalog.
+    // If it isn't there (typically because the procedure was soft-deleted),
+    // fall back to a synthetic option built from the preloaded appointment
+    // data so the chip still renders and the user can remove it.
+    return watchedProcedures
+      .map((p) => {
+        const fromCatalog = procedureOptions.find((opt) => opt.value === p.procedure_id)
+        if (fromCatalog) return fromCatalog
+        const fromAppointment = appointment?.procedures?.find(
+          (ap: { procedure_id: string; procedure?: { name?: string } }) => ap.procedure_id === p.procedure_id
+        )
+        if (fromAppointment?.procedure?.name) {
+          return {
+            value: p.procedure_id,
+            label: `${fromAppointment.procedure.name} (inativo)`,
+            basePrice: p.price,
+          } as SelectOption
+        }
+        return null
+      })
+      .filter(Boolean) as SelectOption[]
+  }, [watchedProcedures, procedureOptions, appointment])
+
   useEffect(() => {
     if (appointment) {
       reset({
         patient_id: appointment.patient_id,
         professional_id: appointment.professional_id,
+        specialty_ids: appointment.specialties ? appointment.specialties.map((s) => s.specialty_id) : [],
         start_time: format(new Date(appointment.start_time), "yyyy-MM-dd'T'HH:mm"),
         duration_minutes: Math.round(
           (new Date(appointment.end_time).getTime() -
@@ -170,6 +358,11 @@ export function AppointmentDialog({
         title: appointment.title,
         notes: appointment.notes,
         price: appointment.price,
+        status: appointment.status,
+        procedures: appointment.procedures ? appointment.procedures.map((p: any) => ({
+           procedure_id: p.procedure_id,
+           price: p.price
+        })) : [],
       })
     } else {
       reset({
@@ -180,6 +373,8 @@ export function AppointmentDialog({
         title: "",
         notes: "",
         price: 0,
+        status: "pending",
+        procedures: [],
       })
     }
   }, [appointment, defaultStart, defaultEnd, defaultProfessionalId, reset, defaultDuration])
@@ -187,14 +382,33 @@ export function AppointmentDialog({
   const onSubmit = async (data: AppointmentFormData) => {
     setIsLoading(true)
     try {
-      // Convert datetime-local format to ISO 8601
+      // status is applied via dedicated endpoints, not updateAppointment
+      const { status: newStatus, ...rest } = data
       const payload = {
-        ...data,
-        start_time: new Date(data.start_time).toISOString(),
+        ...rest,
+        start_time: new Date(rest.start_time).toISOString(),
       }
 
       if (isEditing) {
         await api.updateAppointment(appointment.id, payload)
+
+        if (newStatus && newStatus !== appointment.status) {
+          switch (newStatus) {
+            case "confirmed":
+              await api.confirmAppointment(appointment.id)
+              break
+            case "completed":
+              await api.completeAppointment(appointment.id)
+              break
+            case "no_show":
+              await api.markNoShow(appointment.id)
+              break
+            case "canceled":
+              await api.cancelAppointment(appointment.id)
+              break
+            // "pending" has no revert endpoint — ignore
+          }
+        }
         showToast.success("Agendamento atualizado com sucesso!")
       } else {
         await api.createAppointment(payload)
@@ -209,61 +423,22 @@ export function AppointmentDialog({
     }
   }
 
-  const handleStatusAction = async (action: string) => {
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+
+  const handleDelete = () => {
     if (!appointment) return
-
-    const actionMessages: Record<string, string> = {
-      confirm: "Agendamento confirmado!",
-      cancel: "Agendamento cancelado!",
-      complete: "Agendamento concluído!",
-      no_show: "Paciente marcado como faltou",
-    }
-
-    setIsLoading(true)
-    try {
-      switch (action) {
-        case "confirm":
-          await api.confirmAppointment(appointment.id)
-          break
-        case "cancel":
-          await api.cancelAppointment(appointment.id)
-          break
-        case "complete":
-          await api.completeAppointment(appointment.id)
-          break
-        case "no_show":
-          await api.markNoShow(appointment.id)
-          break
-      }
-      showToast.success(actionMessages[action] || "Status atualizado!")
-      onSuccess()
-      onOpenChange(false)
-    } catch (error) {
-      handleApiError(error, "Erro ao atualizar status")
-    } finally {
-      setIsLoading(false)
-    }
+    setDeleteDialogOpen(true)
   }
 
-  const handleDelete = async () => {
-    if (!appointment || !confirm("Tem certeza que deseja excluir este agendamento?")) return
-
-    setIsLoading(true)
-    try {
-      await api.deleteAppointment(appointment.id)
-      showToast.success("Agendamento excluído com sucesso!")
-      onSuccess()
-      onOpenChange(false)
-    } catch (error) {
-      handleApiError(error, "Erro ao excluir agendamento")
-    } finally {
-      setIsLoading(false)
-    }
+  const handleDeleteSuccess = () => {
+    onSuccess()
+    onOpenChange(false)
   }
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[700px] max-h-[95vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {isEditing ? "Editar Agendamento" : "Novo Agendamento"}
@@ -296,6 +471,17 @@ export function AppointmentDialog({
             {errors.patient_id && (
               <p className="text-sm text-destructive">{errors.patient_id.message}</p>
             )}
+            {watchedPatientId && Object.keys(packageBalances).length > 0 && (
+              <Button
+                type="button"
+                variant="link"
+                size="sm"
+                className="h-auto p-0 text-xs"
+                onClick={() => setPackagesDialogOpen(true)}
+              >
+                Ver pacotes deste paciente ({Object.keys(packageBalances).length})
+              </Button>
+            )}
           </div>
 
           {/* Professional */}
@@ -316,6 +502,62 @@ export function AppointmentDialog({
               <p className="text-sm text-destructive">{errors.professional_id.message}</p>
             )}
           </div>
+
+          {/* Specialties */}
+          <div className="space-y-2">
+            <Label htmlFor="specialty_ids">Especialidades</Label>
+            <ReactSelect<true>
+              isMulti
+              value={selectedSpecialtyOptions}
+              onChange={(options) => {
+                const selected = (options as MultiValue<SelectOption>) || []
+                setValue("specialty_ids", selected.map((opt) => opt.value), { shouldValidate: true })
+              }}
+              options={specialtyOptions}
+              placeholder="Selecione as especialidades..."
+              isDisabled={isLoading}
+              isLoading={specialtiesLoading}
+              isClearable
+            />
+          </div>
+
+          {/* Status */}
+          {isEditing && (() => {
+            const originalStatus = appointment?.status
+            // "Pendente" has no revert endpoint, so only surface it when the
+            // appointment is already pending (i.e. as the current selection).
+            const availableStatuses = selectableStatuses.filter(
+              (s) => s !== "pending" || originalStatus === "pending",
+            )
+            const statusOptions: SelectOption[] = availableStatuses.map((s) => ({
+              value: s,
+              label: statusOptionMeta[s].label,
+              color: statusOptionMeta[s].color,
+            }))
+            const currentStatus = watch("status") || originalStatus || "pending"
+            const selected = statusOptions.find((o) => o.value === currentStatus) || null
+            const changed = currentStatus !== originalStatus
+            return (
+              <div className="space-y-2">
+                <Label>Status</Label>
+                <ReactSelect
+                  value={selected}
+                  onChange={(opt) => {
+                    setValue("status", opt?.value || originalStatus || "pending", { shouldDirty: true })
+                  }}
+                  options={statusOptions}
+                  placeholder="Selecionar status..."
+                  isDisabled={isLoading}
+                  showColorIndicator
+                />
+                {changed && (
+                  <p className="text-xs text-muted-foreground">
+                    A alteração de status só será aplicada ao clicar em Salvar.
+                  </p>
+                )}
+              </div>
+            )
+          })()}
 
           {/* Date Time */}
           <div className="grid grid-cols-2 gap-4">
@@ -374,22 +616,199 @@ export function AppointmentDialog({
             />
           </div>
 
+          {/* Procedures */}
+          <div className="space-y-2">
+            <Label>Procedimentos Opcionais</Label>
+            <ReactSelect<true>
+              isMulti
+              value={selectedProcedureOptions}
+              onChange={(options) => {
+                const selected = (options as MultiValue<SelectOption>) || []
+
+                // Procedures consumed from a package never bill the patient
+                // again — the patient already paid for them via the sale, so
+                // we hard-zero their per-row price even if the catalog has a
+                // value. Existing rows preserve their price unless they
+                // crossed into "via package" since the last edit.
+                const newProcedures = selected.map((opt) => {
+                  const existing = watchedProcedures.find((p) => p.procedure_id === opt.value)
+                  if (proceduresViaPackage.has(opt.value)) {
+                    return { procedure_id: opt.value, price: 0 }
+                  }
+                  return {
+                    procedure_id: opt.value,
+                    price: existing !== undefined ? existing.price : (opt.basePrice || 0),
+                  }
+                })
+
+                setValue("procedures", newProcedures, { shouldValidate: true })
+
+                // Total ignores package-backed lines (price already 0 there).
+                const calculatedTotalCents = newProcedures.reduce(
+                  (sum, p) => sum + Math.round((p.price || 0) * 100),
+                  0,
+                )
+                setValue("price", calculatedTotalCents / 100, { shouldValidate: true })
+              }}
+              options={procedureOptions}
+              placeholder="Selecione um ou mais..."
+              isDisabled={isLoading}
+              isLoading={proceduresLoading}
+              isClearable
+            />
+            {watchedProcedures.length > 0 && (() => {
+              // Procedures already covered by a package don't get a price
+              // input — they're listed separately as "Via pacote (X/Y)" so
+              // the receptionist sees what's pre-paid without confusing it
+              // with billable items.
+              const billable = watchedProcedures
+                .map((p, idx) => ({ proc: p, index: idx }))
+                .filter(({ proc }) => !proceduresViaPackage.has(proc.procedure_id))
+              const viaPackage = watchedProcedures.filter((p) =>
+                proceduresViaPackage.has(p.procedure_id),
+              )
+
+              const procName = (id: string) => {
+                const fromOptions = procedureOptions.find((o) => o.value === id)?.label
+                const fromAppointment = appointment?.procedures?.find(
+                  (ap: { procedure_id: string; procedure?: { name?: string } }) =>
+                    ap.procedure_id === id,
+                )?.procedure?.name
+                const label = fromOptions || fromAppointment || "Procedimento"
+                return label
+                  .replace(/—\s*Pacote \(\d+\/\d+\)\s*$/, "")
+                  .replace(/\(R\$.+\)$/, "")
+                  .trim()
+              }
+
+              if (billable.length === 0 && viaPackage.length === 0) return null
+
+              return (
+                <div className="mt-2 space-y-3 rounded-md border p-3 bg-slate-50">
+                  {viaPackage.length > 0 && (
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground uppercase tracking-wider">
+                        Inclusos no pacote do paciente
+                      </Label>
+                      <div className="space-y-1">
+                        {viaPackage.map((proc) => {
+                          const balance = packageBalances[proc.procedure_id]
+                          return (
+                            <div
+                              key={proc.procedure_id}
+                              className="flex items-center justify-between gap-3 text-sm"
+                            >
+                              <span className="font-medium leading-none">
+                                {procName(proc.procedure_id)}
+                              </span>
+                              {balance && (
+                                <Badge variant="outline" className="text-xs">
+                                  Pacote ({balance.used}/{balance.quantity})
+                                </Badge>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {billable.length > 0 && (
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground uppercase tracking-wider">
+                        Valores na Sessão
+                      </Label>
+                      {billable.map(({ proc, index }) => (
+                        <div key={proc.procedure_id} className="flex items-center gap-3">
+                          <span className="flex-1 text-sm font-medium leading-none">
+                            {procName(proc.procedure_id)}
+                          </span>
+                          <div className="w-32">
+                            <Controller
+                              name={`procedures.${index}.price`}
+                              control={control}
+                              render={({ field }) => (
+                                <CurrencyInput
+                                  autoFocus={false}
+                                  value={field.value}
+                                  onChange={(val) => {
+                                    field.onChange(val)
+                                    const proceduresCopy = [...watchedProcedures]
+                                    proceduresCopy[index].price = val
+                                    const sumCents = proceduresCopy.reduce(
+                                      (acc, p) => acc + Math.round((p.price || 0) * 100),
+                                      0,
+                                    )
+                                    setValue("price", sumCents / 100, { shouldValidate: true })
+                                  }}
+                                  disabled={isLoading}
+                                />
+                              )}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
+          </div>
+
           {/* Price */}
           <div className="space-y-2">
-            <Label htmlFor="price">Valor</Label>
-            <Controller
-              name="price"
-              control={control}
-              render={({ field }) => (
-                <CurrencyInput
-                  id="price"
-                  value={field.value}
-                  onChange={field.onChange}
-                  disabled={isLoading}
-                />
+            <Label htmlFor="price">Valor Total (Soma dos Procedimentos)</Label>
+            <div className="flex items-center gap-3">
+              <CurrencyInput
+                id="price"
+                value={watch("price")}
+                onChange={() => {}}
+                disabled={true}
+              />
+              {isEditing && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0"
+                  onClick={() => setShowPaymentModal(true)}
+                >
+                  <Wallet className="h-4 w-4 mr-2" />
+                  Pagamentos
+                  {appointment?.payment_status === "paid" && (
+                    <Badge variant="success" className="ml-2 text-[10px]">Pago</Badge>
+                  )}
+                  {appointment?.payment_status === "partial" && (
+                    <Badge variant="warning" className="ml-2 text-[10px]">Parcial</Badge>
+                  )}
+                </Button>
               )}
-            />
+            </div>
           </div>
+
+          {isEditing && appointment && (
+            <AppointmentPaymentModal
+              isOpen={showPaymentModal}
+              onClose={() => setShowPaymentModal(false)}
+              appointmentId={appointment.id}
+              appointmentPrice={watch("price") || 0}
+              patient={selectedPatient ?? appointment.patient ?? null}
+              appointmentStartTime={appointment.start_time}
+              professionalName={reminderProfessional?.name ?? appointment.professional?.name}
+              onPaymentChanged={onSuccess}
+            />
+          )}
+
+          {isEditing && appointment && (
+            <ShareReceiptDialog
+              open={showShareReceipt}
+              onOpenChange={setShowShareReceipt}
+              appointmentId={appointment.id}
+              patient={selectedPatient ?? appointment.patient ?? null}
+              startTime={appointment.start_time}
+              professionalName={reminderProfessional?.name ?? appointment.professional?.name}
+            />
+          )}
 
           <DialogFooter className="gap-2">
             {isEditing && (
@@ -404,51 +823,34 @@ export function AppointmentDialog({
                   <Trash2 className="h-4 w-4" />
                 </Button>
 
+                {appointment &&
+                  (appointment.payment_status === "paid" ||
+                    appointment.payment_status === "partial") && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      title="Compartilhar recibo"
+                      onClick={() => setShowShareReceipt(true)}
+                      disabled={isLoading}
+                    >
+                      <Share2 className="h-4 w-4" />
+                    </Button>
+                  )}
+
+                {reminderPhone &&
+                  selectedPatient &&
+                  reminderStartTime &&
+                  appointment?.status !== "completed" && (
+                    <WhatsAppReminderButton
+                      patient={selectedPatient}
+                      startTime={reminderStartTime}
+                      professionalName={reminderProfessional?.name}
+                      disabled={isLoading}
+                    />
+                  )}
+
                 <div className="flex-1" />
-
-                {appointment?.status === "pending" && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => handleStatusAction("confirm")}
-                    disabled={isLoading}
-                  >
-                    Confirmar
-                  </Button>
-                )}
-
-                {appointment?.status === "confirmed" && (
-                  <>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => handleStatusAction("complete")}
-                      disabled={isLoading}
-                    >
-                      Concluir
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => handleStatusAction("no_show")}
-                      disabled={isLoading}
-                    >
-                      Faltou
-                    </Button>
-                  </>
-                )}
-
-                {(appointment?.status === "pending" ||
-                  appointment?.status === "confirmed") && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => handleStatusAction("cancel")}
-                    disabled={isLoading}
-                  >
-                    Cancelar
-                  </Button>
-                )}
               </>
             )}
 
@@ -460,5 +862,20 @@ export function AppointmentDialog({
         </form>
       </DialogContent>
     </Dialog>
+    {watchedPatientId && (
+      <PatientPackagesDialog
+        open={packagesDialogOpen}
+        onOpenChange={setPackagesDialogOpen}
+        patientId={watchedPatientId}
+        patientName={selectedPatient?.name}
+      />
+    )}
+    <DeleteAppointmentDialog
+      open={deleteDialogOpen}
+      onOpenChange={setDeleteDialogOpen}
+      appointmentId={appointment?.id ?? null}
+      onSuccess={handleDeleteSuccess}
+    />
+    </>
   )
 }

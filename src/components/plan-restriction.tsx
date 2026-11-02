@@ -39,8 +39,8 @@ export function PlanRestriction({
 }: PlanRestrictionProps) {
   const { clinic } = useAuthStore()
 
-  const userPlan = clinic?.plan || "basic"
-  const subscriptionStatus = clinic?.subscription_status || "trial"
+  const userPlan = clinic?.account?.plan?.slug || "basic"
+  const subscriptionStatus = clinic?.account?.subscription_status || "trial"
 
   // Trial users have full access
   const isTrialUser = subscriptionStatus === "trial"
@@ -111,8 +111,8 @@ export function useFeatureAccess(requiredPlan: "professional" | "advanced"): {
 } {
   const { clinic } = useAuthStore()
 
-  const userPlan = clinic?.plan || "basic"
-  const subscriptionStatus = clinic?.subscription_status || "trial"
+  const userPlan = clinic?.account?.plan?.slug || "basic"
+  const subscriptionStatus = clinic?.account?.subscription_status || "trial"
 
   const isTrialUser = subscriptionStatus === "trial"
 

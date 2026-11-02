@@ -71,30 +71,43 @@ export const handleApiError = (error: unknown, fallbackMessage = "Ocorreu um err
 
   if (error && typeof error === 'object') {
     // Check for axios error response with nested error object
-    const axiosError = error as { 
-      response?: { 
-        data?: { 
+    const axiosError = error as {
+      response?: {
+        data?: {
           message?: string,
-          error?: { 
+          // Some handlers return `{error: {type, message}}` (structured),
+          // others return `{error: "plain string"}`. Both shapes must surface
+          // or users get the generic fallback and can't tell what went wrong.
+          error?: string | {
             type?: string,
-            message?: string 
-          } 
-        } 
+            message?: string
+          }
+        }
       },
       message?: string
     }
 
-    // Try to get translated message from backend error type: response.data.error.type
-    const errorType = axiosError.response?.data?.error?.type
-    if (errorType && errorMap[errorType]) {
-      showToast.error(errorMap[errorType])
+    const errData = axiosError.response?.data?.error
+
+    // Plain-string error body (most Go handlers use `gin.H{"error": err.Error()}`).
+    if (typeof errData === 'string' && errData.trim()) {
+      showToast.error(errData)
       return
     }
 
-    // Try to get message from backend response: response.data.error.message
-    if (axiosError.response?.data?.error?.message) {
-      showToast.error(axiosError.response.data.error.message)
-      return
+    // Prefer the backend's specific message over the generic translation,
+    // because validation errors typically carry actionable details
+    // ("Desconto maior que o subtotal." beats a fallback "Dados inválidos").
+    // Only fall back to errorMap[type] when no message was provided.
+    if (typeof errData === 'object' && errData) {
+      if (errData.message && errData.message.trim()) {
+        showToast.error(errData.message)
+        return
+      }
+      if (errData.type && errorMap[errData.type]) {
+        showToast.error(errorMap[errData.type])
+        return
+      }
     }
 
     // Fallback to response.data.message

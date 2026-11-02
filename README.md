@@ -1,36 +1,129 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+<div align="center">
 
-## Getting Started
+# Aseno — Frontend
 
-First, run the development server:
+**The web app of Aseno, a SaaS that runs health and wellness clinics end to end.**
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+Schedule, patients, finances and WhatsApp in one place, plus the public pages where patients book and pay online.
+
+![Next.js](https://img.shields.io/badge/Next.js-15-000000?logo=nextdotjs&logoColor=white)
+![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind-3-06B6D4?logo=tailwindcss&logoColor=white)
+![shadcn/ui](https://img.shields.io/badge/shadcn%2Fui-components-000000)
+
+<br/>
+
+<img src="public/screenshots/dasboard.png" alt="Aseno dashboard" width="900"/>
+
+</div>
+
+---
+
+## Overview
+
+Aseno is used by physiotherapy, aesthetics, psychology, pilates and other clinics to manage their
+day to day. This repository holds everything the user sees: the clinic dashboard, the patient-facing
+pages and the marketing site. It talks to the Go API in [backend](https://github.com/aseno-up/backend)
+and is deployed on Kubernetes through [k8s](https://github.com/aseno-up/k8s).
+
+## Screens
+
+<table>
+  <tr>
+    <td width="50%"><img src="public/screenshots/agenda-semanal.png" alt="Weekly schedule"/><br/><sub><b>Schedule</b> — weekly and monthly views, drag to reschedule</sub></td>
+    <td width="50%"><img src="public/screenshots/financeiro-caixa.png" alt="Cash flow"/><br/><sub><b>Finance</b> — cash flow, commissions and lost revenue</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="public/screenshots/plano-de-sessao.png" alt="Session plans"/><br/><sub><b>Session plans</b> — recurring treatments and group classes</sub></td>
+    <td width="50%"><img src="public/screenshots/anamnese-customizada.png" alt="Custom intake form"/><br/><sub><b>Intake forms</b> — each clinic builds its own anamnesis</sub></td>
+  </tr>
+</table>
+
+## What is inside
+
+**Clinic dashboard**
+- Schedule with individual appointments, group classes and waitlist
+- Patients, health records and customizable intake forms
+- Finance: cash flow, sales and packages, commissions, reports
+- WhatsApp inbox with the AI agent and human takeover
+- Team, roles and permissions, procedures, insurance plans and clinic settings
+- Guided onboarding and in-app tutorials
+
+**Patient-facing pages**
+- Public clinic page and online booking (`/clinica/[slug]`, `/agendar/[slug]`)
+- Online payment and receipts (`/pagar/[token]`, `/recibo/[token]`)
+- Patient portal to sign up, log in and manage appointments (`/portal`)
+
+**Marketing site**
+- Landing page and one page per specialty (physiotherapy, aesthetics, psychology, nutrition, pilates and more)
+- SEO with sitemap, robots and per-page metadata
+- Available in Portuguese and English
+
+<div align="center">
+<img src="public/screenshots/dashboard-responsivo.png" alt="Mobile dashboard" width="220"/>
+<br/><sub>Fully responsive: clinics run their day from the phone.</sub>
+</div>
+
+## Tech stack
+
+| | |
+|---|---|
+| Framework | Next.js 15 (App Router), React 18 |
+| Language | TypeScript |
+| UI | Tailwind CSS, shadcn/ui, Radix UI |
+| Forms and validation | React Hook Form, Zod |
+| State | Zustand |
+| Calendar | FullCalendar |
+| Internationalization | i18next (pt-BR, en) |
+| HTTP | Axios |
+| Delivery | Standalone Docker image on GHCR, deployed to Kubernetes on version tags |
+
+## Project structure
+
+```
+src/
+  app/
+    [lng]/
+      (auth)/          login, sign-up, onboarding
+      (dashboard)/     the clinic app: agenda, pacientes, financeiro, whatsapp, ...
+      (landing)/       marketing site and specialty pages
+    agendar/  clinica/ public booking and clinic pages
+    pagar/  recibo/    online payment and receipts
+    portal/            patient portal
+  components/          shared components and shadcn/ui primitives
+  hooks/  stores/      permissions, onboarding, auth state
+  lib/  types/         API client, helpers and shared types
+public/locales/        translations
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Running locally
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Requirements: Node.js 20+ and the [backend](https://github.com/aseno-up/backend) running.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm install
 
-## Learn More
+# point the app to the API
+echo "NEXT_PUBLIC_API_URL=http://localhost:4901/api/v1" > .env.local
 
-To learn more about Next.js, take a look at the following resources:
+npm run dev        # http://localhost:3001
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Other commands:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+npm run build      # production build
+npm run lint       # lint
+```
 
-## Deploy on Vercel
+## Deployment
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Pushing a tag like `v1.4.0` triggers GitHub Actions, which builds a standalone Docker image,
+publishes it to GitHub Container Registry and rolls it out to the Kubernetes cluster.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+---
+
+<div align="center">
+Built by <a href="https://github.com/jhamiltonjunior">Hamilton Santos</a>
+</div>

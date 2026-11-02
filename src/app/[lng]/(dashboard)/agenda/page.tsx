@@ -6,6 +6,8 @@ import { Plus } from "lucide-react"
 import { Header } from "@/components/dashboard/header"
 import { Calendar } from "@/components/dashboard/calendar"
 import { AppointmentDialog } from "@/components/dashboard/appointment-dialog"
+import { AgendaVendasTabs } from "@/components/dashboard/agenda-vendas-tabs"
+import { GroupAttendanceDialog } from "@/components/session-plans/group-attendance-dialog"
 import { Button } from "@/components/ui/button"
 import { ReactSelect, SelectOption } from "@/components/ui/react-select"
 import { api } from "@/lib/api/client"
@@ -24,6 +26,10 @@ export default function AgendaPage({ params }: AgendaPageProps) {
   const [defaultStart, setDefaultStart] = useState<Date>()
   const [defaultEnd, setDefaultEnd] = useState<Date>()
   const [refreshKey, setRefreshKey] = useState(0)
+  const [groupAttendanceOpen, setGroupAttendanceOpen] = useState(false)
+  const [groupAttendanceSessionPlanId, setGroupAttendanceSessionPlanId] = useState("")
+  const [groupAttendanceDate, setGroupAttendanceDate] = useState("")
+  const [groupAttendanceSlotId, setGroupAttendanceSlotId] = useState<string | undefined>(undefined)
 
   useEffect(() => {
     params.then(({ lng }) => setLng(lng))
@@ -32,7 +38,7 @@ export default function AgendaPage({ params }: AgendaPageProps) {
   useEffect(() => {
     const fetchProfessionals = async () => {
       try {
-        const response = await api.getProfessionals(1, 100)
+        const response = await api.getProfessionals({ page: 1, limit: 100 })
         setProfessionals(response.data)
       } catch (error) {
         console.error("Error fetching professionals:", error)
@@ -83,6 +89,13 @@ export default function AgendaPage({ params }: AgendaPageProps) {
     setDialogOpen(true)
   }
 
+  const handleGroupEventClick = useCallback((sessionPlanId: string, date: string, slotId?: string) => {
+    setGroupAttendanceSessionPlanId(sessionPlanId)
+    setGroupAttendanceDate(date)
+    setGroupAttendanceSlotId(slotId)
+    setGroupAttendanceOpen(true)
+  }, [])
+
   const handleSuccess = () => {
     setRefreshKey((k) => k + 1)
   }
@@ -92,8 +105,12 @@ export default function AgendaPage({ params }: AgendaPageProps) {
       <Header lng={lng} title="Agenda" tutorialPage="agenda" />
 
       <div className="flex-1 p-4 md:p-6">
+        <div className="mb-4">
+          <AgendaVendasTabs active="agenda" />
+        </div>
+
         {/* Toolbar */}
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-4" data-tutorial="calendar-navigation">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
           <div className="w-64" data-tutorial="professional-filter">
             <ReactSelect
               value={selectedProfessionalOption}
@@ -114,16 +131,26 @@ export default function AgendaPage({ params }: AgendaPageProps) {
         </div>
 
         {/* Calendar */}
-        <div className="h-[calc(100vh-220px)] rounded-lg border bg-card p-4" data-tutorial="calendar-view">
+        <div className="h-[calc(100vh-220px)] rounded-lg border bg-card p-4">
           <Calendar
-            key={refreshKey}
+            refreshKey={refreshKey}
             onEventClick={handleEventClick}
+            onGroupEventClick={handleGroupEventClick}
             onDateSelect={handleDateSelect}
             selectedProfessionalId={selectedProfessionalId}
             professionals={professionals}
           />
         </div>
       </div>
+
+      {/* Group Attendance Dialog */}
+      <GroupAttendanceDialog
+        open={groupAttendanceOpen}
+        onOpenChange={setGroupAttendanceOpen}
+        sessionPlanId={groupAttendanceSessionPlanId}
+        sessionDate={groupAttendanceDate}
+        slotId={groupAttendanceSlotId}
+      />
 
       {/* Appointment Dialog */}
       <AppointmentDialog

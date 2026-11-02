@@ -3,6 +3,7 @@
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Sidebar } from "@/components/dashboard/sidebar"
+import { SubscriptionGuard } from "@/components/subscription-guard"
 import { useAuthStore } from "@/stores/auth-store"
 
 interface DashboardLayoutProps {
@@ -12,7 +13,7 @@ interface DashboardLayoutProps {
 
 export default function DashboardLayout({ children, params }: DashboardLayoutProps) {
   const router = useRouter()
-  const { isAuthenticated, isLoading, loadUser } = useAuthStore()
+  const { user, isAuthenticated, isLoading, loadUser } = useAuthStore()
 
   useEffect(() => {
     loadUser()
@@ -23,10 +24,12 @@ export default function DashboardLayout({ children, params }: DashboardLayoutPro
       const { lng } = await params
       if (!isLoading && !isAuthenticated) {
         router.push(`/${lng}/login`)
+      } else if (!isLoading && isAuthenticated && user && !user.email_verified) {
+        router.push(`/${lng}/verify-email`)
       }
     }
     checkAuth()
-  }, [isLoading, isAuthenticated, router, params])
+  }, [isLoading, isAuthenticated, user, router, params])
 
   if (isLoading) {
     return (
@@ -39,7 +42,7 @@ export default function DashboardLayout({ children, params }: DashboardLayoutPro
     )
   }
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated || (user && !user.email_verified)) {
     return null
   }
 
@@ -63,9 +66,11 @@ function DashboardLayoutContent({
   }, [params])
 
   return (
-    <div className="flex h-screen bg-muted/30">
-      <Sidebar lng={lng} />
-      <main className="flex-1 overflow-auto">{children}</main>
-    </div>
+    <SubscriptionGuard lng={lng}>
+      <div className="flex h-screen bg-muted/30">
+        <Sidebar lng={lng} />
+        <main className="flex-1 overflow-auto">{children}</main>
+      </div>
+    </SubscriptionGuard>
   )
 }

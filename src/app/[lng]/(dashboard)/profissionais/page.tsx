@@ -1,7 +1,8 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { Plus, Pencil, Trash2, Mail, Phone, User, Clock } from "lucide-react"
+import { Plus, Search, Pencil, Mail, Phone, User, Clock, CheckCircle2, Users, Briefcase, DollarSign, UserPlus, Link2, Trash2, RotateCcw } from "lucide-react"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -17,27 +18,31 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
+import { SortableTableHead } from "@/components/ui/sortable-table-head"
+import { DataTablePagination } from "@/components/ui/data-table-pagination"
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { ReactSelect, ReactCreatableSelect, SelectOption } from "@/components/ui/react-select"
 import { api } from "@/lib/api/client"
 import { showToast, handleApiError } from "@/lib/toast"
 import { WorkingHoursEditor } from "@/components/professionals/working-hours-editor"
-import type { Professional, PaginatedResponse, WorkingHours } from "@/types/api"
+import { CommissionTab } from "@/components/professionals/commission-tab"
+import type { Professional, SpecialtyInfo, WorkingHours, User as UserType } from "@/types/api"
 
-// Schema de validacao com Zod
+// Schema for edit form
 const professionalSchema = z.object({
   name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres"),
   email: z.string().email("Email invalido").optional().or(z.literal("")),
   phone: z.string().optional(),
-  specialty: z.string().optional(),
   registration_number: z.string().optional(),
   color: z.string().optional(),
   is_active: z.boolean().optional(),
@@ -50,14 +55,7 @@ interface ProfissionaisPageProps {
 }
 
 const defaultColors = [
-  "#3B82F6", // Blue
-  "#10B981", // Green
-  "#F59E0B", // Yellow
-  "#EF4444", // Red
-  "#8B5CF6", // Purple
-  "#EC4899", // Pink
-  "#06B6D4", // Cyan
-  "#F97316", // Orange
+  "#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#EC4899", "#06B6D4", "#F97316",
 ]
 
 const DEFAULT_WORKING_HOURS: WorkingHours = {
@@ -70,16 +68,70 @@ const DEFAULT_WORKING_HOURS: WorkingHours = {
   sunday: [],
 }
 
+function getInitials(name: string) {
+  return name.split(' ').filter(n => n.length > 0).map(n => n[0]).slice(0, 2).join('').toUpperCase()
+}
+
 export default function ProfissionaisPage({ params }: ProfissionaisPageProps) {
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+
   const [lng, setLng] = useState("pt-BR")
   const [professionals, setProfessionals] = useState<Professional[]>([])
+
+  // Pagination / Meta
+  const [total, setTotal] = useState(0)
+  const [totalPages, setTotalPages] = useState(0)
+  const [activeCount, setActiveCount] = useState(0)
+  const [inactiveCount, setInactiveCount] = useState(0)
+  const [specialtyCount, setSpecialtyCount] = useState(0)
+
   const [isLoading, setIsLoading] = useState(true)
-  const [dialogOpen, setDialogOpen] = useState(false)
+
+  // URL Params read
+  const page = parseInt(searchParams.get("page") || "1", 10)
+  const limit = parseInt(searchParams.get("limit") || "10", 10)
+  const search = searchParams.get("search") || ""
+  const statusParam = searchParams.get("status") || "active"
+  const sortBy = searchParams.get("sort_by") || "name_asc"
+
+  // Edit dialog state
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [editingProfessional, setEditingProfessional] = useState<Professional | null>(null)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [professionalToDelete, setProfessionalToDelete] = useState<Professional | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [selectedColor, setSelectedColor] = useState(defaultColors[0])
   const [workingHours, setWorkingHours] = useState<WorkingHours>(DEFAULT_WORKING_HOURS)
-  const [activeTab, setActiveTab] = useState("info")
+  const [editActiveTab, setEditActiveTab] = useState("info")
+
+  // Specialties (shared between create and edit dialogs)
+  const [specialtyOptions, setSpecialtyOptions] = useState<SelectOption[]>([])
+  const [selectedSpecialties, setSelectedSpecialties] = useState<SelectOption[]>([])
+
+  // Create dialog state
+  const [createDialogOpen, setCreateDialogOpen] = useState(false)
+  const [createMode, setCreateMode] = useState<"invite" | "link">("invite")
+  const [inviteEmail, setInviteEmail] = useState("")
+  const [availableUsers, setAvailableUsers] = useState<SelectOption[]>([])
+  const [selectedUser, setSelectedUser] = useState<SelectOption | null>(null)
+  const [loadingUsers, setLoadingUsers] = useState(false)
+  const [isCreating, setIsCreating] = useState(false)
+
+  const pageTab = searchParams.get("tab") || "profissionais"
+
+  const setPageTab = useCallback((tab: string) => {
+    const params = new URLSearchParams(searchParams.toString())
+    if (tab === "profissionais") {
+      params.delete("tab")
+    } else {
+      params.set("tab", tab)
+    }
+    router.push(pathname + (params.toString() ? "?" + params.toString() : ""), { scroll: false })
+  }, [searchParams, pathname, router])
+
+  const [searchInput, setSearchInput] = useState(search)
 
   const {
     register,
@@ -89,73 +141,122 @@ export default function ProfissionaisPage({ params }: ProfissionaisPageProps) {
     setValue,
   } = useForm<ProfessionalFormData>({
     resolver: zodResolver(professionalSchema),
-    defaultValues: {
-      name: "",
-      email: "",
-      phone: "",
-      specialty: "",
-      registration_number: "",
-      color: defaultColors[0],
-      is_active: true,
-    },
+    defaultValues: { name: "", email: "", phone: "", registration_number: "", color: defaultColors[0], is_active: true }
   })
 
   useEffect(() => {
     params.then(({ lng }) => setLng(lng))
   }, [params])
 
+  const updateQueryParams = useCallback((updates: Record<string, string | null>) => {
+    const params = new URLSearchParams(searchParams.toString())
+    Object.entries(updates).forEach(([key, value]) => {
+      if (value === null || value === "") {
+        params.delete(key)
+      } else {
+        params.set(key, value)
+      }
+    })
+    if (!updates.page) params.set("page", "1")
+    router.push(pathname + "?" + params.toString(), { scroll: false })
+  }, [searchParams, pathname, router])
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      if (searchInput !== search) {
+        updateQueryParams({ search: searchInput })
+      }
+    }, 500)
+    return () => clearTimeout(handler)
+  }, [searchInput, search, updateQueryParams])
+
   const fetchProfessionals = useCallback(async () => {
     setIsLoading(true)
     try {
-      const response: PaginatedResponse<Professional> = await api.getProfessionals(1, 100)
-      setProfessionals(response.data)
+      const response: any = await api.getProfessionals({
+        page,
+        limit,
+        search: search || undefined,
+        status: statusParam,
+        sort_by: sortBy
+      })
+
+      setProfessionals(response.data || [])
+      setTotal(response.meta?.total || 0)
+      setTotalPages(response.meta?.total_pages || 1)
+
+      const activeList = (response.data || []).filter((p: Professional) => p.is_active)
+      setActiveCount(activeList.length)
+      setInactiveCount((response.data || []).length - activeList.length)
+
+      const specs = new Set<string>()
+      for (const p of (response.data || []) as Professional[]) {
+        for (const sp of p.specialties || []) specs.add(sp.id)
+      }
+      setSpecialtyCount(specs.size)
+
     } catch (error) {
+      console.error("Error fetching professionals:", error)
       handleApiError(error, "Erro ao carregar profissionais")
     } finally {
       setIsLoading(false)
     }
-  }, [])
+  }, [page, limit, search, statusParam, sortBy])
 
   useEffect(() => {
     fetchProfessionals()
   }, [fetchProfessionals])
 
-  const handleOpenDialog = (professional?: Professional) => {
-    setActiveTab("info")
-    if (professional) {
-      setEditingProfessional(professional)
-      const color = professional.color || defaultColors[0]
-      setSelectedColor(color)
-      setWorkingHours(professional.working_hours || DEFAULT_WORKING_HOURS)
-      reset({
-        name: professional.name,
-        email: professional.email || "",
-        phone: professional.phone || "",
-        specialty: professional.specialty || "",
-        registration_number: professional.registration_number || "",
-        color: color,
-        is_active: professional.is_active,
-      })
-    } else {
-      setEditingProfessional(null)
-      const colorIndex = professionals.length % defaultColors.length
-      const color = defaultColors[colorIndex]
-      setSelectedColor(color)
-      setWorkingHours(DEFAULT_WORKING_HOURS)
-      reset({
-        name: "",
-        email: "",
-        phone: "",
-        specialty: "",
-        registration_number: "",
-        color: color,
-        is_active: true,
-      })
+  const loadSpecialtyOptions = useCallback(async () => {
+    try {
+      const res = await api.getSpecialtiesActive()
+      const list: SpecialtyInfo[] = res.data ?? res ?? []
+      setSpecialtyOptions(list.map((s) => ({ value: s.id, label: s.name })))
+    } catch (e) {
+      console.error("Error loading specialties", e)
     }
-    setDialogOpen(true)
+  }, [])
+
+  useEffect(() => {
+    loadSpecialtyOptions()
+  }, [loadSpecialtyOptions])
+
+  const handleCreateSpecialty = async (name: string) => {
+    const trimmed = name.trim()
+    if (!trimmed) return
+    try {
+      const created = await api.createSpecialty({ name: trimmed })
+      const newOption: SelectOption = { value: created.id, label: created.name }
+      setSpecialtyOptions((prev) => [...prev, newOption])
+      setSelectedSpecialties((prev) => [...prev, newOption])
+    } catch (e) {
+      handleApiError(e, "Erro ao criar especialidade")
+    }
   }
 
-  const onSubmit = async (data: ProfessionalFormData) => {
+  // Edit dialog handlers
+  const handleOpenEditDialog = (professional: Professional) => {
+    setEditActiveTab("info")
+    setEditingProfessional(professional)
+    const color = professional.color || defaultColors[0]
+    setSelectedColor(color)
+    setWorkingHours(professional.working_hours || DEFAULT_WORKING_HOURS)
+    setSelectedSpecialties(
+      (professional.specialties || []).map((s) => ({ value: s.id, label: s.name }))
+    )
+    reset({
+      name: professional.name,
+      email: professional.email || "",
+      phone: professional.phone || "",
+      registration_number: professional.registration_number || "",
+      color: color,
+      is_active: professional.is_active,
+    })
+    setEditDialogOpen(true)
+  }
+
+  const onEditSubmit = async (data: ProfessionalFormData) => {
+    if (!editingProfessional) return
     setIsSaving(true)
     try {
       const payload = {
@@ -163,17 +264,11 @@ export default function ProfissionaisPage({ params }: ProfissionaisPageProps) {
         color: selectedColor,
         email: data.email || undefined,
         working_hours: workingHours,
+        specialty_ids: selectedSpecialties.map((s) => s.value),
       }
-
-      if (editingProfessional) {
-        await api.updateProfessional(editingProfessional.id, payload)
-        showToast.success("Profissional atualizado com sucesso!")
-      } else {
-        await api.createProfessional(payload)
-        showToast.success("Profissional criado com sucesso!")
-      }
-
-      setDialogOpen(false)
+      await api.updateProfessional(editingProfessional.id, payload)
+      showToast.success("Profissional atualizado com sucesso!")
+      setEditDialogOpen(false)
       fetchProfessionals()
     } catch (error) {
       handleApiError(error, "Erro ao salvar profissional")
@@ -182,162 +277,375 @@ export default function ProfissionaisPage({ params }: ProfissionaisPageProps) {
     }
   }
 
-  const handleDelete = async (professional: Professional) => {
-    if (!confirm(`Tem certeza que deseja excluir ${professional.name}?`)) return
-
-    try {
-      await api.deleteProfessional(professional.id)
-      showToast.success("Profissional excluido com sucesso!")
-      fetchProfessionals()
-    } catch (error) {
-      handleApiError(error, "Erro ao excluir profissional")
-    }
-  }
-
   const handleColorSelect = (color: string) => {
     setSelectedColor(color)
     setValue("color", color)
   }
 
+  // Create dialog handlers
+  const handleOpenCreateDialog = () => {
+    setCreateMode("invite")
+    setInviteEmail("")
+    setSelectedUser(null)
+    setCreateDialogOpen(true)
+  }
+
+  // Load available users (owner/admin without professional) when switching to link mode
+  useEffect(() => {
+    if (createMode === "link" && createDialogOpen) {
+      setLoadingUsers(true)
+      api.getUsers({ limit: 100 })
+        .then((res: any) => {
+          const users = (res.data || [])
+            .filter((u: UserType) =>
+              u.is_active && (u.role === 'owner' || u.role === 'admin') && !u.professional_id
+            )
+            .map((u: UserType) => ({
+              value: u.id,
+              label: `${u.name} (${u.role === 'owner' ? 'Proprietario' : 'Administrador'})`,
+            }))
+          setAvailableUsers(users)
+        })
+        .catch(() => setAvailableUsers([]))
+        .finally(() => setLoadingUsers(false))
+    }
+  }, [createMode, createDialogOpen])
+
+  const handleCreateProfessional = async () => {
+    setIsCreating(true)
+    try {
+      if (createMode === "invite") {
+        if (!inviteEmail.trim()) {
+          showToast.error("Informe o email do profissional")
+          setIsCreating(false)
+          return
+        }
+        await api.createProfessional({ email: inviteEmail.trim() })
+        showToast.success("Convite enviado com sucesso!")
+      } else {
+        if (!selectedUser) {
+          showToast.error("Selecione um membro da equipe")
+          setIsCreating(false)
+          return
+        }
+        await api.createProfessional({ user_id: selectedUser.value })
+        showToast.success("Profissional criado com sucesso!")
+      }
+      setCreateDialogOpen(false)
+      fetchProfessionals()
+    } catch (error) {
+      handleApiError(error, "Erro ao criar profissional")
+    } finally {
+      setIsCreating(false)
+    }
+  }
+
+  const sortOptions: SelectOption[] = [
+    { value: "name_asc", label: "Ordenar: Nome A-Z" },
+    { value: "name_desc", label: "Ordenar: Nome Z-A" },
+    { value: "created_desc", label: "Ordenar: Mais recentes" },
+    { value: "created_asc", label: "Ordenar: Mais antigos" },
+  ]
+
   return (
     <div className="flex h-full flex-col">
       <Header lng={lng} title="Profissionais" tutorialPage="profissionais" />
 
-      <div className="flex-1 p-4 md:p-6">
-        {/* Toolbar */}
-        <div className="mb-6 flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">
-            {professionals.length} profissional(is) cadastrado(s)
-          </p>
+      <div className="bg-background px-4 md:px-8 pt-2 border-b border-border/40 shrink-0">
+        <div className="flex h-12 w-full justify-start gap-4 md:gap-6 p-0 overflow-x-auto no-scrollbar">
+          <button
+            onClick={() => setPageTab("profissionais")}
+            className={`relative h-12 rounded-none border-b-2 bg-transparent px-2 md:px-4 pb-3 pt-3 font-medium shadow-none transition-none flex items-center gap-2 whitespace-nowrap ${
+              pageTab === "profissionais"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-primary"
+            }`}
+          >
+            <Users className="h-4 w-4" />
+            <span className="hidden sm:inline">Profissionais</span>
+          </button>
+          <button
+            onClick={() => setPageTab("repasse")}
+            className={`relative h-12 rounded-none border-b-2 bg-transparent px-2 md:px-4 pb-3 pt-3 font-medium shadow-none transition-none flex items-center gap-2 whitespace-nowrap ${
+              pageTab === "repasse"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-primary"
+            }`}
+          >
+            <DollarSign className="h-4 w-4" />
+            <span className="hidden sm:inline">Repasse</span>
+          </button>
+        </div>
+      </div>
 
-          <Button onClick={() => handleOpenDialog()}>
-            <Plus className="mr-2 h-4 w-4" />
-            Novo Profissional
-          </Button>
+      {pageTab === "repasse" ? (
+        <div className="flex-1 overflow-y-auto p-4 md:p-6">
+          <CommissionTab />
+        </div>
+      ) : (
+      <div className="flex-1 p-4 md:p-6 flex flex-col gap-6 overflow-hidden">
+        {/* Status Cards Container */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 shrink-0">
+          <div className="bg-card rounded-xl border border-border shadow-sm p-4 flex items-center gap-4">
+            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
+               <Users className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="text-2xl font-bold">{total}</div>
+              <div className="text-sm text-muted-foreground whitespace-nowrap">Total de profissionais</div>
+            </div>
+          </div>
+          <div className="bg-card rounded-xl border border-border shadow-sm p-4 flex items-center gap-4">
+            <div className="w-12 h-12 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500 shrink-0">
+               <CheckCircle2 className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="text-2xl font-bold">{statusParam === "all" ? activeCount : (statusParam === "active" ? total : 0)}</div>
+              <div className="text-sm text-muted-foreground whitespace-nowrap">Profissionais ativos</div>
+            </div>
+          </div>
+          <div className="bg-card rounded-xl border border-border shadow-sm p-4 flex items-center gap-4">
+            <div className="w-12 h-12 rounded-full bg-rose-500/10 flex items-center justify-center text-rose-500 shrink-0">
+               <Clock className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="text-2xl font-bold">{statusParam === "all" ? inactiveCount : (statusParam === "inactive" ? total : 0)}</div>
+              <div className="text-sm text-muted-foreground whitespace-nowrap">Profissionais inativos</div>
+            </div>
+          </div>
+          <div className="bg-card rounded-xl border border-border shadow-sm p-4 flex items-center gap-4">
+            <div className="w-12 h-12 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-500 shrink-0">
+               <Briefcase className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="text-2xl font-bold">{specialtyCount}</div>
+              <div className="text-sm text-muted-foreground whitespace-nowrap">Especialidades ativas</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Filter Toolbar */}
+        <div className="bg-card rounded-xl border border-border shadow-sm p-3 flex flex-wrap items-center justify-between gap-4 shrink-0">
+          <div className="relative flex-1 min-w-[300px] max-w-sm">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por nome, telefone ou especialidade..."
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              className="pl-10 h-10 border-none shadow-none bg-muted/50 rounded-lg focus-visible:ring-1"
+            />
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+            <div className="flex p-1 gap-1 items-center">
+              <Button
+                variant="outline"
+                size="sm"
+                className={`rounded-full h-8 px-4 text-xs font-semibold ${statusParam === "all" ? "border-primary text-primary" : "border-border text-muted-foreground"}`}
+                onClick={() => updateQueryParams({ status: "all" })}
+              >
+                Todos
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className={`rounded-full h-8 px-4 text-xs font-semibold ${statusParam === "active" ? "border-emerald-500 text-emerald-500" : "border-border text-muted-foreground"}`}
+                onClick={() => updateQueryParams({ status: "active" })}
+              >
+                <div className={`w-1.5 h-1.5 rounded-full mr-2 ${statusParam === "active" ? "bg-emerald-500" : "bg-emerald-500/50"}`} />
+                Ativos
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className={`rounded-full h-8 px-4 text-xs font-semibold ${statusParam === "inactive" ? "border-rose-500 text-rose-500" : "border-border text-muted-foreground"}`}
+                onClick={() => updateQueryParams({ status: "inactive" })}
+              >
+                <div className={`w-1.5 h-1.5 rounded-full mr-2 ${statusParam === "inactive" ? "bg-rose-500" : "bg-rose-500/50"}`} />
+                Inativos
+              </Button>
+            </div>
+
+            <div className="w-[200px] border-l border-border/50 pl-2">
+              <ReactSelect
+                value={sortOptions.find((opt) => opt.value === sortBy) || sortOptions[0]}
+                onChange={(option) => updateQueryParams({ sort_by: option?.value || "name_asc" })}
+                options={sortOptions}
+                isSearchable={false}
+                placeholder="Ordenar..."
+              />
+            </div>
+
+            <Button className="h-10 px-5 font-semibold bg-primary hover:bg-primary/90 rounded-lg ml-2" onClick={handleOpenCreateDialog}>
+              <Plus className="mr-2 h-4 w-4" />
+              Novo Profissional
+            </Button>
+          </div>
         </div>
 
         {/* Professional List */}
         {isLoading ? (
-          <div className="flex items-center justify-center py-12">
+          <div className="flex items-center justify-center py-20 bg-card rounded-xl border border-border shadow-sm">
             <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
           </div>
         ) : professionals.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground">
-              Nenhum profissional cadastrado
+          <div className="flex flex-col items-center justify-center py-20 bg-card rounded-xl border border-border shadow-sm text-center">
+            <Briefcase className="h-12 w-12 text-muted-foreground/30 mb-4" />
+            <p className="text-muted-foreground text-lg font-medium">
+              {search || statusParam !== "all"
+                ? "Nenhum profissional encontrado para esses filtros"
+                : "Nenhum profissional cadastrado ainda"}
             </p>
           </div>
         ) : (
-          <div className="rounded-md border bg-card shadow-sm">
-            <Table className="text-base">
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[50px]"></TableHead>
-                  <TableHead>Profissional</TableHead>
-                  <TableHead>Especialidade</TableHead>
-                  <TableHead>Contato</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {professionals.map((professional) => (
-                  <TableRow key={professional.id}>
-                    <TableCell>
-                      <div
-                        className="h-4 w-4 rounded-full"
-                        style={{ backgroundColor: professional.color }}
-                      />
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="flex h-8 w-8 items-center justify-center rounded-full text-[10px] text-white"
-                          style={{ backgroundColor: professional.color }}
-                        >
-                          <User className="h-4 w-4" />
-                        </div>
-                        <div>
-                          <div>{professional.name}</div>
-                          <div className="text-sm text-muted-foreground">
-                            {professional.registration_number || "Sem registro"}
-                          </div>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>{professional.specialty || "-"}</TableCell>
-                    <TableCell>
-                      <div className="space-y-1">
-                        {professional.email && (
-                          <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                            <Mail className="h-3 w-3" />
-                            {professional.email}
-                          </div>
-                        )}
-                        {professional.phone && (
-                          <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                            <Phone className="h-3 w-3" />
-                            {professional.phone}
-                          </div>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {professional.is_active ? (
-                        <Badge variant="default" className="bg-green-500 hover:bg-green-600">
-                          Ativo
-                        </Badge>
-                      ) : (
-                        <Badge variant="secondary">Inativo</Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => handleOpenDialog(professional)}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-destructive"
-                          onClick={() => handleDelete(professional)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
+          <div className="rounded-xl border border-border/80 bg-card shadow-sm overflow-hidden flex flex-col flex-1">
+            <Table className="text-sm" wrapperClassName="flex-1 overflow-auto">
+              <TableHeader className="sticky top-0 bg-slate-50 z-20 shadow-sm dark:bg-slate-900 border-b">
+                  <TableRow>
+                     <SortableTableHead sortKey="name" title="PROFISSIONAL" className="w-[350px]" />
+                     <SortableTableHead sortKey="specialty" title="ESPECIALIDADE" />
+                    <TableHead className="font-bold text-xs uppercase tracking-wider text-muted-foreground/70">CONTATO</TableHead>
+                    <TableHead className="font-bold text-xs uppercase tracking-wider text-muted-foreground/70">STATUS</TableHead>
+                    <TableHead className="text-right font-bold text-xs uppercase tracking-wider text-muted-foreground/70">AÇÕES</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {professionals.map((professional) => (
+                    <TableRow key={professional.id} className="group">
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <div
+                            className="flex items-center justify-center w-10 h-10 shrink-0 text-white font-bold rounded-full text-xs shadow-sm"
+                            style={{ backgroundColor: professional.color || defaultColors[0] }}
+                          >
+                            {getInitials(professional.name)}
+                          </div>
+                          <div className="flex flex-col min-w-0">
+                            <span className="font-bold text-foreground truncate">{professional.name}</span>
+                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5 truncate">
+                              <span className="truncate">{professional.registration_number || "Sem registro (vazio)"}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {professional.specialties && professional.specialties.length > 0 ? (
+                          <span className="text-muted-foreground font-medium">
+                            {professional.specialties.map((s) => s.name).join(", ")}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground/50 italic">Não informada</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-col gap-1">
+                          {professional.phone ? (
+                            <div className="flex items-center gap-1.5 text-muted-foreground font-medium text-xs">
+                              <Phone className="h-3 w-3 shrink-0 text-muted-foreground/50" />
+                              <span>{professional.phone}</span>
+                            </div>
+                          ) : null}
+                          {professional.email ? (
+                            <div className="flex items-center gap-1.5 text-muted-foreground text-xs">
+                              <Mail className="h-3 w-3 shrink-0 text-muted-foreground/50" />
+                              <span className="truncate max-w-[150px]">{professional.email}</span>
+                            </div>
+                          ) : null}
+                          {!professional.phone && !professional.email && (
+                             <span className="text-muted-foreground/50 italic text-xs">Sem contato</span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {professional.is_active ? (
+                          <div className="flex items-center gap-1.5 bg-emerald-50 text-emerald-600 px-2.5 py-1 rounded-full text-xs font-bold w-fit border border-emerald-100 dark:bg-emerald-500/10 dark:border-emerald-500/20 dark:text-emerald-500">
+                             <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
+                             Ativo
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1.5 bg-rose-50 text-rose-600 px-2.5 py-1 rounded-full text-xs font-bold w-fit border border-rose-100 dark:bg-rose-500/10 dark:border-rose-500/20 dark:text-rose-500">
+                             <div className="w-1.5 h-1.5 bg-rose-500 rounded-full" />
+                             Inativo
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-1">
+                          {professional.is_active ? (
+                            <>
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-8 w-8 rounded-md bg-transparent border-border text-muted-foreground hover:text-foreground"
+                                title="Editar"
+                                onClick={() => handleOpenEditDialog(professional)}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-8 w-8 rounded-md bg-transparent border-border text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                title="Inativar"
+                                onClick={() => {
+                                  setProfessionalToDelete(professional)
+                                  setDeleteDialogOpen(true)
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </>
+                          ) : (
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="h-8 w-8 rounded-md bg-transparent border-border text-muted-foreground hover:text-emerald-600 hover:bg-emerald-500/10"
+                              title="Reativar"
+                              onClick={async () => {
+                                try {
+                                  await api.restoreProfessional(professional.id)
+                                  showToast.success("Profissional reativado")
+                                  fetchProfessionals()
+                                } catch (err) {
+                                  handleApiError(err, "Erro ao reativar profissional")
+                                }
+                              }}
+                            >
+                              <RotateCcw className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+
+            <div className="border-t p-4 shrink-0 bg-card">
+              <DataTablePagination meta={{ page, limit, total, total_pages: totalPages }} entityName="profissionais" />
+            </div>
           </div>
         )}
       </div>
+      )}
 
-      {/* Professional Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      {/* Edit Professional Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
         <DialogContent className="sm:max-w-[550px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>
-              {editingProfessional ? "Editar Profissional" : "Novo Profissional"}
-            </DialogTitle>
+            <DialogTitle>Editar Profissional</DialogTitle>
           </DialogHeader>
 
-          <form onSubmit={handleSubmit(onSubmit)}>
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <form onSubmit={handleSubmit(onEditSubmit)}>
+            <Tabs value={editActiveTab} onValueChange={setEditActiveTab} className="w-full">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="info" className="flex items-center gap-2">
                   <User className="h-4 w-4" />
-                  Informacoes
+                  Informações
                 </TabsTrigger>
                 <TabsTrigger value="hours" className="flex items-center gap-2">
                   <Clock className="h-4 w-4" />
-                  Horarios
+                  Horários
                 </TabsTrigger>
               </TabsList>
 
@@ -359,11 +667,15 @@ export default function ProfissionaisPage({ params }: ProfissionaisPageProps) {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="specialty">Especialidade</Label>
-                    <Input
-                      id="specialty"
-                      {...register("specialty")}
-                      placeholder="Ex: Fisioterapeuta"
+                    <Label htmlFor="specialties">Especialidades</Label>
+                    <ReactCreatableSelect
+                      inputId="specialties"
+                      isMulti
+                      options={specialtyOptions}
+                      value={selectedSpecialties}
+                      onChange={(values) => setSelectedSpecialties([...(values as SelectOption[])])}
+                      onCreateOption={handleCreateSpecialty}
+                      placeholder="Selecione ou crie..."
                     />
                   </div>
                   <div className="space-y-2">
@@ -401,7 +713,7 @@ export default function ProfissionaisPage({ params }: ProfissionaisPageProps) {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Cor no Calendario</Label>
+                  <Label>Cor no Calendário</Label>
                   <div className="flex gap-2">
                     {defaultColors.map((color) => (
                       <button
@@ -426,7 +738,7 @@ export default function ProfissionaisPage({ params }: ProfissionaisPageProps) {
                     {...register("is_active")}
                     className="h-4 w-4 rounded border-input"
                   />
-                  <Label htmlFor="is_active" className="font-normal">
+                  <Label htmlFor="is_active" className="font-normal cursor-pointer">
                     Profissional ativo
                   </Label>
                 </div>
@@ -444,7 +756,7 @@ export default function ProfissionaisPage({ params }: ProfissionaisPageProps) {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => setDialogOpen(false)}
+                onClick={() => setEditDialogOpen(false)}
                 disabled={isSaving}
               >
                 Cancelar
@@ -456,6 +768,116 @@ export default function ProfissionaisPage({ params }: ProfissionaisPageProps) {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Create Professional Dialog */}
+      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+        <DialogContent className="sm:max-w-[480px]">
+          <DialogHeader>
+            <DialogTitle>Novo Profissional</DialogTitle>
+            <DialogDescription>
+              Adicione um novo profissional enviando um convite por email ou vinculando a um membro existente da equipe.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setCreateMode("invite")}
+                className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-colors ${
+                  createMode === "invite"
+                    ? "border-primary bg-primary/5 text-primary"
+                    : "border-border text-muted-foreground hover:border-primary/50"
+                }`}
+              >
+                <UserPlus className="h-6 w-6" />
+                <span className="text-sm font-medium">Convidar por email</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setCreateMode("link")}
+                className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-colors ${
+                  createMode === "link"
+                    ? "border-primary bg-primary/5 text-primary"
+                    : "border-border text-muted-foreground hover:border-primary/50"
+                }`}
+              >
+                <Link2 className="h-6 w-6" />
+                <span className="text-sm font-medium">Vincular membro</span>
+              </button>
+            </div>
+
+            {createMode === "invite" ? (
+              <div className="space-y-2">
+                <Label htmlFor="invite_email">Email do profissional</Label>
+                <Input
+                  id="invite_email"
+                  type="email"
+                  placeholder="email@exemplo.com"
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Um convite sera enviado para este email. O profissional sera criado quando o convite for aceito.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Label>Membro da equipe</Label>
+                <ReactSelect
+                  options={availableUsers}
+                  value={selectedUser}
+                  onChange={(option) => setSelectedUser(option as SelectOption | null)}
+                  isLoading={loadingUsers}
+                  isClearable
+                  placeholder="Selecionar membro (owner ou admin)..."
+                  noOptionsMessage={() => "Nenhum membro disponivel sem profissional vinculado"}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Um perfil profissional sera criado e vinculado a este membro. Somente owners e admins sem profissional vinculado aparecem aqui.
+                </p>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setCreateDialogOpen(false)}
+              disabled={isCreating}
+            >
+              Cancelar
+            </Button>
+            <Button onClick={handleCreateProfessional} disabled={isCreating}>
+              {isCreating ? "Processando..." : createMode === "invite" ? "Enviar Convite" : "Criar Profissional"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <ConfirmDialog
+        open={deleteDialogOpen}
+        onOpenChange={(o) => {
+          setDeleteDialogOpen(o)
+          if (!o) setProfessionalToDelete(null)
+        }}
+        title="Inativar profissional"
+        description={professionalToDelete
+          ? `${professionalToDelete.name} será marcado como inativo. Você pode reativá-lo a qualquer momento na aba "Inativos".`
+          : "Você pode reativá-lo a qualquer momento."}
+        confirmText="Inativar"
+        onConfirm={async () => {
+          if (!professionalToDelete) return
+          try {
+            await api.deleteProfessional(professionalToDelete.id)
+            showToast.success("Profissional inativado")
+            fetchProfessionals()
+          } catch (err) {
+            handleApiError(err, "Erro ao inativar profissional")
+          }
+        }}
+      />
     </div>
   )
 }

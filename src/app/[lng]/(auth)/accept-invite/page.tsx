@@ -11,14 +11,14 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { Loader2, AlertCircle, CheckCircle2, Building2, User, Clock } from 'lucide-react'
+import { Loader2, AlertCircle, CheckCircle2, Building2, User, Clock, Stethoscope } from 'lucide-react'
+import { GoogleLogin, CredentialResponse } from '@react-oauth/google'
 import { api } from '@/lib/api/client'
 import { useAuthStore } from '@/stores/auth-store'
 import type { InviteDetails, AuthResponse } from '@/types/api'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 
-// Main page component wrapped in Suspense
 export default function AcceptInvitePage() {
   return (
     <Suspense fallback={
@@ -31,7 +31,8 @@ export default function AcceptInvitePage() {
   )
 }
 
-const acceptInviteSchema = z.object({
+// Schema for NEW users (registration)
+const newUserSchema = z.object({
   name: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres'),
   password: z.string().min(8, 'Senha deve ter pelo menos 8 caracteres'),
   confirmPassword: z.string(),
@@ -40,7 +41,13 @@ const acceptInviteSchema = z.object({
   path: ['confirmPassword'],
 })
 
-type AcceptInviteFormData = z.infer<typeof acceptInviteSchema>
+// Schema for EXISTING users (just confirm with password)
+const existingUserSchema = z.object({
+  password: z.string().min(1, 'Digite sua senha'),
+})
+
+type NewUserFormData = z.infer<typeof newUserSchema>
+type ExistingUserFormData = z.infer<typeof existingUserSchema>
 
 const roleLabels: Record<string, string> = {
   admin: 'Administrador',
@@ -62,12 +69,12 @@ function AcceptInviteContent() {
 
   const token = searchParams.get('token')
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<AcceptInviteFormData>({
-    resolver: zodResolver(acceptInviteSchema),
+  const newUserForm = useForm<NewUserFormData>({
+    resolver: zodResolver(newUserSchema),
+  })
+
+  const existingUserForm = useForm<ExistingUserFormData>({
+    resolver: zodResolver(existingUserSchema),
   })
 
   useEffect(() => {
@@ -99,18 +106,19 @@ function AcceptInviteContent() {
     loadInvite()
   }, [token])
 
-  const onSubmit = async (data: AcceptInviteFormData) => {
+  const handleAccept = async (opts: { password?: string; name?: string; googleCredential?: string }) => {
     if (!token) return
 
     setIsSubmitting(true)
+    setError(null)
     try {
-      const response: AuthResponse = await api.acceptInvite({
-        token,
-        name: data.name,
-        password: data.password,
-      })
+      const payload: Record<string, string> = { token }
+      if (opts.password) payload.password = opts.password
+      if (opts.name) payload.name = opts.name
+      if (opts.googleCredential) payload.google_credential = opts.googleCredential
 
-      // Set tokens and redirect to dashboard
+      const response: AuthResponse = await api.acceptInvite(payload as { token: string; name: string; password: string })
+
       api.setTokens(response.access_token, response.refresh_token)
       setUser(response.user, response.clinic)
       router.push(`/${lng}/agenda`)
@@ -123,6 +131,22 @@ function AcceptInviteContent() {
     }
   }
 
+  const handleGoogleSuccess = async (credentialResponse: CredentialResponse) => {
+    if (!credentialResponse.credential) {
+      setError('Erro ao autenticar com Google')
+      return
+    }
+    handleAccept({ googleCredential: credentialResponse.credential })
+  }
+
+  const onNewUserSubmit = (data: NewUserFormData) => {
+    handleAccept({ password: data.password, name: data.name })
+  }
+
+  const onExistingUserSubmit = (data: ExistingUserFormData) => {
+    handleAccept({ password: data.password })
+  }
+
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -131,7 +155,7 @@ function AcceptInviteContent() {
     )
   }
 
-  if (error || !invite?.is_valid) {
+  if ((error && !invite?.is_valid) || !invite?.is_valid) {
     return (
       <div className="flex min-h-screen items-center justify-center p-4">
         <Card className="w-full max-w-md">
@@ -159,9 +183,14 @@ function AcceptInviteContent() {
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
             <CheckCircle2 className="h-6 w-6 text-primary" />
           </div>
-          <CardTitle className="text-2xl">Voce foi convidado!</CardTitle>
+          <CardTitle className="text-2xl">
+            {invite.user_exists ? 'Convite para nova clinica' : 'Voce foi convidado!'}
+          </CardTitle>
           <CardDescription>
-            Complete seu cadastro para fazer parte da equipe
+            {invite.user_exists
+              ? `Ola, ${invite.user_name}! Confirme sua senha para entrar na equipe`
+              : 'Complete seu cadastro para fazer parte da equipe'
+            }
           </CardDescription>
         </CardHeader>
 
@@ -186,6 +215,14 @@ function AcceptInviteContent() {
                 <Badge variant="secondary">{roleLabels[invite.role]}</Badge>
               </span>
             </div>
+            {invite.professional_name && (
+              <div className="flex items-center gap-2">
+                <Stethoscope className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm">
+                  <strong>Profissional:</strong> {invite.professional_name}
+                </span>
+              </div>
+            )}
             <div className="flex items-center gap-2">
               <Clock className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm text-muted-foreground">
@@ -194,72 +231,133 @@ function AcceptInviteContent() {
             </div>
           </div>
 
-          {/* Registration Form */}
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={invite.email}
-                disabled
-                className="bg-muted"
-              />
-            </div>
+          {error && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
 
-            <div className="space-y-2">
-              <Label htmlFor="name">Seu Nome</Label>
-              <Input
-                id="name"
-                placeholder="Digite seu nome completo"
-                {...register('name')}
+          {/* Google login — works for both existing and new users */}
+          <div className="flex justify-center w-full">
+            {isSubmitting ? (
+              <div className="flex items-center justify-center h-10">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              </div>
+            ) : (
+              <GoogleLogin
+                onSuccess={handleGoogleSuccess}
+                onError={() => setError('Erro ao conectar com Google')}
+                theme="outline"
+                size="large"
+                text={invite.user_exists ? 'continue_with' : 'signup_with'}
+                width="100%"
               />
-              {errors.name && (
-                <p className="text-sm text-destructive">{errors.name.message}</p>
-              )}
-            </div>
+            )}
+          </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="password">Senha</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="Minimo 8 caracteres"
-                {...register('password')}
-              />
-              {errors.password && (
-                <p className="text-sm text-destructive">{errors.password.message}</p>
-              )}
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirmar Senha</Label>
-              <Input
-                id="confirmPassword"
-                type="password"
-                placeholder="Digite a senha novamente"
-                {...register('confirmPassword')}
-              />
-              {errors.confirmPassword && (
-                <p className="text-sm text-destructive">{errors.confirmPassword.message}</p>
-              )}
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-card px-2 text-muted-foreground">ou</span>
             </div>
+          </div>
 
-            <Button type="submit" className="w-full" disabled={isSubmitting}>
-              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Criar Conta e Acessar
-            </Button>
-          </form>
+          {invite.user_exists ? (
+            /* EXISTING USER: just confirm password */
+            <form onSubmit={existingUserForm.handleSubmit(onExistingUserSubmit)} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="password">Sua Senha</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="Digite sua senha para confirmar"
+                  {...existingUserForm.register('password')}
+                />
+                {existingUserForm.formState.errors.password && (
+                  <p className="text-sm text-destructive">{existingUserForm.formState.errors.password.message}</p>
+                )}
+              </div>
+
+              <Button type="submit" className="w-full" disabled={isSubmitting}>
+                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Aceitar Convite e Entrar
+              </Button>
+            </form>
+          ) : (
+            /* NEW USER: registration form */
+            <form onSubmit={newUserForm.handleSubmit(onNewUserSubmit)} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="name">Seu Nome</Label>
+                <Input
+                  id="name"
+                  placeholder="Digite seu nome completo"
+                  {...newUserForm.register('name')}
+                />
+                {newUserForm.formState.errors.name && (
+                  <p className="text-sm text-destructive">{newUserForm.formState.errors.name.message}</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="password">Senha</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="Minimo 8 caracteres"
+                  {...newUserForm.register('password')}
+                />
+                {newUserForm.formState.errors.password && (
+                  <p className="text-sm text-destructive">{newUserForm.formState.errors.password.message}</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword">Confirmar Senha</Label>
+                <Input
+                  id="confirmPassword"
+                  type="password"
+                  placeholder="Digite a senha novamente"
+                  {...newUserForm.register('confirmPassword')}
+                />
+                {newUserForm.formState.errors.confirmPassword && (
+                  <p className="text-sm text-destructive">{newUserForm.formState.errors.confirmPassword.message}</p>
+                )}
+              </div>
+
+              <Button type="submit" className="w-full" disabled={isSubmitting}>
+                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Criar Conta e Acessar
+              </Button>
+            </form>
+          )}
 
           <div className="text-center text-sm text-muted-foreground">
-            Ja tem uma conta?{' '}
-            <Button
-              variant="link"
-              className="p-0 h-auto"
-              onClick={() => router.push(`/${lng}/login`)}
-            >
-              Fazer login
-            </Button>
+            {invite.user_exists ? (
+              <>
+                Nao lembra sua senha?{' '}
+                <Button
+                  variant="link"
+                  className="p-0 h-auto"
+                  onClick={() => router.push(`/${lng}/forgot-password`)}
+                >
+                  Redefinir senha
+                </Button>
+              </>
+            ) : (
+              <>
+                Ja tem uma conta?{' '}
+                <Button
+                  variant="link"
+                  className="p-0 h-auto"
+                  onClick={() => router.push(`/${lng}/login`)}
+                >
+                  Fazer login
+                </Button>
+              </>
+            )}
           </div>
         </CardContent>
       </Card>

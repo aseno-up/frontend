@@ -43,7 +43,7 @@ export function Header({ lng, title, children, tutorialPage = "global" }: Header
   }
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6">
+    <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b border-border/50 bg-card/80 backdrop-blur-md px-4 md:px-6">
       {/* Title (mobile has extra padding for menu button) */}
       <div className="flex-1 pl-12 md:pl-0 flex items-center justify-between">
         <div>

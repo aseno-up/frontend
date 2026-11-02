@@ -39,22 +39,81 @@ export interface ClinicSettings {
   require_confirmation?: boolean
   whatsapp_reminders_enabled?: boolean
   email_reminders_enabled?: boolean
+  whatsapp_reminder_2h_enabled?: boolean | null
+  whatsapp_reminder_24h_enabled?: boolean | null
+  whatsapp_reminder_48h_enabled?: boolean | null
+  require_payment_before_booking?: boolean
   ai_agent_enabled?: boolean
   ai_min_delay_between_messages?: number | null
   ai_min_delay_between_patients?: number | null
   ai_business_hours?: BusinessHoursConfig | null
+  ai_tool_schedule?: boolean | null
+  ai_tool_confirm?: boolean | null
+  ai_tool_cancel?: boolean | null
+  ai_tool_reschedule?: boolean | null
+  ai_tool_enroll_class?: boolean | null
+  ai_tool_confirm_class?: boolean | null
+  ai_blocked_intent_reply?: string
+  ai_human_takeover_pause_hours?: number | null
+  payment_reminder_whatsapp_enabled?: boolean | null
+  payment_reminder_email_enabled?: boolean | null
+  payment_reminder_days_before?: number | null
+  group_class_reminder_24h_enabled?: boolean | null
+  group_class_reminder_2h_enabled?: boolean | null
 }
 
 export interface Clinic {
   id: string
   name: string
   slug: string
-  subscription_status: 'trial' | 'active' | 'past_due' | 'canceled'
-  plan: 'free' | 'basic' | 'professional' | 'enterprise' | 'advanced'
-  trial_ends_at: string
+  type?: string
+  email?: string
+  phone?: string
+  document?: string
+  address?: string
+  city?: string
+  state?: string
+  zip_code?: string
+  instagram?: string
+  business_info?: string
+  faq?: string
+  logo_url?: string
+  primary_color?: string
   created_at: string
   settings?: ClinicSettings
   booking_url?: string
+  account?: Account
+}
+
+export interface Account {
+  id: string
+  subscription_status: 'trial' | 'active' | 'pending' | 'past_due' | 'canceled' | 'expired'
+  trial_ends_at?: string
+  plan?: {
+    id: string
+    name: string
+    slug: string
+  }
+  settings?: ClinicSettings
+  booking_url?: string
+}
+
+export interface PatientWhatsAppConnection {
+  id?: string
+  clinic_id: string
+  patient_id: string
+  whatsapp_connection_id?: string
+  ai_scheduling_enabled: boolean
+  reminders_enabled: boolean
+  human_takeover_at?: string | null
+  human_takeover_until?: string | null
+  created_at?: string
+  updated_at?: string
+}
+
+export interface SpecialtyInfo {
+  id: string
+  name: string
 }
 
 export interface Professional {
@@ -63,7 +122,9 @@ export interface Professional {
   name: string
   email: string
   phone: string
-  specialty: string
+  specialty?: string
+  specialties?: SpecialtyInfo[]
+  specialty_names?: string[]
   registration_number: string
   color: string
   is_active: boolean
@@ -86,6 +147,17 @@ export interface TimeSlot {
   end: string
 }
 
+export interface ProfessionalProcedure {
+  id: string
+  professional_id: string
+  procedure_id: string
+  procedure_name: string
+  procedure_price: number
+  commission_type: 'percentage' | 'fixed'
+  commission_value: number
+  is_active: boolean
+}
+
 export type NoShowRisk = 'unknown' | 'low' | 'medium' | 'high'
 
 export interface Patient {
@@ -99,6 +171,8 @@ export interface Patient {
   birth_date: string
   gender: 'male' | 'female' | 'other'
   notes: string
+  source: 'INTERNAL' | 'SELF_REGISTERED'
+  merged_into_patient_id?: string
   no_show_risk: NoShowRisk
   no_show_count: number
   total_appointments: number
@@ -107,11 +181,164 @@ export interface Patient {
   created_at: string
 }
 
+export interface Procedure {
+  id: string
+  clinic_id: string
+  name: string
+  description: string
+  price: number
+  duration_minutes: number
+  specialty_id?: string | null
+  specialty_name?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface AppointmentProcedure {
+  appointment_id: string
+  procedure_id: string
+  price: number
+  sales_package_item_id?: string | null
+  procedure?: Procedure
+}
+
+export type SalesPackageStatus = 'quote' | 'active' | 'completed' | 'canceled'
+
+export interface SalesPackageItem {
+  id: string
+  sales_package_id: string
+  procedure_id: string
+  unit_price: number
+  quantity: number
+  line_total: number
+  procedure?: Procedure
+}
+
+export interface SalesPackagePayment {
+  id: string
+  sales_package_id: string
+  // Nullable: an unpaid sale stores a method-less open-receivable row until
+  // the user actually charges the patient.
+  payment_method_id?: string | null
+  amount: number
+  discount: number
+  installment: number
+  total_installments: number
+  due_date: string
+  paid_at?: string | null
+  created_at: string
+}
+
+export interface SalesPackageItemBalance {
+  item_id: string
+  procedure_id: string
+  used: number
+  quantity: number
+}
+
+export interface SalesPackage {
+  id: string
+  clinic_id: string
+  patient_id: string
+  patient_name?: string
+  patient_phone?: string
+  code: string
+  status: SalesPackageStatus
+  sale_date: string
+  valid_until?: string | null
+  subtotal: number
+  discount: number
+  total: number
+  notes?: string
+  created_by?: string | null
+  created_at: string
+  items?: SalesPackageItem[]
+  payments?: SalesPackagePayment[]
+  items_balance?: SalesPackageItemBalance[]
+}
+
+export interface ProcedureBalance {
+  procedure_id: string
+  procedure_name: string
+  used_total: number
+  quantity_total: number
+}
+
+export interface CreateSalesPackageItemInput {
+  procedure_id: string
+  unit_price: number
+  quantity: number
+}
+
+export interface CreateSalesPackagePaymentInput {
+  payment_method_id: string
+  amount: number
+  discount?: number
+  installments?: number
+  due_date?: string
+  paid_at?: string
+}
+
+export interface PublicSalesReceiptItem {
+  name: string
+  quantity: number
+  unit_price: number
+  line_total: number
+}
+
+export interface PublicSalesReceiptPayment {
+  method: string
+  amount: number
+  discount: number
+  paid_at?: string | null
+  due_date: string
+}
+
+export interface PublicSalesReceiptResponse {
+  receipt_number: string
+  code: string
+  status: SalesPackageStatus
+  clinic: {
+    name: string
+    document?: string
+    address?: string
+    phone?: string
+  }
+  patient_name: string
+  sale_date: string
+  valid_until?: string | null
+  items: PublicSalesReceiptItem[]
+  subtotal: number
+  discount: number
+  total: number
+  payments: PublicSalesReceiptPayment[]
+  total_paid: number
+  balance_due: number
+  generated_at: string
+}
+
+export interface CreateSalesPackageRequest {
+  patient_id: string
+  status: 'quote' | 'active'
+  sale_date?: string
+  valid_until?: string
+  discount?: number
+  notes?: string
+  items: CreateSalesPackageItemInput[]
+  payments?: CreateSalesPackagePaymentInput[]
+}
+
+export interface AppointmentSpecialty {
+  specialty_id: string
+  name?: string
+}
+
 export interface Appointment {
   id: string
   clinic_id: string
   patient_id: string
   professional_id: string
+  session_plan_id?: string
   start_time: string
   end_time: string
   status: AppointmentStatus
@@ -120,6 +347,9 @@ export interface Appointment {
   notes: string
   patient_notes: string
   price: number
+  payment_status: AppointmentPaymentStatus
+  procedures: AppointmentProcedure[]
+  specialties?: AppointmentSpecialty[]
   confirmed_at?: string
   canceled_at?: string
   cancel_reason?: string
@@ -138,11 +368,81 @@ export type AppointmentStatus =
 
 export type AppointmentType = 'regular' | 'recurring' | 'return'
 
+export type PlanType = 'individual' | 'group'
+
+export interface CalendarEvent {
+  is_virtual: boolean
+  // Common fields
+  session_plan_id?: string
+  start_time: string
+  end_time: string
+  title: string
+  patient_id?: string
+  professional_id?: string
+  plan_type?: PlanType
+  duration_mins?: number
+  // Virtual-only
+  virtual_date?: string
+  // Group-only
+  enrolled_count?: number
+  capacity?: number
+  slot_id?: string // populated for slot-based group events
+  // Real appointment fields (only when is_virtual=false)
+  id?: string
+  status?: AppointmentStatus
+  type?: AppointmentType
+  notes?: string
+  patient_notes?: string
+  price?: number
+  payment_status?: string
+  is_exception?: boolean
+  // Relations
+  patient_name?: string
+  professional_name?: string
+  professional_color?: string
+  procedure_name?: string
+}
+
 export interface PatientInfo {
   id: string
   name: string
   phone: string
   whatsapp: string
+}
+
+export interface PublicReceiptProcedure {
+  name: string
+  price: number
+}
+
+export interface PublicReceiptPayment {
+  method: string
+  amount: number
+  discount: number
+  paid_at: string
+}
+
+export interface PublicReceiptClinic {
+  name: string
+  document?: string
+  address?: string
+  phone?: string
+}
+
+export interface PublicReceiptResponse {
+  receipt_number: string
+  clinic: PublicReceiptClinic
+  patient_name: string
+  professional_name?: string
+  appointment_date: string
+  procedures: PublicReceiptProcedure[]
+  subtotal: number
+  discount: number
+  total: number
+  payments: PublicReceiptPayment[]
+  total_paid: number
+  balance_due: number
+  generated_at: string
 }
 
 export interface ProfessionalInfo {
@@ -165,20 +465,28 @@ export interface RegisterRequest {
   password: string
 }
 
+export interface AppointmentProcedureInput {
+  procedure_id: string
+  price?: number
+}
+
 export interface CreateAppointmentRequest {
   patient_id: string
   professional_id: string
+  specialty_ids?: string[]
   start_time: string
   duration_minutes: number
   title?: string
   notes?: string
   price?: number
   type?: AppointmentType
+  procedures?: AppointmentProcedureInput[]
 }
 
 export interface UpdateAppointmentRequest {
   patient_id?: string
   professional_id?: string
+  specialty_ids?: string[]
   start_time?: string
   duration_minutes?: number
   status?: AppointmentStatus
@@ -187,6 +495,7 @@ export interface UpdateAppointmentRequest {
   patient_notes?: string
   price?: number
   cancel_reason?: string
+  procedures?: AppointmentProcedureInput[]
 }
 
 export interface CreatePatientRequest {
@@ -210,6 +519,13 @@ export interface CreateProfessionalRequest {
   working_hours?: WorkingHours
 }
 
+// Clinic membership info
+export interface UserClinicInfo {
+  clinic_id: string
+  clinic_name: string
+  role: UserRole
+}
+
 // Response Types
 export interface AuthResponse {
   user: User
@@ -217,6 +533,12 @@ export interface AuthResponse {
   access_token: string
   refresh_token: string
   expires_at: string
+}
+
+export interface CurrentUserResponse {
+  user: User
+  clinic: Clinic
+  clinics?: UserClinicInfo[]
 }
 
 export interface PaginatedResponse<T> {
@@ -245,6 +567,7 @@ export type WhatsAppConnectionState =
 export interface WhatsAppConnectionStatus {
   state: WhatsAppConnectionState
   instance: string
+  provider?: string
   phone_connected?: string
   owner?: string
   profile_name?: string
@@ -296,6 +619,53 @@ export interface SendConfirmationRequest {
   professional_name: string
   appointment_time: string
   appointment_date: string
+}
+
+// Appointment Payment Types (session-level)
+export type PaymentMethodType = 'pix' | 'credit' | 'debit' | 'cash' | 'transfer' | 'other'
+export type AppointmentPaymentStatus = 'pending' | 'partial' | 'paid'
+
+// 'upfront' = bank pays full sale as a single payout on saleDate + settlement_days.
+// 'monthly' = parcel 1 on saleDate + settlement_days, then +1 calendar month per parcel.
+// 'fixed_days' is a legacy value still parseable from the database; the API only
+// accepts the two above on create/update.
+export type SettlementMode = 'upfront' | 'monthly' | 'fixed_days'
+
+export interface PaymentMethod {
+  id: string
+  clinic_id: string
+  name: string
+  type: PaymentMethodType
+  active: boolean
+  settlement_days: number
+  installments_allowed: boolean
+  max_installments: number
+  settlement_mode: SettlementMode
+  created_at: string
+}
+
+export interface AppointmentPayment {
+  id: string
+  appointment_id: string
+  payment_method_id: string
+  amount: number
+  discount: number
+  installments: number
+  notes: string
+  paid_at: string
+  payment_method?: {
+    id: string
+    name: string
+    type: string
+  }
+  created_at: string
+}
+
+export interface CreateAppointmentPaymentRequest {
+  payment_method_id: string
+  amount: number
+  discount?: number
+  notes?: string
 }
 
 // Payment/Billing Types
@@ -459,15 +829,22 @@ export interface SessionPlan {
   title: string
   description: string
   status: PlanStatus
+  type?: 'individual' | 'group'
   frequency: Frequency
   week_days: number[]
   preferred_time: string
+  day_times?: Record<string, string>
   duration_mins: number
   total_sessions: number
   sessions_done: number
   start_date: string
   end_date?: string
   session_price: number
+  price_override?: number | null
+  procedure_id?: string | null
+  capacity?: number | null
+  payment_mode?: string
+  billing_day?: number | null
   notes: string
   paused_at?: string
   cancelled_at?: string
@@ -487,10 +864,13 @@ export interface CreateSessionPlanRequest {
   frequency: Frequency
   week_days?: number[]
   preferred_time: string
+  day_times?: Record<string, string>
   duration_mins: number
   total_sessions: number
   start_date: string
   session_price?: number
+  payment_mode?: 'per_session' | 'upfront' | 'monthly'
+  billing_day?: number
   notes?: string
   generate_all?: boolean
 }
@@ -502,6 +882,12 @@ export interface UpdateSessionPlanRequest {
   duration_mins?: number
   session_price?: number
   notes?: string
+  frequency?: Frequency
+  week_days?: number[]
+  day_times?: Record<string, string>
+  professional_id?: string
+  capacity?: number
+  billing_day?: number
 }
 
 export interface SessionPlanListResponse {
@@ -510,6 +896,72 @@ export interface SessionPlanListResponse {
   page: number
   per_page: number
   total_pages: number
+}
+
+// Enrollment Types
+export type EnrollmentStatus = 'active' | 'suspended' | 'cancelled'
+
+export interface Enrollment {
+  id: string
+  session_plan_id: string
+  patient_id: string
+  status: EnrollmentStatus
+  week_days: number[]
+  slot_ids?: string[]
+  partner_plan_id?: string | null
+  total_sessions?: number | null
+  sessions_done: number
+  progress: number
+  payment_mode: 'per_session' | 'upfront' | 'monthly'
+  monthly_amount?: number | null
+  billing_day?: number | null
+  joined_at: string
+  left_at?: string | null
+  patient_name?: string
+}
+
+export interface SessionPlanSlot {
+  id: string
+  session_plan_id: string
+  weekday: number // 0=Sun..6=Sat
+  start_time: string // HH:MM
+  capacity: number
+  professional_id?: string | null
+  is_active: boolean
+}
+
+// Attendance Types
+export type AttendanceStatus = 'present' | 'absent' | 'substituted'
+
+export interface AttendanceRecord {
+  id: string
+  appointment_id: string
+  patient_id: string
+  enrollment_id?: string | null
+  status: AttendanceStatus
+  is_guest: boolean
+  patient_name?: string
+  created_at: string
+}
+
+// Plan Payment Types
+export interface PlanPayment {
+  id: string
+  session_plan_id: string
+  enrollment_id?: string | null
+  payment_method_id: string
+  amount: number
+  discount: number
+  installments: number
+  reference_month?: string | null
+  notes?: string
+  paid_at?: string | null
+  payment_method_name?: string
+  created_at: string
+  session_date?: string | null
+  appointment_id?: string | null
+  appointment_start_time?: string | null
+  appointment_price?: number
 }
 
 // Invite Types
@@ -521,6 +973,7 @@ export interface Invite {
   clinic_id: string
   email: string
   role: UserRole
+  professional_id?: string
   status: InviteStatus
   expires_at: string
   created_at: string
@@ -530,16 +983,22 @@ export interface InviteDetails {
   id: string
   email: string
   role: UserRole
+  professional_id?: string
+  professional_name?: string
   clinic_name: string
   inviter_name: string
   expires_at: string
   is_valid: boolean
   is_expired: boolean
+  user_exists: boolean
+  user_name?: string
 }
 
 export interface CreateInviteRequest {
   email: string
   role: 'admin' | 'professional' | 'receptionist'
+  professional_id?: string
+  new_professional_name?: string
 }
 
 export interface AcceptInviteRequest {
@@ -577,20 +1036,37 @@ export interface UpdateRoleRequest {
 }
 
 // Patient Record Types (Ficha do Paciente)
+export interface AnamneseTemplateField {
+  id: string
+  template_id: string
+  label: string
+  field_key: string
+  field_type: 'text' | 'textarea' | 'select' | 'multiselect' | 'scale' | 'section_header'
+  options?: Record<string, any>
+  required: boolean
+  display_order: number
+  placeholder?: string
+}
+
+export interface AnamneseTemplate {
+  id: string
+  clinic_id: string
+  name: string
+  is_default: boolean
+  fields?: AnamneseTemplateField[]
+  created_at: string
+  updated_at: string
+}
+
 export interface PatientRecord {
   id: string
   clinic_id: string
   patient_id: string
-  chief_complaint: string
-  medical_history: string
-  family_history: string
-  allergies: string
-  medications: string
-  surgical_history: string
-  social_history: string
-  initial_diagnosis: string
-  treatment_plan: string
-  observations: string
+  template_id?: string
+  template?: AnamneseTemplate
+  custom_fields: Record<string, any>
+  recorded_at: string
+  recorded_by: string
   created_at: string
   updated_at: string
 }
@@ -639,17 +1115,15 @@ export interface CreateSessionNoteRequest {
   is_private?: boolean
 }
 
+export interface CreatePatientRecordRequest {
+  template_id?: string
+  custom_fields: Record<string, any>
+}
+
+// In append-only, Update actually calls CreateRecord on the backend
 export interface UpdatePatientRecordRequest {
-  chief_complaint?: string
-  medical_history?: string
-  family_history?: string
-  allergies?: string
-  medications?: string
-  surgical_history?: string
-  social_history?: string
-  initial_diagnosis?: string
-  treatment_plan?: string
-  observations?: string
+  template_id?: string
+  custom_fields: Record<string, any>
 }
 
 export interface UpdateSessionNoteRequest {
@@ -725,5 +1199,234 @@ export interface Notification {
   message: string
   data?: Record<string, unknown>
   read: boolean
+  created_at: string
+}
+
+// Plan and Offer Types
+export interface PlanCycle {
+  id: string
+  plan_id: string
+  cycle_type: 'monthly' | 'yearly' | 'lifetime'
+  price_brl: number
+  // Discounted price for a single-professional (solo) contract.
+  // Null means this cycle does not offer a solo variant.
+  solo_price_brl?: number | null
+}
+
+export interface Plan {
+  id: string
+  name: string
+  slug: string
+  description: string
+  features: string[]
+  max_clinics: number
+  max_professionals: number
+  max_whatsapp_connections: number
+  max_google_calendars: number
+  has_api_access: boolean
+  is_active: boolean
+  created_at: string
+  cycles: PlanCycle[]
+}
+
+export interface OfferCycle {
+  id: string
+  offer_id: string
+  cycle_type: 'monthly' | 'yearly' | 'lifetime'
+  custom_price_brl: number
+}
+
+export interface Offer {
+  id: string
+  plan_id: string
+  plan?: Plan
+  token: string
+  description: string
+  is_active: boolean
+  max_uses: number
+  current_uses: number
+  expires_at?: string
+  enforce_price_lock: boolean
+  created_at: string
+  cycles: OfferCycle[]
+}
+
+// Plan/Offer Requests
+export type CreatePlanRequest = Omit<Plan, 'id' | 'created_at' | 'cycles'> & {
+  cycles: Array<Omit<PlanCycle, 'id' | 'plan_id'>>
+}
+
+export type UpdatePlanRequest = Partial<CreatePlanRequest>
+
+export type CreateOfferRequest = Omit<Offer, 'id' | 'created_at' | 'cycles' | 'current_uses'> & {
+  cycles: Array<Omit<OfferCycle, 'id' | 'offer_id'>>
+}
+
+export type UpdateOfferRequest = Partial<CreateOfferRequest>
+
+// CRM Leads
+export type LeadType = 'estetica' | 'fisioterapia' | 'misto' | 'psicologia'
+export type LeadChannel = 'outbound' | 'inbound'
+export type LeadSource = 'google_maps' | 'instagram' | 'indicacao' | 'anuncio'
+export type LeadStatus = 'identificado' | 'contactado' | 'respondeu' | 'demo_agendada' | 'trial_ativo' | 'negociando' | 'convertido' | 'sem_resposta' | 'descartado' | 'isca'
+export type PainScore = 'alto' | 'medio' | 'baixo'
+
+export interface Lead {
+  id: string
+  clinic_id: string
+  account_id?: string
+  clinic_name: string
+  contact_name: string
+  phone: string
+  city: string
+  type: LeadType
+  channel: LeadChannel
+  source: LeadSource
+  status: LeadStatus
+  pain_score: PainScore
+  first_contact_at?: string
+  next_follow_up_at?: string
+  trial_start_at?: string
+  trial_end_at?: string
+  converted_at?: string
+  cancelled_at?: string
+  interest_plan: string
+  contracted_plan: string
+  cancellation_reason: string
+  mrr: number
+  site: string
+  instagram: string
+  contact_channel: string
+  initial_message: string
+  notes: string
+  external_id: string
+  created_at: string
+  updated_at: string
+}
+
+// Marketplace types
+
+export type SubaccountStatus = 'pending' | 'active' | 'rejected' | 'suspended'
+export type FeeType = 'percentage' | 'fixed'
+
+export interface Subaccount {
+  id: string
+  clinic_id: string
+  asaas_account_id: string
+  wallet_id: string
+  status: SubaccountStatus
+  company_name: string
+  cpf_cnpj: string
+  email: string
+  created_at: string
+}
+
+export interface SplitConfig {
+  id: string
+  clinic_id: string
+  fee_type: FeeType
+  fee_value: number
+  active: boolean
+}
+
+export interface CreateSubaccountInput {
+  company_name: string
+  cpf_cnpj: string
+  company_type: string
+  birth_date?: string
+  income_value: number
+  email: string
+  phone?: string
+  mobile_phone?: string
+  postal_code?: string
+  address?: string
+  address_number?: string
+  province?: string
+  city?: string
+  state?: string
+}
+
+export interface UpdateSplitConfigInput {
+  fee_type: FeeType
+  fee_value: number
+  active?: boolean
+}
+
+export interface ClinicPayment {
+  id: string
+  clinic_id: string
+  appointment_id?: string
+  patient_id?: string
+  asaas_payment_id: string
+  value: number
+  net_value: number
+  split_fee_value: number
+  status: PaymentStatus
+  billing_type: string
+  due_date: string
+  payment_date?: string
+  invoice_url?: string
+  pix_qrcode_image?: string
+  pix_copy_paste?: string
+  description?: string
+  installments?: number
+  created_at: string
+}
+
+export interface MarketplaceBalance {
+  balance: number
+  totalPending?: number
+  totalReceived?: number
+}
+
+export interface FinancialSummary {
+  total_received: number
+  total_pending: number
+  total_fees: number
+  net_received: number
+  payments_by_method: Record<string, number>
+  payment_count: number
+}
+
+// Patient merge types
+export interface UnlinkedPatient {
+  id: string
+  name: string
+  email: string
+  cpf: string
+  phone: string
+  created_at: string
+}
+
+export interface PatientSearchResult {
+  id: string
+  name: string
+  cpf: string
+  email: string
+  phone: string
+  source: 'INTERNAL' | 'SELF_REGISTERED'
+}
+
+export interface BulkMergeResponse {
+  appointments_reassigned: number
+  target_patient_id: string
+  merged_count: number
+}
+
+export interface PartnerPlan {
+  id: string
+  partner_network_id: string
+  name: string
+  max_sessions_per_week: number | null
+  is_active: boolean
+  created_at: string
+}
+
+export interface PartnerNetwork {
+  id: string
+  clinic_id: string
+  name: string
+  is_active: boolean
+  plans?: PartnerPlan[]
   created_at: string
 }
